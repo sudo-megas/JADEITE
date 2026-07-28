@@ -1,0 +1,33 @@
+appId: dev.sudomegas.jadeite
+productName: JADEITE
+copyright: Copyright (C) sudo-megas
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - out/**/*
+  - package.json
+
+# Native modules must stay outside the asar so their .node binaries are loadable.
+asar: true
+asarUnpack:
+  - "**/node_modules/better-sqlite3-multiple-ciphers/**"
+  - "**/node_modules/argon2/**"
+
+# The app never phones home: no publish provider, no update feed.
+publish: null
+
+linux:
+  target:
+    - pacman
+    - deb
+  category: Office
+  synopsis: Secure personal wealth and possessions tracker
+  desktop:
+    entry:
+      Name: JADEITE
+      Terminal: false
+      Type: Application
+      Categories: Office;Finance;

@@ -1,0 +1,32 @@
+# Source artefacts — real financial data in legible form.
+# These stay on this machine. They are needed only at Realisation XII.
+JADEITorigin.xlsx
+Altın_Eğrisi.pptx
+*.xlsx
+*.pptx
+
+# Vault files, should one ever be created inside the working tree
+*.db
+*.db-wal
+*.db-shm
+*.keys
+*.jbk
+
+# Dependencies and build output
+node_modules/
+out/
+dist/
+release/
+.vite/
+
+# Editor and OS noise
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Test artefacts
+coverage/
+test-results/
+playwright-report/
+.tmp/

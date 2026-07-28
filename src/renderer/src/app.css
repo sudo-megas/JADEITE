@@ -1,0 +1,261 @@
+/*
+ * Realisation I carries a single plain working theme. Realisation II replaces
+ * this file's few values with the ten-palette token system; every colour is
+ * already a custom property so that no component needs touching when it does.
+ */
+
+:root {
+  --surface: #101215;
+  --surface-raised: #171a1f;
+  --surface-sunken: #0c0e11;
+  --border: #262b33;
+  --border-strong: #39414d;
+  --text: #e6e9ee;
+  --text-muted: #98a1af;
+  --accent: #4a9d8e;
+  --accent-text: #0c0e11;
+  --danger: #c96a5f;
+
+  --radius: 6px;
+  --gap: 16px;
+  --font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.shell {
+  display: grid;
+  place-items: center;
+  min-height: 100%;
+  padding: 32px;
+}
+
+.panel {
+  width: 100%;
+  max-width: 460px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 32px;
+}
+
+.panel--wide {
+  max-width: 560px;
+}
+
+.brand {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0 0 24px;
+}
+
+h1 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+
+.lede {
+  color: var(--text-muted);
+  margin: 0 0 24px;
+  font-size: 14px;
+}
+
+label {
+  display: block;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.field {
+  margin-bottom: var(--gap);
+}
+
+input[type='password'],
+input[type='text'] {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 15px;
+}
+
+input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+input.mono {
+  font-family: var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+button {
+  font-family: inherit;
+  font-size: 15px;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.btn-primary {
+  width: 100%;
+  padding: 11px 16px;
+  background: var(--accent);
+  color: var(--accent-text);
+  border: 1px solid var(--accent);
+  font-weight: 600;
+}
+
+.btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  padding: 0;
+  margin-top: 18px;
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.btn-link:hover {
+  color: var(--text);
+}
+
+.error {
+  color: var(--danger);
+  font-size: 13px;
+  margin: 0 0 var(--gap);
+  min-height: 1.5em;
+}
+
+.hint {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin: 6px 0 0;
+}
+
+/* --- The recovery key, shown exactly once ------------------------------- */
+
+.recovery-key {
+  font-family: var(--font-mono);
+  font-size: 21px;
+  letter-spacing: 0.06em;
+  text-align: center;
+  padding: 20px 12px;
+  margin: 4px 0 20px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  word-break: break-all;
+
+  /* Copy-hostile by design: this key belongs on paper, not in a clipboard
+     history, a screenshot tool's buffer, or a password manager's autofill. */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.warning {
+  border-left: 2px solid var(--danger);
+  padding: 2px 0 2px 14px;
+  margin: 0 0 20px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.warning strong {
+  color: var(--text);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.ack {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-bottom: 20px;
+  font-size: 13px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.ack input {
+  margin-top: 3px;
+  accent-color: var(--accent);
+}
+
+/* Printing is not an export: the key is already on screen, and a sheet of
+   paper is where §4.3 intends it to live. */
+@media print {
+  body {
+    background: #fff;
+    color: #000;
+  }
+  .panel {
+    border: none;
+    background: none;
+  }
+  .btn-primary,
+  .btn-link,
+  .ack {
+    display: none;
+  }
+  .recovery-key {
+    background: none;
+    border: 1px solid #000;
+    color: #000;
+  }
+}
+
+/* --- Unlocked placeholder (Realisation I has no sections yet) ----------- */
+
+.status-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.status-row:last-of-type {
+  border-bottom: none;
+}
+
+.status-row span:last-child {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}

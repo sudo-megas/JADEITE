@@ -1,0 +1,53 @@
+{
+  "name": "jadeite",
+  "productName": "JADEITE",
+  "version": "0.1.0",
+  "description": "Secure personal wealth and possessions tracker",
+  "author": "sudo-megas",
+  "license": "GPL-3.0-only",
+  "private": true,
+  "type": "module",
+  "main": "./out/main/index.js",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json && tsc --noEmit -p tsconfig.e2e.json",
+    "test": "vitest run && npm run test:vault",
+    "test:unit": "vitest run",
+    "test:vault": "node scripts/run-electron-tests.mjs",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "package": "electron-vite build && electron-builder --linux",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "argon2": "0.45.1",
+    "better-sqlite3-multiple-ciphers": "12.11.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.0",
+    "@types/node": "24.13.3",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "5.2.0",
+    "electron": "42.8.0",
+    "electron-builder": "26.15.3",
+    "electron-vite": "5.0.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "typescript": "7.0.2",
+    "vite": "7.3.6",
+    "vitest": "4.1.10",
+    "zustand": "5.0.14"
+  },
+  "allowScripts": {
+    "argon2@0.45.1": true,
+    "better-sqlite3-multiple-ciphers@12.11.1": true,
+    "esbuild@0.25.12": true,
+    "esbuild@0.28.1": true
+  }
+}
