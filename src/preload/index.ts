@@ -10,6 +10,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 
 import {
   IPC,
+  type AppConfig,
   type JadeiteApi,
   type LockReason,
   type RecoveryKeyIssue,
@@ -41,6 +42,11 @@ const api: JadeiteApi = {
     get: (key: string): Promise<Result<string | null>> => ipcRenderer.invoke(IPC.settingsGet, key),
     set: (key: string, value: string): Promise<Result<null>> =>
       ipcRenderer.invoke(IPC.settingsSet, key, value)
+  },
+  config: {
+    get: (): Promise<AppConfig> => ipcRenderer.invoke(IPC.configGet),
+    set: (patch: Partial<AppConfig>): Promise<AppConfig> =>
+      ipcRenderer.invoke(IPC.configSet, patch)
   }
 }
 

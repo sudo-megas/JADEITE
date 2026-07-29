@@ -1,9 +1,13 @@
 /**
- * Appearance and language state.
+ * Appearance, language, and the security settings that sit behind the lock.
  *
- * Both live inside the encrypted vault (§4.1, §16.5), so they can only be read
- * once it is unlocked. Until then the app shows Default Dark and Turkish — the
- * fallback and the default are deliberately the same thing.
+ * These come from two places on purpose:
+ *
+ *   palette, language   — config.json, unencrypted, so the lock screen can
+ *                         already look and speak the way the owner chose
+ *   auto-lock timeout   — the vault, where changing it needs the vault key
+ *
+ * Each value has exactly one home. Nothing is mirrored between the two.
  */
 
 import { create } from 'zustand'
@@ -20,12 +24,14 @@ interface AppState {
   paletteId: string
   language: AppLanguage
   autoLockMinutes: number
-  loaded: boolean
+  appearanceLoaded: boolean
 
-  loadFromVault(): Promise<void>
+  /** Read config.json and paint. Runs before the vault is touched. */
+  loadAppearance(): Promise<void>
+  /** Read the settings that only exist behind the lock. */
+  loadVaultSettings(): Promise<void>
   setPalette(id: string): Promise<void>
   setLanguage(language: AppLanguage): Promise<void>
-  resetToLockedDefaults(): void
 }
 
 function paint(paletteId: string): void {
@@ -36,35 +42,26 @@ export const useAppStore = create<AppState>((set, get) => ({
   paletteId: FALLBACK_PALETTE_ID,
   language: DEFAULT_LANGUAGE,
   autoLockMinutes: DEFAULT_AUTO_LOCK_MINUTES,
-  loaded: false,
+  appearanceLoaded: false,
 
-  async loadFromVault() {
-    const [palette, language, autoLock] = await Promise.all([
-      window.jadeite.settings.get(SETTING_KEYS.palette),
-      window.jadeite.settings.get(SETTING_KEYS.language),
-      window.jadeite.settings.get(SETTING_KEYS.autoLockMinutes)
-    ])
+  async loadAppearance() {
+    const config = await window.jadeite.config.get()
 
-    const paletteId =
-      palette.ok && palette.value !== null && isKnownPaletteId(palette.value)
-        ? palette.value
-        : FALLBACK_PALETTE_ID
-
-    const nextLanguage =
-      language.ok && isAppLanguage(language.value) ? language.value : DEFAULT_LANGUAGE
-
-    const minutes =
-      autoLock.ok && autoLock.value !== null ? Number.parseInt(autoLock.value, 10) : NaN
+    const paletteId = isKnownPaletteId(config.palette) ? config.palette : FALLBACK_PALETTE_ID
+    const language = isAppLanguage(config.language) ? config.language : DEFAULT_LANGUAGE
 
     paint(paletteId)
-    await applyLanguage(nextLanguage)
+    await applyLanguage(language)
+    set({ paletteId, language, appearanceLoaded: true })
+  },
 
+  async loadVaultSettings() {
+    const autoLock = await window.jadeite.settings.get(SETTING_KEYS.autoLockMinutes)
+    const minutes =
+      autoLock.ok && autoLock.value !== null ? Number.parseInt(autoLock.value, 10) : NaN
     set({
-      paletteId,
-      language: nextLanguage,
       autoLockMinutes:
-        Number.isFinite(minutes) && minutes > 0 ? minutes : DEFAULT_AUTO_LOCK_MINUTES,
-      loaded: true
+        Number.isFinite(minutes) && minutes > 0 ? minutes : DEFAULT_AUTO_LOCK_MINUTES
     })
   },
 
@@ -72,24 +69,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!isKnownPaletteId(id) || id === get().paletteId) return
     paint(id)
     set({ paletteId: id })
-    await window.jadeite.settings.set(SETTING_KEYS.palette, id)
+    await window.jadeite.config.set({ palette: id })
   },
 
   async setLanguage(language) {
     if (language === get().language) return
     await applyLanguage(language)
     set({ language })
-    await window.jadeite.settings.set(SETTING_KEYS.language, language)
-  },
-
-  resetToLockedDefaults() {
-    paint(FALLBACK_PALETTE_ID)
-    void applyLanguage(DEFAULT_LANGUAGE)
-    set({
-      paletteId: FALLBACK_PALETTE_ID,
-      language: DEFAULT_LANGUAGE,
-      autoLockMinutes: DEFAULT_AUTO_LOCK_MINUTES,
-      loaded: false
-    })
+    await window.jadeite.config.set({ language })
   }
 }))

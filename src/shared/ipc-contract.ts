@@ -13,7 +13,9 @@ export const IPC = {
   vaultReset: 'vault:reset',
   vaultLockedEvent: 'vault:locked',
   settingsGet: 'settings:get',
-  settingsSet: 'settings:set'
+  settingsSet: 'settings:set',
+  configGet: 'config:get',
+  configSet: 'config:set'
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]
@@ -62,16 +64,37 @@ export type LockReason = 'idle' | 'manual' | 'reset'
  */
 export const MIN_PASSWORD_LENGTH = 8
 
+/**
+ * Settings stored inside the encrypted vault.
+ *
+ * Appearance and language are deliberately absent: they live in the
+ * unencrypted `config.json` instead, because the lock screen needs them before
+ * the vault can be opened. Security settings stay here, where tampering with
+ * them requires the vault key.
+ */
 export const SETTING_KEYS = {
-  language: 'language',
-  palette: 'palette',
   autoLockMinutes: 'auto_lock_minutes'
 } as const
 
 export const DEFAULT_SETTINGS: Readonly<Record<string, string>> = {
-  [SETTING_KEYS.language]: 'tr',
-  [SETTING_KEYS.palette]: 'default-dark',
   [SETTING_KEYS.autoLockMinutes]: '10'
+}
+
+/**
+ * The unencrypted application configuration — how the app looks and which
+ * language it speaks. Readable before unlock, and holding nothing about money.
+ */
+export interface AppConfig {
+  format: number
+  /** A palette id; an unknown one falls back rather than propagating. */
+  palette: string
+  language: 'tr' | 'en'
+}
+
+export const DEFAULT_APP_CONFIG: Readonly<AppConfig> = {
+  format: 1,
+  palette: 'default-dark',
+  language: 'tr'
 }
 
 /** The entire surface exposed to the renderer through the context bridge. */
@@ -87,5 +110,14 @@ export interface JadeiteApi {
   settings: {
     get(key: string): Promise<Result<string | null>>
     set(key: string, value: string): Promise<Result<null>>
+  }
+  /**
+   * Appearance and language. Unlike `settings`, these are readable and
+   * writable while the vault is locked — that is the whole reason they live
+   * outside it.
+   */
+  config: {
+    get(): Promise<AppConfig>
+    set(patch: Partial<AppConfig>): Promise<AppConfig>
   }
 }

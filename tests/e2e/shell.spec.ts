@@ -2,6 +2,7 @@
  * Realisation II acceptance, driven through the real application.
  */
 
+import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
 
 import { PALETTES } from '../../src/shared/theme/palettes/index.js'
@@ -64,7 +65,7 @@ test('every one of the ten palettes renders the shell', async () => {
   }
 })
 
-test('the chosen palette survives locking and unlocking', async () => {
+test('the lock screen wears the chosen palette, not a fallback', async () => {
   session = await launchFresh()
   await createVaultAndEnter(session)
 
@@ -75,24 +76,67 @@ test('the chosen palette survives locking and unlocking', async () => {
   await session.page.getByTestId('nav-lock').click()
   await expect(session.page.getByTestId('submit')).toBeVisible()
 
-  // Locked, the app cannot know the choice: settings live inside the vault.
+  // Appearance lives in config.json, outside the vault, so locking does not
+  // take it away — this is the reason that file exists.
   expect(await session.page.evaluate(() => document.documentElement.dataset['palette'])).toBe(
-    'default-dark'
+    'nord'
   )
+  expect(await tokenValue(session, '--surface')).toBe('#2e3440')
 
   await unlockAndEnter(session)
   expect(await tokenValue(session, '--surface')).toBe('#2e3440')
 })
 
-test('the palette also survives a full relaunch', async () => {
+test('a relaunched app shows the chosen palette before any password is typed', async () => {
   session = await launchFresh()
   await createVaultAndEnter(session)
   await session.page.getByTestId('nav-settings').click()
   await session.page.getByTestId('palette-catppuccin-mocha').click()
+  await session.page.getByTestId('language-en').click()
 
   session = await session.relaunch()
+  await expect(session.page.getByTestId('submit')).toBeVisible()
+
+  // Still locked, and already correct in both respects.
+  expect(await tokenValue(session, '--surface')).toBe('#1e1e2e')
+  await expect(session.page.getByTestId('submit')).toHaveText('Unlock')
+  expect(await session.page.evaluate(() => document.documentElement.lang)).toBe('en')
+
   await unlockAndEnter(session)
   expect(await tokenValue(session, '--surface')).toBe('#1e1e2e')
+})
+
+test('config.json holds appearance and nothing else', async () => {
+  session = await launchFresh()
+  await createVaultAndEnter(session)
+  await session.page.getByTestId('nav-settings').click()
+  await session.page.getByTestId('palette-nord').click()
+  await session.app.close()
+
+  const config = JSON.parse(readFileSync(session.configPath, 'utf8'))
+  expect(Object.keys(config).sort()).toEqual(['format', 'language', 'palette'])
+  expect(config.palette).toBe('nord')
+
+  // It lives outside the data directory, so §4.1 still holds there.
+  expect(readdirSync(session.vaultDir).sort()).toEqual(['jadeite.db', 'jadeite.keys'])
+})
+
+test('a hand-edited config falls back rather than propagating nonsense', async () => {
+  session = await launchFresh()
+  await createVaultAndEnter(session)
+  await session.app.close()
+
+  writeFileSync(
+    session.configPath,
+    JSON.stringify({ format: 1, palette: 'not-a-palette', language: 'klingon' })
+  )
+
+  session = await session.relaunch()
+  await expect(session.page.getByTestId('submit')).toBeVisible()
+  expect(await session.page.evaluate(() => document.documentElement.dataset['palette'])).toBe(
+    'default-dark'
+  )
+  expect(await session.page.evaluate(() => document.documentElement.lang)).toBe('tr')
 })
 
 test('language changes only by hand', async () => {

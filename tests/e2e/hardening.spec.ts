@@ -43,13 +43,15 @@ test('the bridge exposes the contract and nothing more', async () => {
     return {
       top: Object.keys(api).sort(),
       vault: Object.keys(api.vault).sort(),
-      settings: Object.keys(api.settings).sort()
+      settings: Object.keys(api.settings).sort(),
+      config: Object.keys(api.config).sort()
     }
   })
 
-  expect(surface.top).toEqual(['settings', 'vault'])
+  expect(surface.top).toEqual(['config', 'settings', 'vault'])
   expect(surface.vault).toEqual(['create', 'lock', 'onLocked', 'reset', 'status', 'unlock'])
   expect(surface.settings).toEqual(['get', 'set'])
+  expect(surface.config).toEqual(['get', 'set'])
 })
 
 test('no key material or filesystem path is reachable through the bridge', async () => {

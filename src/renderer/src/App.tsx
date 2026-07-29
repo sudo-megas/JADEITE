@@ -23,14 +23,13 @@ export function App(): ReactElement {
   const [issue, setIssue] = useState<RecoveryKeyIssue | null>(null)
   const [lockReason, setLockReason] = useState<LockReason | null>(null)
 
-  const loadSettings = useAppStore((s) => s.loadFromVault)
-  const resetToLockedDefaults = useAppStore((s) => s.resetToLockedDefaults)
+  const loadAppearance = useAppStore((s) => s.loadAppearance)
+  const loadVaultSettings = useAppStore((s) => s.loadVaultSettings)
 
   const openShell = useCallback(async () => {
-    // Appearance and language only become knowable once the vault is open.
-    await loadSettings()
+    await loadVaultSettings()
     setStage('unlocked')
-  }, [loadSettings])
+  }, [loadVaultSettings])
 
   const refresh = useCallback(async () => {
     const status = await window.jadeite.vault.status()
@@ -40,22 +39,20 @@ export function App(): ReactElement {
   }, [openShell])
 
   useEffect(() => {
-    void refresh()
-  }, [refresh])
+    // Appearance comes from config.json, so it is known before the vault is
+    // even looked at — the lock screen wears the owner's palette and speaks
+    // the owner's language.
+    void loadAppearance().then(refresh)
+  }, [loadAppearance, refresh])
 
   // The vault can lock itself while the renderer is showing something else.
+  // Appearance is unaffected: it never came from the vault.
   useEffect(() => {
     return window.jadeite.vault.onLocked((reason) => {
       setLockReason(reason)
-      setStage((current) => {
-        if (current === 'recovery') return current
-        // Locking drops back to the palette and language the lock screen can
-        // actually know about.
-        resetToLockedDefaults()
-        return 'locked'
-      })
+      setStage((current) => (current === 'recovery' ? current : 'locked'))
     })
-  }, [resetToLockedDefaults])
+  }, [])
 
   const showRecovery = useCallback((next: RecoveryKeyIssue) => {
     setIssue(next)
@@ -114,7 +111,6 @@ export function App(): ReactElement {
       return (
         <Shell
           onLock={() => {
-            resetToLockedDefaults()
             setLockReason('manual')
             setStage('locked')
           }}

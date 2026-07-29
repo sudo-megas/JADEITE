@@ -9,9 +9,10 @@
 
 import { ipcMain, type BrowserWindow } from 'electron'
 
-import { IPC, type Result, type VaultStatus } from '../../shared/ipc-contract.js'
+import { IPC, type AppConfig, type Result, type VaultStatus } from '../../shared/ipc-contract.js'
 import * as vault from '../vault/vault.js'
 import { getSetting, setSetting } from '../vault/db/settings.js'
+import { readAppConfig, updateAppConfig } from '../config/app-config.js'
 
 /** Long enough for any real passphrase, short enough to bound Argon2id input. */
 const MAX_CREDENTIAL_LENGTH = 1024
@@ -87,6 +88,23 @@ export function registerIpcHandlers(): void {
       return { ok: true, value: null }
     })
   )
+
+  // Appearance and language are answerable while locked — the lock screen is
+  // precisely where they are needed first.
+  ipcMain.handle(IPC.configGet, (): AppConfig => readAppConfig())
+
+  ipcMain.handle(IPC.configSet, (_e, patch: unknown): AppConfig => {
+    if (typeof patch !== 'object' || patch === null) return readAppConfig()
+    const raw = patch as Record<string, unknown>
+    // Only the two fields are accepted, and each is validated again inside
+    // updateAppConfig before it reaches the file.
+    return updateAppConfig({
+      ...(typeof raw['palette'] === 'string' ? { palette: raw['palette'] } : {}),
+      ...(raw['language'] === 'tr' || raw['language'] === 'en'
+        ? { language: raw['language'] }
+        : {})
+    })
+  })
 }
 
 /** Tell the renderer the vault locked itself, so it can drop to the lock screen. */

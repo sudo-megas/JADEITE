@@ -47,7 +47,7 @@ export const tr = {
   nav: {
     section1: 'Gelir & Gider',
     section2: 'Ödemeler',
-    section3: 'Kıymetler',
+    section3: 'Varlıklar',
     section4: 'Hesap Alanı',
     overview: 'Genel Bakış',
     altinEgrisi: 'Altın Eğrisi',
@@ -59,10 +59,10 @@ export const tr = {
     comingIn: 'Realisation {{roman}} ile gelecek.',
     section1: 'Yıl çalışma alanları, gelir ve gider sütunları.',
     section2: 'İleriye dönük ödeme takibi, banka sütunları ve limitler.',
-    section3: 'Kıymet defteri, varlıklar ve güncel fiyatlar.',
+    section3: 'Varlık defteri, mevcut varlıklar ve güncel fiyatlar.',
     section4: 'Serbest hesap alanı: toplam, ortalama, medyan.',
     overview: 'Tüm yılların özeti ve genel toplamlar.',
-    altinEgrisi: 'Kıymet defterinden türetilen grafikler.'
+    altinEgrisi: 'Varlık defterinden türetilen grafikler.'
   },
 
   settings: {

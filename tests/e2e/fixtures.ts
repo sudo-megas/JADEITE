@@ -13,6 +13,8 @@ export interface Session {
   /** The redirected XDG data home; the real vault is never touched. */
   dataHome: string
   vaultDir: string
+  /** The unencrypted config.json, redirected away from the real one. */
+  configPath: string
   /** Everything the main process has written to stdout so far. */
   stdout(): string
   /** Milliseconds from process start to the lock screen, as the app measured it. */
@@ -35,6 +37,7 @@ async function launchIn(
     env: {
       ...process.env,
       XDG_DATA_HOME: dataHome,
+      XDG_CONFIG_HOME: join(dataHome, 'config'),
       ELECTRON_DISABLE_SECURITY_WARNINGS: '1',
       ...extraEnv
     }
@@ -53,6 +56,7 @@ async function launchIn(
     page,
     dataHome,
     vaultDir: join(dataHome, 'jadeite'),
+    configPath: join(dataHome, 'config', 'jadeite', 'config.json'),
     stdout: () => output,
     coldStartMs() {
       const match = /\[cold-start] launch to lock screen: (\d+) ms/.exec(output)

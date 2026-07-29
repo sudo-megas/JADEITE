@@ -47,6 +47,7 @@ try {
     env: {
       ...process.env,
       XDG_DATA_HOME: dataHome,
+      XDG_CONFIG_HOME: join(workDir, 'config'),
       ELECTRON_DISABLE_SECURITY_WARNINGS: '1',
       // The crash-recovery suite re-launches this same bundle as a child that
       // gets killed mid-session.

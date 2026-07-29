@@ -91,9 +91,14 @@ describe('first run', () => {
     expect(ortak).toEqual({ name: 'Ortak', is_builtin: 1 })
   })
 
-  it('defaults the language to Turkish, per §13', async () => {
+  it('keeps security settings, and leaves appearance to config.json', async () => {
     await createVault()
-    expect(getSetting(vault.database()!, 'language')).toBe('tr')
+    // Appearance and language deliberately do not live here — they are in the
+    // unencrypted config.json, so the lock screen can honour them. What the
+    // vault keeps is the security setting.
+    expect(getSetting(vault.database()!, 'auto_lock_minutes')).toBe('10')
+    expect(getSetting(vault.database()!, 'palette')).toBeNull()
+    expect(getSetting(vault.database()!, 'language')).toBeNull()
   })
 })
 
@@ -291,11 +296,11 @@ describe('auto-lock', () => {
 describe('settings live inside the vault', () => {
   it('persists across a lock and unlock', async () => {
     await createVault()
-    setSetting(vault.database()!, 'palette', 'nord')
+    setSetting(vault.database()!, 'auto_lock_minutes', '3')
     vault.lock()
 
     expect(await vault.unlock(PASSWORD)).toEqual({ ok: true, value: null })
-    expect(getSetting(vault.database()!, 'palette')).toBe('nord')
+    expect(getSetting(vault.database()!, 'auto_lock_minutes')).toBe('3')
   })
 
   it('is unreachable while locked', async () => {
