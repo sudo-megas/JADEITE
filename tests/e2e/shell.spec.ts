@@ -197,10 +197,10 @@ test('the six destinations exist and the keyboard map reaches them', async () =>
     'altinEgrisi'
   ].entries()) {
     await session.page.keyboard.press(`Control+${index + 1}`)
-    // Sections 1 and 2 are furnished from Realisations III and IV; the rest
-    // are still stubs that say which Realisation fills them in.
-    const testId = id === 'section1' || id === 'section2' ? id : `stub-${id}`
-    await expect(session.page.getByTestId(testId)).toBeVisible()
+    // Sections 1, 2 and 3 are furnished from Realisations III, IV and V; the
+    // rest are still stubs that say which Realisation fills them in.
+    const furnished = id === 'section1' || id === 'section2' || id === 'section3'
+    await expect(session.page.getByTestId(furnished ? id : `stub-${id}`)).toBeVisible()
   }
 
   await session.page.keyboard.press('Control+Comma')

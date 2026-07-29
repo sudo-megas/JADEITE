@@ -13,6 +13,7 @@ import { SectionStub } from './SectionStub.js'
 import { SettingsPanel } from './SettingsPanel.js'
 import { Section1 } from '../sections/section1/Section1.js'
 import { Section2 } from '../sections/section2/Section2.js'
+import { Section3 } from '../sections/section3/Section3.js'
 
 interface Props {
   onLock: () => void
@@ -108,6 +109,8 @@ export function Shell({ onLock }: Props): ReactElement {
           <Section1 />
         ) : destination.id === 'section2' ? (
           <Section2 />
+        ) : destination.id === 'section3' ? (
+          <Section3 />
         ) : (
           <SectionStub destination={destination} />
         )}

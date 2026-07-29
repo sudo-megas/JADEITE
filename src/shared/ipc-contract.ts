@@ -22,6 +22,15 @@ import type {
   Section2ErrorCode,
   YearGrid
 } from './section2/types.js'
+import type {
+  LedgerData,
+  PersonDraft,
+  PersonUsage,
+  Section3ErrorCode,
+  TransactionDraft,
+  TransactionPatch,
+  TypeCode
+} from './section3/types.js'
 
 export const IPC = {
   vaultStatus: 'vault:status',
@@ -62,7 +71,22 @@ export const IPC = {
   s2BankUsage: 's2:bank-usage',
   s2DeleteBank: 's2:delete-bank',
   s2SetCell: 's2:set-cell',
-  s2SetArchived: 's2:set-archived'
+  s2SetArchived: 's2:set-archived',
+
+  // Section 3 — Valuables (§8). One read, because holdings derive from the
+  // ledger and the prices together and must not come from two reads.
+  s3Ledger: 's3:ledger',
+  s3AddPerson: 's3:add-person',
+  s3RenamePerson: 's3:rename-person',
+  s3SetPersonColour: 's3:set-person-colour',
+  s3ReorderPersons: 's3:reorder-persons',
+  s3PersonUsage: 's3:person-usage',
+  s3DeletePerson: 's3:delete-person',
+  s3AddTransaction: 's3:add-transaction',
+  s3UpdateTransaction: 's3:update-transaction',
+  s3DeleteTransaction: 's3:delete-transaction',
+  s3SetManualPrice: 's3:set-manual-price',
+  s3ClearManualPrice: 's3:clear-manual-price'
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]
@@ -188,6 +212,8 @@ export interface JadeiteApi {
   section1: Section1Api
   /** Section 2 — Payments / Installments (§7). Everything here needs the vault open. */
   section2: Section2Api
+  /** Section 3 — Valuables (§8). Everything here needs the vault open. */
+  section3: Section3Api
 }
 
 /** What the year switcher needs before any workspace is loaded. */
@@ -249,4 +275,36 @@ export interface Section2Api {
   setCell(patch: CellPatch): Promise<Result<null, Section2ErrorCode>>
   /** Freeze this year's grid, or reopen it (§7.3). */
   setArchived(year: number, archived: boolean): Promise<Result<null, Section2ErrorCode>>
+}
+
+/**
+ * Section 3 — Valuables (§8).
+ *
+ * There is no `years` call and no year argument anywhere: the ledger is a
+ * lifetime, not a workspace (shared/section3/types.ts).
+ *
+ * Everything is read by `ledger()` in one crossing. Holdings, cost basis and
+ * unrealised gain are derived from the transactions and the prices *together*, so
+ * fetching them separately would let the screen show a holding computed from one
+ * read beside a market value computed from another — two views of one truth,
+ * which is the defect this whole application is a reply to.
+ */
+export interface Section3Api {
+  ledger(): Promise<Result<LedgerData, Section3ErrorCode>>
+
+  addPerson(draft: PersonDraft): Promise<Result<number, Section3ErrorCode>>
+  renamePerson(id: number, name: string): Promise<Result<null, Section3ErrorCode>>
+  setPersonColour(id: number, colour: string | null): Promise<Result<null, Section3ErrorCode>>
+  reorderPersons(orderedIds: number[]): Promise<Result<null, Section3ErrorCode>>
+  /** How many rows would move to Ortak, asked before the offer is made. */
+  personUsage(id: number): Promise<Result<PersonUsage, Section3ErrorCode>>
+  /** Removes the person and reassigns their rows; deletes no transaction. */
+  deletePerson(id: number): Promise<Result<null, Section3ErrorCode>>
+
+  addTransaction(draft: TransactionDraft): Promise<Result<number, Section3ErrorCode>>
+  updateTransaction(patch: TransactionPatch): Promise<Result<null, Section3ErrorCode>>
+  deleteTransaction(seq: number): Promise<Result<null, Section3ErrorCode>>
+
+  setManualPrice(typeCode: TypeCode, value: number): Promise<Result<null, Section3ErrorCode>>
+  clearManualPrice(typeCode: TypeCode): Promise<Result<null, Section3ErrorCode>>
 }

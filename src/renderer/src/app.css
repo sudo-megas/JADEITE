@@ -412,7 +412,8 @@ button {
 }
 
 .s1-top,
-.s2-top {
+.s2-top,
+.s3-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -421,7 +422,8 @@ button {
 }
 
 .s1-years,
-.s2-years {
+.s2-years,
+.s3-views {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -431,7 +433,8 @@ button {
 /* The switcher chip is the one place a year accent reaches full strength —
    a small mark, per the elegance constraint of §12.3. */
 .s1-year-chip,
-.s2-year-chip {
+.s2-year-chip,
+.s3-view-chip {
   padding: 6px 14px;
   background: var(--surface-raised);
   border: 1px solid var(--border);
@@ -442,13 +445,15 @@ button {
 }
 
 .s1-year-chip:hover,
-.s2-year-chip:hover {
+.s2-year-chip:hover,
+.s3-view-chip:hover {
   border-color: var(--border-strong);
   color: var(--text);
 }
 
 .s1-year-chip[data-active='true'],
-.s2-year-chip[data-active='true'] {
+.s2-year-chip[data-active='true'],
+.s3-view-chip[data-active='true'] {
   background: var(--year-accent-tint);
   border-color: var(--year-accent-mark);
   color: var(--text);
@@ -791,7 +796,8 @@ button {
 }
 
 .s1-menu-foot,
-.s2-menu-foot {
+.s2-menu-foot,
+.s3-menu-foot {
   margin-top: 4px;
   padding-top: 10px;
   border-top: 1px solid var(--border);
@@ -987,7 +993,8 @@ button {
 }
 
 .s1-btn,
-.s2-btn {
+.s2-btn,
+.s3-btn {
   padding: 7px 14px;
   background: var(--accent);
   border: 1px solid var(--accent);
@@ -998,19 +1005,22 @@ button {
 }
 
 .s1-btn:hover:not(:disabled),
-.s2-btn:hover:not(:disabled) {
+.s2-btn:hover:not(:disabled),
+.s3-btn:hover:not(:disabled) {
   background: var(--accent-hover);
   border-color: var(--accent-hover);
 }
 
 .s1-btn:disabled,
-.s2-btn:disabled {
+.s2-btn:disabled,
+.s3-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
 
 .s1-btn-quiet,
-.s2-btn-quiet {
+.s2-btn-quiet,
+.s3-btn-quiet {
   padding: 6px 10px;
   background: none;
   border: 1px solid var(--border);
@@ -1020,13 +1030,15 @@ button {
 }
 
 .s1-btn-quiet:hover,
-.s2-btn-quiet:hover {
+.s2-btn-quiet:hover,
+.s3-btn-quiet:hover {
   color: var(--text);
   border-color: var(--border-strong);
 }
 
 .s1-btn-danger,
-.s2-btn-danger {
+.s2-btn-danger,
+.s3-btn-danger {
   padding: 6px 12px;
   background: none;
   border: 1px solid var(--danger);
@@ -1037,13 +1049,15 @@ button {
 }
 
 .s1-btn-danger:hover,
-.s2-btn-danger:hover {
+.s2-btn-danger:hover,
+.s3-btn-danger:hover {
   background: var(--danger);
   color: var(--text-on-accent);
 }
 
 .s1-error,
-.s2-error {
+.s2-error,
+.s3-error {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1057,7 +1071,8 @@ button {
 }
 
 .s1-empty-state,
-.s2-empty-state {
+.s2-empty-state,
+.s3-empty-state {
   margin: 0;
   padding: 32px;
   border: 1px dashed var(--border-strong);
@@ -1069,7 +1084,8 @@ button {
 /* --- Modals -------------------------------------------------------------- */
 
 .s1-modal,
-.s2-modal {
+.s2-modal,
+.s3-modal {
   position: fixed;
   inset: 0;
   z-index: 50;
@@ -1080,7 +1096,8 @@ button {
 }
 
 .s1-modal-body,
-.s2-modal-body {
+.s2-modal-body,
+.s3-modal-body {
   width: 100%;
   max-width: 440px;
   display: flex;
@@ -1093,14 +1110,16 @@ button {
 }
 
 .s1-modal-body h2,
-.s2-modal-body h2 {
+.s2-modal-body h2,
+.s3-modal-body h2 {
   margin: 0;
   font-size: 17px;
   font-weight: 600;
 }
 
 .s1-modal-body .lede,
-.s2-modal-body .lede {
+.s2-modal-body .lede,
+.s3-modal-body .lede {
   margin: 0;
 }
 
@@ -1442,4 +1461,477 @@ button {
 
 .s2-header-menu:hover {
   color: var(--text);
+}
+
+/* --- Section 3: Valuables ------------------------------------------------- */
+
+/* The chrome above — chips, buttons, errors, modals — is shared with Sections 1
+   and 2 on the same selector lists, so the three cannot drift apart in
+   appearance. Only what Section 3 draws differently lives here.
+
+   There is no year accent in this section: a valuables ledger is a lifetime
+   rather than a workspace, so nothing here is tinted by a year. Where Sections 1
+   and 2 use `--year-accent`, this uses the palette's own `--accent`. */
+
+.s3 {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+
+.s3-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+.s3-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* --- 3a, the ledger ------------------------------------------------------- */
+
+.s3-ledger-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.s3-ledger,
+.s3-holdings-table,
+.s3-prices-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.s3-ledger th,
+.s3-ledger td,
+.s3-holdings-table th,
+.s3-holdings-table td,
+.s3-prices-table th,
+.s3-prices-table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.s3-ledger thead th,
+.s3-holdings-table thead th,
+.s3-prices-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface-raised);
+  border-bottom: 1px solid var(--border-strong);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.s3-figure {
+  text-align: right;
+}
+
+/* Derived cells are read, never typed into, and say so by being quieter. */
+.s3-derived {
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.s3-num {
+  width: 3.5em;
+  color: var(--text-subtle);
+  font-size: 11px;
+  text-align: right;
+}
+
+.s3-row:hover {
+  background: var(--surface-sunken);
+}
+
+/* A disposal reads differently from an acquisition at a glance: it is the row
+   that explains where something went, and in this owner's history it is the row
+   that had gone missing between two documents. */
+.s3-row[data-direction='dispose'] .s3-num {
+  color: var(--warning);
+}
+
+.s3-row[data-provisional='true'] .s3-date-cell .s3-cell-input {
+  border-bottom: 1px dashed var(--warning);
+}
+
+/* The append row sits at the foot of the body, tinted so the eye finds it after
+   thirty rows without having to count. */
+.s3-append {
+  background: color-mix(in oklch, var(--accent) 7%, var(--surface));
+}
+
+.s3-append td {
+  border-bottom: none;
+  border-top: 1px solid var(--border-strong);
+}
+
+.s3-cell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.s3-cell-input {
+  width: 100%;
+  min-width: 5.5em;
+  padding: 4px 6px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.s3-figure .s3-cell-input {
+  text-align: right;
+}
+
+.s3-cell-input:hover:not([readonly]) {
+  border-color: var(--border);
+}
+
+.s3-cell-input:focus {
+  background: var(--surface-sunken);
+  border-color: var(--accent);
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -1px;
+}
+
+.s3-cell-input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.s3-cell-problem {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  z-index: 10;
+  margin: 0;
+  padding: 4px 8px;
+  max-width: 22em;
+  background: var(--surface-overlay);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-sm);
+  color: var(--danger);
+  font-size: 11px;
+  text-align: left;
+  white-space: normal;
+}
+
+.s3-select {
+  padding: 4px 6px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.s3-select:focus {
+  border-color: var(--accent);
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -1px;
+}
+
+/* The flag of §18.3 item 6 — a date the owner has not yet been able to confirm. */
+.s3-provisional {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-subtle);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.s3-provisional input {
+  margin: 0;
+  accent-color: var(--warning);
+}
+
+.s3-row-delete {
+  padding: 2px 7px;
+  line-height: 1;
+}
+
+.s3-confirm {
+  display: inline-flex;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.s3-btn-danger-quiet {
+  padding: 2px 8px;
+  background: none;
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-sm);
+  color: var(--danger);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.s3-btn-danger-quiet:hover {
+  background: var(--danger);
+  color: var(--text-on-accent);
+}
+
+.s3-ledger-totals th,
+.s3-ledger-totals td {
+  border-bottom: none;
+  border-top: 1px solid var(--border-strong);
+  color: var(--text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+/* --- 3b, holdings --------------------------------------------------------- */
+
+.s3-holdings {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.s3-person-cell {
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.s3-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 7px;
+  border-radius: 50%;
+  vertical-align: baseline;
+}
+
+.s3-person-total td {
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.s3-grand th,
+.s3-grand td {
+  border-top: 2px solid var(--border-strong);
+  border-bottom: none;
+  font-weight: 600;
+}
+
+/* A gain is not a loss, and the palette says which is which. */
+.s3-gain[data-sign='gain'] {
+  color: var(--success);
+}
+
+.s3-gain[data-sign='loss'] {
+  color: var(--danger);
+}
+
+.s3-gain[data-sign='flat'] {
+  color: var(--text-muted);
+}
+
+.s3-unpriced {
+  color: var(--text-subtle);
+  font-size: 11px;
+}
+
+.s3-holding[data-oversold='true'] {
+  background: color-mix(in oklch, var(--warning) 12%, transparent);
+}
+
+.s3-flag {
+  color: var(--warning);
+  font-weight: 700;
+}
+
+.s3-discrepancy,
+.s3-note {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--warning);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.s3-note {
+  border-color: var(--border-strong);
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* --- 3c, prices ----------------------------------------------------------- */
+
+.s3-prices {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 780px;
+}
+
+.s3-unit-hint {
+  color: var(--text-subtle);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.s3-stamp,
+.s3-live {
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* --- People --------------------------------------------------------------- */
+
+.s3-persons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  max-width: 620px;
+}
+
+.s3-persons h2 {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.s3-person-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.s3-person-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.s3-dot-button {
+  padding: 3px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  line-height: 1;
+}
+
+.s3-dot-button:hover {
+  border-color: var(--border-strong);
+}
+
+.s3-person-name {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+}
+
+input.s3-person-name:hover {
+  border-color: var(--border);
+}
+
+input.s3-person-name:focus {
+  background: var(--surface-sunken);
+  border-color: var(--accent);
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -1px;
+}
+
+.s3-builtin {
+  color: var(--text-muted);
+}
+
+.s3-builtin .lede {
+  font-size: 11px;
+}
+
+.s3-person-tools {
+  display: flex;
+  gap: 4px;
+}
+
+.s3-slot-picker {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  z-index: 20;
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+}
+
+.s3-slot {
+  padding: 3px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  line-height: 1;
+}
+
+.s3-slot:hover {
+  border-color: var(--border-strong);
+}
+
+.s3-add-person {
+  display: flex;
+  gap: 8px;
+}
+
+.s3-add-person input[type='text'] {
+  flex: 1;
+  padding: 6px 8px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
 }

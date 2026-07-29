@@ -46,11 +46,19 @@ test('the bridge exposes the contract and nothing more', async () => {
       settings: Object.keys(api.settings).sort(),
       config: Object.keys(api.config).sort(),
       section1: Object.keys(api.section1).sort(),
-      section2: Object.keys(api.section2).sort()
+      section2: Object.keys(api.section2).sort(),
+      section3: Object.keys(api.section3).sort()
     }
   })
 
-  expect(surface.top).toEqual(['config', 'section1', 'section2', 'settings', 'vault'])
+  expect(surface.top).toEqual([
+    'config',
+    'section1',
+    'section2',
+    'section3',
+    'settings',
+    'vault'
+  ])
   expect(surface.vault).toEqual(['create', 'lock', 'onLocked', 'reset', 'status', 'unlock'])
   expect(surface.settings).toEqual(['get', 'set'])
   expect(surface.config).toEqual(['get', 'set'])
@@ -89,6 +97,26 @@ test('the bridge exposes the contract and nothing more', async () => {
     'setCounterParty',
     'setCreditLimit',
     'years'
+  ])
+
+  // Section 3 arrives with Realisation V, enumerated for the same reason.
+  // There is no `years` and no year argument anywhere in it: the valuables
+  // ledger is a lifetime rather than a workspace. And there is one read rather
+  // than three, because holdings derive from the transactions and the prices
+  // together and must not be assembled from two separate crossings.
+  expect(surface.section3).toEqual([
+    'addPerson',
+    'addTransaction',
+    'clearManualPrice',
+    'deletePerson',
+    'deleteTransaction',
+    'ledger',
+    'personUsage',
+    'renamePerson',
+    'reorderPersons',
+    'setManualPrice',
+    'setPersonColour',
+    'updateTransaction'
   ])
 })
 

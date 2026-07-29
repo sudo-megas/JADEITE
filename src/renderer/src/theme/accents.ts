@@ -35,8 +35,20 @@ export type AccentRole = keyof typeof ACCENT_STRENGTH
  * and the assignment is stable for the life of the vault.
  */
 export function accentForYear(palette: Palette, year: number, firstYear: number): string {
+  return accentAt(palette, year - firstYear)
+}
+
+/**
+ * The nth accent of the sequence, wrapping.
+ *
+ * Years index it by their distance from the anchor; Section 3's persons index it
+ * by the slot stored against them (§8.1's colour dot, which is a slot rather than
+ * a colour so that it harmonises with all ten palettes). Negative indices wrap
+ * the same way, so a caller never has to normalise first.
+ */
+export function accentAt(palette: Palette, index: number): string {
   const sequence = palette.accentSequence
-  const offset = ((year - firstYear) % sequence.length + sequence.length) % sequence.length
+  const offset = ((index % sequence.length) + sequence.length) % sequence.length
   return sequence[offset]!
 }
 

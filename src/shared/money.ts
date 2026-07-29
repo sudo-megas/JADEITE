@@ -40,6 +40,19 @@ export type ParsedAmount =
   | { kind: 'amount'; minorUnits: number }
   | { kind: 'error'; reason: ParseFailure }
 
+/**
+ * The same result, before it is called money.
+ *
+ * Section 3 parses quantities as well as prices — milligrams to three decimal
+ * places of a gram, coins to none at all — and every rule above applies to those
+ * unchanged. So the rules live once, in `parseFixedPoint`, and both callers name
+ * the result in their own terms (`shared/section3/units.ts`).
+ */
+export type ParsedFixedPoint =
+  | { kind: 'empty' }
+  | { kind: 'value'; scaled: number }
+  | { kind: 'error'; reason: ParseFailure }
+
 /** Separators per language: the decimal mark, and the grouping mark. */
 const SEPARATORS: Record<MoneyLanguage, { decimal: string; group: string }> = {
   tr: { decimal: ',', group: '.' },
@@ -85,6 +98,24 @@ function groupingIsWellFormed(integerPart: string, group: string): boolean {
  * second storage convention. Only their presentation differs.
  */
 export function parseAmount(input: string, language: MoneyLanguage): ParsedAmount {
+  const parsed = parseFixedPoint(input, language, MINOR_DIGITS)
+  if (parsed.kind === 'value') return { kind: 'amount', minorUnits: parsed.scaled }
+  return parsed
+}
+
+/**
+ * Read a typed decimal into an integer scaled by `fractionDigits` places.
+ *
+ * `fractionDigits` of 2 gives kuruş from lira; 3 gives milligrams from grams; 0
+ * refuses a decimal point outright, which is what a count of coins wants. Every
+ * rule in this module's opening note is enforced here and nowhere else, so money
+ * and quantity cannot drift apart about what a comma means.
+ */
+export function parseFixedPoint(
+  input: string,
+  language: MoneyLanguage,
+  fractionDigits: number
+): ParsedFixedPoint {
   const cleaned = input.replace(NOISE, '')
   if (cleaned.length === 0) return { kind: 'empty' }
 
@@ -115,7 +146,7 @@ export function parseAmount(input: string, language: MoneyLanguage): ParsedAmoun
   const fractionPart = decimalCount === 1 ? body.slice(splitAt + 1) : ''
 
   if (fractionPart.includes(group)) return { kind: 'error', reason: 'BAD_GROUPING' }
-  if (fractionPart.length > MINOR_DIGITS) return { kind: 'error', reason: 'TOO_MANY_DECIMALS' }
+  if (fractionPart.length > fractionDigits) return { kind: 'error', reason: 'TOO_MANY_DECIMALS' }
   if (!groupingIsWellFormed(integerPart, group)) return { kind: 'error', reason: 'BAD_GROUPING' }
 
   const integerDigits = integerPart.split(group).join('')
@@ -124,13 +155,13 @@ export function parseAmount(input: string, language: MoneyLanguage): ParsedAmoun
   }
 
   const whole = integerDigits.length === 0 ? '0' : integerDigits
-  const minor = fractionPart.padEnd(MINOR_DIGITS, '0')
+  const minor = fractionPart.padEnd(fractionDigits, '0')
 
   // Assembled as digits, so the value never passes through a float.
-  const minorUnits = Number(`${whole}${minor}`)
-  if (!Number.isSafeInteger(minorUnits)) return { kind: 'error', reason: 'TOO_LARGE' }
+  const scaled = Number(`${whole}${minor}`)
+  if (!Number.isSafeInteger(scaled)) return { kind: 'error', reason: 'TOO_LARGE' }
 
-  return { kind: 'amount', minorUnits }
+  return { kind: 'value', scaled }
 }
 
 /**

@@ -6,7 +6,9 @@ export const tr = {
     continue: 'Devam et',
     back: 'Geri dön',
     working: 'İşleniyor…',
-    close: 'Kapat'
+    close: 'Kapat',
+    delete: 'Kaldır',
+    actions: 'İşlemler'
   },
 
   firstRun: {
@@ -237,6 +239,120 @@ export const tr = {
       INVALID_AMOUNT: 'Tutar geçersiz.',
       INVALID_LIMIT: 'Kredi limiti geçersiz.',
       INVALID_YEAR: 'Yıl geçersiz.',
+      INTERNAL: 'Beklenmeyen bir hata oluştu.'
+    }
+  },
+
+  section3: {
+    subsections: 'Alt bölümler',
+    views: {
+      ledger: 'Defter',
+      holdings: 'Mevcut Varlıklar',
+      prices: 'Güncel Fiyatlar'
+    },
+
+    no: 'No',
+    date: 'Tarih',
+    datePlaceholder: 'YYYY-AA-GG',
+    provisional: 'Tarih incelemede',
+    type: 'Tür',
+    direction: 'İşlem',
+    acquire: 'Alış',
+    dispose: 'Elden Çıkarma',
+    quantity: 'Miktar',
+    totalQuantity: 'Toplam Miktar',
+    unitPrice: 'Birim Fiyat',
+    transactionTotal: 'İşlem Toplamı',
+    source: 'Nereden / Nereye',
+    person: 'Kişi',
+    note: 'Not',
+    unassigned: 'Ortak',
+
+    perGram: '/ g',
+    perPiece: '/ adet',
+    perUnit: '/ birim',
+
+    addRow: 'Ekle',
+    deleteRow: '{{seq}} numaralı satırı sil',
+    deleteRowConfirm: 'Sil',
+
+    ledgerTotals: '{{count}} kayıt',
+    provisionalCount: '{{count}} satırın tarihi incelemede',
+    acquiredValue: 'Alış toplamı {{value}}',
+    disposedValue: 'Çıkış toplamı {{value}}',
+
+    types: {
+      gram: 'Gram',
+      ceyrek: 'Çeyrek',
+      yarim: 'Yarım',
+      tam: 'Tam (Cumhuriyet)',
+      iki_bucuk: '2,5 (İki Buçuklu)',
+      besli: '5 (Beşli)',
+      usd: 'Dolar',
+      eur: 'Euro',
+      gumus: 'Gümüş',
+      ziynet: 'Ziynet'
+    },
+
+    costBasis: 'Maliyet',
+    marketValue: 'Piyasa Değeri',
+    unrealised: 'Gerçekleşmemiş K/Z',
+    grandTotal: 'GENEL TOPLAM',
+    personTotal: '{{name}} toplamı',
+    noHoldings: 'Henüz varlık yok. Deftere bir alış girin.',
+    unpriced: 'Fiyat girilmedi',
+    oversoldHint: 'Deftere kaydedilenden fazlası elden çıkarılmış.',
+    discrepancyTitle: 'Defter kendisiyle uyuşmuyor.',
+    discrepancyBody:
+      '{{count}} varlıkta, kaydedilen alışlardan fazlası elden çıkarılmış görünüyor. Eksik bir alış satırı olması beklenir; girildiğinde bu uyarı kendiliğinden kalkar.',
+    missingPrices: 'Fiyatı girilmemiş türler piyasa değerine katılmadı: {{types}}',
+
+    pricesLede:
+      'Girdiğiniz fiyat esastır. Canlı sağlayıcı Realisation VII ile gelir ve bu değerin yerine geçmez, yanında durur.',
+    manualPrice: 'Girilen Fiyat',
+    updatedAt: 'Güncellendi',
+    livePrice: 'Canlı Fiyat',
+    noProvider: 'Sağlayıcı yok',
+    clearPrice: 'Temizle',
+    priceOf: '{{type}} fiyatı',
+
+    persons: 'Kişiler',
+    personName: 'Kişi adı',
+    newPersonName: 'Yeni kişi adı',
+    addPerson: 'Kişi ekle',
+    builtinHint: '— sahibi bilinmeyen satırların yeri',
+    chooseColour: '{{name}} için renk seç',
+    colourSlot: '{{slot}}. renk',
+    moveUp: '{{name}} yukarı',
+    moveDown: '{{name}} aşağı',
+    deletePersonTitle: '{{name}} kaldırılsın mı?',
+    deletePersonDetail:
+      '{{count}} defter satırı Ortak’a aktarılacak. Hiçbir satır silinmiyor; sahibi değişiyor.',
+    deletePersonEmpty: 'Bu kişiye bağlı defter satırı yok.',
+    deletePersonConfirm: 'Kaldır',
+
+    parse: {
+      NOT_A_NUMBER: 'Bu bir sayı değil.',
+      NEGATIVE: 'Miktarlar pozitif girilir; çıkış için Elden Çıkarma seçin.',
+      TOO_MANY_DECIMALS: 'Bu tür için daha az ondalık basamak girilir.',
+      BAD_GROUPING: 'Binlik ayracı hatalı — Türkçe biçim: 1.234,56',
+      TOO_LARGE: 'Bu sayı çok büyük.',
+      ZERO: 'Miktar sıfır olamaz.',
+      REQUIRED: 'Bu alan boş bırakılamaz.',
+      INVALID_DATE: 'Tarih YYYY-AA-GG biçiminde ve gerçek bir gün olmalı.'
+    },
+
+    errors: {
+      LOCKED: 'Kasa kilitli.',
+      NO_SUCH_TRANSACTION: 'Satır bulunamadı.',
+      NO_SUCH_PERSON: 'Kişi bulunamadı.',
+      NO_SUCH_TYPE: 'Tür bulunamadı.',
+      BUILTIN_PERSON: 'Ortak yeniden adlandırılamaz ve kaldırılamaz.',
+      DUPLICATE_NAME: 'Bu adda bir kişi zaten var.',
+      INVALID_NAME: 'Ad geçersiz.',
+      INVALID_DATE: 'Tarih geçersiz.',
+      INVALID_QUANTITY: 'Miktar geçersiz.',
+      INVALID_PRICE: 'Fiyat geçersiz.',
       INTERNAL: 'Beklenmeyen bir hata oluştu.'
     }
   },

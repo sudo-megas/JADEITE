@@ -6,7 +6,9 @@ export const en = {
     continue: 'Continue',
     back: 'Go back',
     working: 'Working…',
-    close: 'Close'
+    close: 'Close',
+    delete: 'Remove',
+    actions: 'Actions'
   },
 
   firstRun: {
@@ -233,6 +235,120 @@ export const en = {
       INVALID_AMOUNT: 'That amount is not valid.',
       INVALID_LIMIT: 'That credit limit is not valid.',
       INVALID_YEAR: 'That year is not valid.',
+      INTERNAL: 'Something unexpected went wrong.'
+    }
+  },
+
+  section3: {
+    subsections: 'Sub-sections',
+    views: {
+      ledger: 'Ledger',
+      holdings: 'Holdings',
+      prices: 'Current Prices'
+    },
+
+    no: 'No',
+    date: 'Date',
+    datePlaceholder: 'YYYY-MM-DD',
+    provisional: 'Date under review',
+    type: 'Type',
+    direction: 'Direction',
+    acquire: 'Acquire',
+    dispose: 'Dispose',
+    quantity: 'Quantity',
+    totalQuantity: 'Total Quantity',
+    unitPrice: 'Unit Price',
+    transactionTotal: 'Transaction Total',
+    source: 'Obtained where / gone where',
+    person: 'Person',
+    note: 'Note',
+    unassigned: 'Ortak',
+
+    perGram: '/ g',
+    perPiece: '/ each',
+    perUnit: '/ unit',
+
+    addRow: 'Add',
+    deleteRow: 'Delete row {{seq}}',
+    deleteRowConfirm: 'Delete',
+
+    ledgerTotals: '{{count}} entries',
+    provisionalCount: '{{count}} row(s) awaiting a date check',
+    acquiredValue: 'Acquired {{value}}',
+    disposedValue: 'Disposed {{value}}',
+
+    types: {
+      gram: 'Gram',
+      ceyrek: 'Çeyrek',
+      yarim: 'Yarım',
+      tam: 'Tam (Cumhuriyet)',
+      iki_bucuk: '2.5 (İki Buçuklu)',
+      besli: '5 (Beşli)',
+      usd: 'Dollar',
+      eur: 'Euro',
+      gumus: 'Silver',
+      ziynet: 'Ziynet'
+    },
+
+    costBasis: 'Cost basis',
+    marketValue: 'Market value',
+    unrealised: 'Unrealised G/L',
+    grandTotal: 'GRAND TOTAL',
+    personTotal: '{{name}} total',
+    noHoldings: 'Nothing held yet. Enter an acquisition in the ledger.',
+    unpriced: 'No price typed',
+    oversoldHint: 'More has been disposed of than the ledger records acquiring.',
+    discrepancyTitle: 'The ledger disagrees with itself.',
+    discrepancyBody:
+      '{{count}} holding(s) dispose of more than was ever recorded as acquired. An acquisition row is most likely still missing; entering it clears this on its own.',
+    missingPrices: 'Types with no price typed are left out of market value: {{types}}',
+
+    pricesLede:
+      'The price you type is the authority. The live provider arrives with Realisation VII and will sit beside this figure, never over it.',
+    manualPrice: 'Your price',
+    updatedAt: 'Updated',
+    livePrice: 'Live price',
+    noProvider: 'No provider yet',
+    clearPrice: 'Clear',
+    priceOf: 'Price of {{type}}',
+
+    persons: 'People',
+    personName: 'Person’s name',
+    newPersonName: 'New person’s name',
+    addPerson: 'Add person',
+    builtinHint: '— where rows of unknown ownership live',
+    chooseColour: 'Choose a colour for {{name}}',
+    colourSlot: 'Colour {{slot}}',
+    moveUp: 'Move {{name}} up',
+    moveDown: 'Move {{name}} down',
+    deletePersonTitle: 'Remove {{name}}?',
+    deletePersonDetail:
+      '{{count}} ledger row(s) will move to Ortak. Not one is deleted; only their owner changes.',
+    deletePersonEmpty: 'No ledger row belongs to this person.',
+    deletePersonConfirm: 'Remove',
+
+    parse: {
+      NOT_A_NUMBER: 'That is not a number.',
+      NEGATIVE: 'Quantities are entered positive; choose Dispose for something going out.',
+      TOO_MANY_DECIMALS: 'That is more decimal places than this type takes.',
+      BAD_GROUPING: 'Check the thousands separator — English format: 1,234.56',
+      TOO_LARGE: 'That number is too large.',
+      ZERO: 'A quantity cannot be zero.',
+      REQUIRED: 'This field cannot be left empty.',
+      INVALID_DATE: 'The date must read YYYY-MM-DD and be a real day.'
+    },
+
+    errors: {
+      LOCKED: 'The vault is locked.',
+      NO_SUCH_TRANSACTION: 'That row was not found.',
+      NO_SUCH_PERSON: 'That person was not found.',
+      NO_SUCH_TYPE: 'That type was not found.',
+      BUILTIN_PERSON: 'Ortak cannot be renamed or removed.',
+      DUPLICATE_NAME: 'Someone of that name already exists.',
+      INVALID_NAME: 'That name is not valid.',
+      INVALID_DATE: 'That date is not valid.',
+      INVALID_QUANTITY: 'That quantity is not valid.',
+      INVALID_PRICE: 'That price is not valid.',
       INTERNAL: 'Something unexpected went wrong.'
     }
   },

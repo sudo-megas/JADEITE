@@ -17,6 +17,7 @@ import {
   type Result,
   type Section1Api,
   type Section2Api,
+  type Section3Api,
   type VaultStatus,
   type YearIndex
 } from '../shared/ipc-contract.js'
@@ -37,6 +38,15 @@ import type {
   Section2ErrorCode,
   YearGrid
 } from '../shared/section2/types.js'
+import type {
+  LedgerData,
+  PersonDraft,
+  PersonUsage,
+  Section3ErrorCode,
+  TransactionDraft,
+  TransactionPatch,
+  TypeCode
+} from '../shared/section3/types.js'
 
 type S1<T> = Promise<Result<T, Section1ErrorCode>>
 
@@ -90,6 +100,31 @@ const section2: Section2Api = {
     ipcRenderer.invoke(IPC.s2SetArchived, year, archived)
 }
 
+type S3<T> = Promise<Result<T, Section3ErrorCode>>
+
+/** Section 3 is a plain pass-through as well, for the same reason. */
+const section3: Section3Api = {
+  ledger: (): S3<LedgerData> => ipcRenderer.invoke(IPC.s3Ledger),
+  addPerson: (draft: PersonDraft): S3<number> => ipcRenderer.invoke(IPC.s3AddPerson, draft),
+  renamePerson: (id: number, name: string): S3<null> =>
+    ipcRenderer.invoke(IPC.s3RenamePerson, id, name),
+  setPersonColour: (id: number, colour: string | null): S3<null> =>
+    ipcRenderer.invoke(IPC.s3SetPersonColour, id, colour),
+  reorderPersons: (orderedIds: number[]): S3<null> =>
+    ipcRenderer.invoke(IPC.s3ReorderPersons, orderedIds),
+  personUsage: (id: number): S3<PersonUsage> => ipcRenderer.invoke(IPC.s3PersonUsage, id),
+  deletePerson: (id: number): S3<null> => ipcRenderer.invoke(IPC.s3DeletePerson, id),
+  addTransaction: (draft: TransactionDraft): S3<number> =>
+    ipcRenderer.invoke(IPC.s3AddTransaction, draft),
+  updateTransaction: (patch: TransactionPatch): S3<null> =>
+    ipcRenderer.invoke(IPC.s3UpdateTransaction, patch),
+  deleteTransaction: (seq: number): S3<null> => ipcRenderer.invoke(IPC.s3DeleteTransaction, seq),
+  setManualPrice: (typeCode: TypeCode, value: number): S3<null> =>
+    ipcRenderer.invoke(IPC.s3SetManualPrice, typeCode, value),
+  clearManualPrice: (typeCode: TypeCode): S3<null> =>
+    ipcRenderer.invoke(IPC.s3ClearManualPrice, typeCode)
+}
+
 const api: JadeiteApi = {
   vault: {
     status: (): Promise<VaultStatus> => ipcRenderer.invoke(IPC.vaultStatus),
@@ -121,7 +156,8 @@ const api: JadeiteApi = {
       ipcRenderer.invoke(IPC.configSet, patch)
   },
   section1,
-  section2
+  section2,
+  section3
 }
 
 contextBridge.exposeInMainWorld('jadeite', api)

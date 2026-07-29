@@ -26,6 +26,8 @@ async function main(): Promise<void> {
   await import('./section1-suite.js')
   resetHooks()
   await import('./section2-suite.js')
+  resetHooks()
+  await import('./section3-suite.js')
 
   const failures = await run('JADEITE — Electron-hosted suites')
   app.exit(failures === 0 ? 0 : 1)
