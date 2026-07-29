@@ -1,5 +1,9 @@
 # Source artefacts — real financial data in legible form.
-# These stay on this machine. They are needed only at Realisation XII.
+#
+# XJADEITE §18.2: the owner's private reference material for the manual typing
+# sessions, kept on the archive HDD, never parsed by JADEITE and never opened by
+# any tool acting on its behalf. These patterns are belt and braces — the files
+# do not belong in the working tree at all.
 JADEITorigin.xlsx
 Altın_Eğrisi.pptx
 *.xlsx
