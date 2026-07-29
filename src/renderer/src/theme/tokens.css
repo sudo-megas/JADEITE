@@ -1,0 +1,59 @@
+/*
+ * Token declarations and the shape rules that sit on top of them.
+ *
+ * Not one colour is named here. The values arrive from the active palette at
+ * runtime (see apply.ts); these declarations exist so the document has
+ * something sane before the first paint and so the names are documented in one
+ * place. The fallbacks are Default Dark, which is also what the lock screen
+ * uses — the chosen palette lives inside the vault and cannot be read until it
+ * opens.
+ */
+
+:root {
+  /* Geometry and type: not palette-dependent, so they live here for good. */
+  --radius: 6px;
+  --radius-sm: 4px;
+  --gap: 16px;
+  --rail-width: 232px;
+  --font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+
+  /* Year accents, replaced per workspace subtree from Realisation III. */
+  --year-accent: var(--accent);
+  --year-accent-wash: color-mix(in oklch, var(--accent) 12%, var(--surface));
+  --year-accent-tint: color-mix(in oklch, var(--accent) 24%, var(--surface));
+  --year-accent-line: color-mix(in oklch, var(--accent) 45%, var(--surface));
+  --year-accent-mark: color-mix(in oklch, var(--accent) 88%, var(--surface));
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--selection);
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+/* Palette switching must be instant, and the app must never animate itself
+   into looking busy. Transitions are opt-in, never global. */

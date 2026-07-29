@@ -6,8 +6,9 @@
  */
 
 import { useState, type FormEvent, type ReactElement } from 'react'
+import { useTranslation } from 'react-i18next'
+
 import { MIN_PASSWORD_LENGTH, type RecoveryKeyIssue } from '@shared/ipc-contract'
-import { T, errorMessage } from '../strings'
 
 interface Props {
   onReset: (issue: RecoveryKeyIssue) => void
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export function Reset({ onReset, onCancel }: Props): ReactElement {
+  const { t } = useTranslation()
   const [recoveryKey, setRecoveryKey] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -26,11 +28,11 @@ export function Reset({ onReset, onCancel }: Props): ReactElement {
     setError('')
 
     if (password.length < MIN_PASSWORD_LENGTH) {
-      setError(T.passwordTooShort(MIN_PASSWORD_LENGTH))
+      setError(t('validation.passwordTooShort', { count: MIN_PASSWORD_LENGTH }))
       return
     }
     if (password !== confirm) {
-      setError(T.passwordsDoNotMatch)
+      setError(t('validation.passwordsDoNotMatch'))
       return
     }
 
@@ -39,17 +41,17 @@ export function Reset({ onReset, onCancel }: Props): ReactElement {
     setBusy(false)
 
     if (result.ok) onReset(result.value)
-    else setError(errorMessage(result.error))
+    else setError(t(`errors.${result.error}`))
   }
 
   return (
     <form className="panel panel--wide" onSubmit={submit}>
-      <p className="brand">{T.brand}</p>
-      <h1>{T.resetTitle}</h1>
-      <p className="lede">{T.resetLede}</p>
+      <p className="brand">{t('common.brand')}</p>
+      <h1>{t('reset.title')}</h1>
+      <p className="lede">{t('reset.lede')}</p>
 
       <div className="field">
-        <label htmlFor="recovery-key">{T.recoveryKeyLabel}</label>
+        <label htmlFor="recovery-key">{t('reset.keyLabel')}</label>
         <input
           id="recovery-key"
           className="mono"
@@ -65,7 +67,7 @@ export function Reset({ onReset, onCancel }: Props): ReactElement {
       </div>
 
       <div className="field">
-        <label htmlFor="new-password">{T.newPassword}</label>
+        <label htmlFor="new-password">{t('reset.newPassword')}</label>
         <input
           id="new-password"
           type="password"
@@ -77,7 +79,7 @@ export function Reset({ onReset, onCancel }: Props): ReactElement {
       </div>
 
       <div className="field">
-        <label htmlFor="new-confirm">{T.newPasswordConfirm}</label>
+        <label htmlFor="new-confirm">{t('reset.newPasswordConfirm')}</label>
         <input
           id="new-confirm"
           type="password"
@@ -93,11 +95,11 @@ export function Reset({ onReset, onCancel }: Props): ReactElement {
       </p>
 
       <button className="btn-primary" type="submit" disabled={busy} data-testid="submit">
-        {busy ? T.working : T.resetSubmit}
+        {busy ? t('common.working') : t('reset.submit')}
       </button>
 
       <button className="btn-link" type="button" onClick={onCancel} data-testid="cancel">
-        {T.backToUnlock}
+        {t('common.back')}
       </button>
     </form>
   )

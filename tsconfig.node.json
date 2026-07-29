@@ -15,12 +15,17 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "skipLibCheck": true,
-    "noEmit": true
+    "noEmit": true,
+    "paths": {
+      "@shared/*": ["./src/shared/*"]
+    }
   },
   "include": [
     "src/main/**/*.ts",
     "src/preload/**/*.ts",
     "src/shared/**/*.ts",
+    "src/renderer/src/theme/accents.ts",
+    "src/renderer/src/i18n/format.ts",
     "electron.vite.config.ts",
     "vitest.config.ts",
     "tests/unit/**/*.ts",

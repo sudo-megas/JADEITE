@@ -7,7 +7,7 @@
  */
 
 import { useState, type ReactElement } from 'react'
-import { T } from '../strings'
+import { useTranslation } from 'react-i18next'
 
 interface Props {
   recoveryKey: string
@@ -16,14 +16,15 @@ interface Props {
 }
 
 export function RecoveryKeyPanel({ recoveryKey, generation, onAcknowledged }: Props): ReactElement {
+  const { t } = useTranslation()
   const [acknowledged, setAcknowledged] = useState(false)
 
   return (
     <div className="panel panel--wide">
-      <p className="brand">{T.brand}</p>
-      <h1>{T.recoveryTitle}</h1>
+      <p className="brand">{t('common.brand')}</p>
+      <h1>{t('recovery.title')}</h1>
       <p className="lede">
-        {T.recoveryLede}
+        {t('recovery.lede')}
         {generation > 1 ? ` (#${generation})` : ''}
       </p>
 
@@ -38,8 +39,8 @@ export function RecoveryKeyPanel({ recoveryKey, generation, onAcknowledged }: Pr
       </div>
 
       <p className="warning">
-        <strong>{T.recoveryWarningTitle}</strong>
-        {T.recoveryWarningBody}
+        <strong>{t('recovery.warningTitle')}</strong>
+        {t('recovery.warningBody')}
       </p>
 
       <label className="ack">
@@ -49,7 +50,7 @@ export function RecoveryKeyPanel({ recoveryKey, generation, onAcknowledged }: Pr
           onChange={(e) => setAcknowledged(e.target.checked)}
           data-testid="recovery-ack"
         />
-        <span>{T.recoveryAck}</span>
+        <span>{t('recovery.ack')}</span>
       </label>
 
       <button
@@ -58,7 +59,7 @@ export function RecoveryKeyPanel({ recoveryKey, generation, onAcknowledged }: Pr
         onClick={onAcknowledged}
         data-testid="recovery-continue"
       >
-        {T.recoveryContinue}
+        {t('common.continue')}
       </button>
     </div>
   )

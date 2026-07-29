@@ -1,14 +1,16 @@
 /** First run — create the master password, then receive recovery key #1. */
 
 import { useState, type FormEvent, type ReactElement } from 'react'
+import { useTranslation } from 'react-i18next'
+
 import { MIN_PASSWORD_LENGTH, type RecoveryKeyIssue } from '@shared/ipc-contract'
-import { T, errorMessage } from '../strings'
 
 interface Props {
   onCreated: (issue: RecoveryKeyIssue) => void
 }
 
 export function FirstRun({ onCreated }: Props): ReactElement {
+  const { t } = useTranslation()
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [error, setError] = useState('')
@@ -19,11 +21,11 @@ export function FirstRun({ onCreated }: Props): ReactElement {
     setError('')
 
     if (password.length < MIN_PASSWORD_LENGTH) {
-      setError(T.passwordTooShort(MIN_PASSWORD_LENGTH))
+      setError(t('validation.passwordTooShort', { count: MIN_PASSWORD_LENGTH }))
       return
     }
     if (password !== confirm) {
-      setError(T.passwordsDoNotMatch)
+      setError(t('validation.passwordsDoNotMatch'))
       return
     }
 
@@ -32,17 +34,17 @@ export function FirstRun({ onCreated }: Props): ReactElement {
     setBusy(false)
 
     if (result.ok) onCreated(result.value)
-    else setError(errorMessage(result.error))
+    else setError(t(`errors.${result.error}`))
   }
 
   return (
     <form className="panel" onSubmit={submit}>
-      <p className="brand">{T.brand}</p>
-      <h1>{T.firstRunTitle}</h1>
-      <p className="lede">{T.firstRunLede}</p>
+      <p className="brand">{t('common.brand')}</p>
+      <h1>{t('firstRun.title')}</h1>
+      <p className="lede">{t('firstRun.lede')}</p>
 
       <div className="field">
-        <label htmlFor="password">{T.password}</label>
+        <label htmlFor="password">{t('firstRun.password')}</label>
         <input
           id="password"
           type="password"
@@ -55,7 +57,7 @@ export function FirstRun({ onCreated }: Props): ReactElement {
       </div>
 
       <div className="field">
-        <label htmlFor="confirm">{T.passwordConfirm}</label>
+        <label htmlFor="confirm">{t('firstRun.passwordConfirm')}</label>
         <input
           id="confirm"
           type="password"
@@ -71,7 +73,7 @@ export function FirstRun({ onCreated }: Props): ReactElement {
       </p>
 
       <button className="btn-primary" type="submit" disabled={busy} data-testid="submit">
-        {busy ? T.working : T.createVault}
+        {busy ? t('common.working') : t('firstRun.submit')}
       </button>
     </form>
   )

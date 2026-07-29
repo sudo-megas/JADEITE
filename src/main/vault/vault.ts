@@ -168,12 +168,22 @@ export async function unlock(password: string): Promise<Result<null>> {
   const envelope = readEnvelope()
   if (!envelope) return { ok: false, error: 'ENVELOPE_CORRUPT' }
 
+  // §3.4 budgets unlock-to-interactive at one second, explicitly excluding the
+  // Argon2id cost — that is password-entry time and a security feature. The
+  // two halves are therefore timed separately, so the budget can be checked
+  // against the half it actually governs.
+  const startedAt = performance.now()
   const recovered = await unwrapWith(password, envelope, 'password')
+  const derivedAt = performance.now()
   if (!recovered) return { ok: false, error: 'WRONG_CREDENTIAL' }
 
   try {
     db = openDatabase(databasePath(), recovered, { mustExist: true })
     dek = recovered
+    console.info(
+      `[cold-start] unlock: kdf ${Math.round(derivedAt - startedAt)} ms, ` +
+        `open ${Math.round(performance.now() - derivedAt)} ms`
+    )
     return { ok: true, value: null }
   } catch {
     zeroise(recovered)

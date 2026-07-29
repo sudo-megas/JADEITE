@@ -34,7 +34,7 @@ async function createVault(s: Session, password = PASSWORD): Promise<string> {
 
   await s.page.getByTestId('recovery-ack').check()
   await s.page.getByTestId('recovery-continue').click()
-  await expect(s.page.getByTestId('unlocked')).toBeVisible()
+  await expect(s.page.getByTestId('shell')).toBeVisible()
   return text
 }
 
@@ -91,17 +91,17 @@ test('the vault locks and reopens only with the right password', async () => {
   session = await launchFresh()
   await createVault(session)
 
-  await session.page.getByTestId('lock-now').click()
+  await session.page.getByTestId('nav-lock').click()
   await expect(session.page.getByTestId('submit')).toBeVisible()
 
   await session.page.getByTestId('password').fill('not-the-password')
   await session.page.getByTestId('submit').click()
   await expect(session.page.getByTestId('error')).toHaveText(/hatalı/)
-  await expect(session.page.getByTestId('unlocked')).toHaveCount(0)
+  await expect(session.page.getByTestId('shell')).toHaveCount(0)
 
   await session.page.getByTestId('password').fill(PASSWORD)
   await session.page.getByTestId('submit').click()
-  await expect(session.page.getByTestId('unlocked')).toBeVisible()
+  await expect(session.page.getByTestId('shell')).toBeVisible()
 })
 
 test('a relaunched app opens on the lock screen, not on the vault', async () => {
@@ -110,18 +110,18 @@ test('a relaunched app opens on the lock screen, not on the vault', async () => 
 
   session = await session.relaunch()
   await expect(session.page.getByTestId('submit')).toBeVisible()
-  await expect(session.page.getByTestId('unlocked')).toHaveCount(0)
+  await expect(session.page.getByTestId('shell')).toHaveCount(0)
 
   await session.page.getByTestId('password').fill(PASSWORD)
   await session.page.getByTestId('submit').click()
-  await expect(session.page.getByTestId('unlocked')).toBeVisible()
+  await expect(session.page.getByTestId('shell')).toBeVisible()
 })
 
 test('the reset ceremony consumes the old key and issues the next', async () => {
   session = await launchFresh()
   const firstKey = await createVault(session)
 
-  await session.page.getByTestId('lock-now').click()
+  await session.page.getByTestId('nav-lock').click()
   await session.page.getByTestId('forgot').click()
 
   await session.page.getByTestId('recovery-key-input').fill(firstKey)
@@ -135,10 +135,10 @@ test('the reset ceremony consumes the old key and issues the next', async () => 
 
   await session.page.getByTestId('recovery-ack').check()
   await session.page.getByTestId('recovery-continue').click()
-  await expect(session.page.getByTestId('unlocked')).toBeVisible()
+  await expect(session.page.getByTestId('shell')).toBeVisible()
 
   // The old password is dead.
-  await session.page.getByTestId('lock-now').click()
+  await session.page.getByTestId('nav-lock').click()
   await session.page.getByTestId('password').fill(PASSWORD)
   await session.page.getByTestId('submit').click()
   await expect(session.page.getByTestId('error')).toHaveText(/hatalı/)
@@ -146,10 +146,10 @@ test('the reset ceremony consumes the old key and issues the next', async () => 
   // The new one works.
   await session.page.getByTestId('password').fill(NEW_PASSWORD)
   await session.page.getByTestId('submit').click()
-  await expect(session.page.getByTestId('unlocked')).toBeVisible()
+  await expect(session.page.getByTestId('shell')).toBeVisible()
 
   // And the old recovery key is dead on its second use.
-  await session.page.getByTestId('lock-now').click()
+  await session.page.getByTestId('nav-lock').click()
   await session.page.getByTestId('forgot').click()
   await session.page.getByTestId('recovery-key-input').fill(firstKey)
   await session.page.getByTestId('new-password').fill('a-third-password-here')
@@ -162,7 +162,7 @@ test('a mistyped recovery key is reported as malformed, not as wrong', async () 
   session = await launchFresh()
   const key = await createVault(session)
 
-  await session.page.getByTestId('lock-now').click()
+  await session.page.getByTestId('nav-lock').click()
   await session.page.getByTestId('forgot').click()
 
   const mistyped = key.slice(0, -1) + (key.endsWith('Z') ? 'Y' : 'Z')

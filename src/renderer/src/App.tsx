@@ -1,5 +1,5 @@
 /**
- * The Realisation I state machine: no vault, locked, resetting, or open.
+ * The application state machine: no vault, locked, resetting, or open.
  *
  * The recovery-key panel is a stage between two of those states rather than a
  * screen of its own, because §4.3 requires that it be passed through exactly
@@ -13,7 +13,8 @@ import { FirstRun } from './screens/FirstRun'
 import { Lock } from './screens/Lock'
 import { RecoveryKeyPanel } from './screens/RecoveryKeyPanel'
 import { Reset } from './screens/Reset'
-import { Unlocked } from './screens/Unlocked'
+import { Shell } from './shell/Shell'
+import { useAppStore } from './store/app-store.js'
 
 type Stage = 'loading' | 'first-run' | 'locked' | 'reset' | 'recovery' | 'unlocked'
 
@@ -22,12 +23,21 @@ export function App(): ReactElement {
   const [issue, setIssue] = useState<RecoveryKeyIssue | null>(null)
   const [lockReason, setLockReason] = useState<LockReason | null>(null)
 
+  const loadSettings = useAppStore((s) => s.loadFromVault)
+  const resetToLockedDefaults = useAppStore((s) => s.resetToLockedDefaults)
+
+  const openShell = useCallback(async () => {
+    // Appearance and language only become knowable once the vault is open.
+    await loadSettings()
+    setStage('unlocked')
+  }, [loadSettings])
+
   const refresh = useCallback(async () => {
     const status = await window.jadeite.vault.status()
     if (!status.exists) setStage('first-run')
     else if (status.locked) setStage('locked')
-    else setStage('unlocked')
-  }, [])
+    else await openShell()
+  }, [openShell])
 
   useEffect(() => {
     void refresh()
@@ -37,9 +47,15 @@ export function App(): ReactElement {
   useEffect(() => {
     return window.jadeite.vault.onLocked((reason) => {
       setLockReason(reason)
-      setStage((current) => (current === 'recovery' ? current : 'locked'))
+      setStage((current) => {
+        if (current === 'recovery') return current
+        // Locking drops back to the palette and language the lock screen can
+        // actually know about.
+        resetToLockedDefaults()
+        return 'locked'
+      })
     })
-  }, [])
+  }, [resetToLockedDefaults])
 
   const showRecovery = useCallback((next: RecoveryKeyIssue) => {
     setIssue(next)
@@ -64,7 +80,7 @@ export function App(): ReactElement {
             reason={lockReason}
             onUnlocked={() => {
               setLockReason(null)
-              setStage('unlocked')
+              void openShell()
             }}
             onForgotPassword={() => setStage('reset')}
           />
@@ -96,14 +112,13 @@ export function App(): ReactElement {
 
     case 'unlocked':
       return (
-        <div className="shell">
-          <Unlocked
-            onLocked={() => {
-              setLockReason('manual')
-              setStage('locked')
-            }}
-          />
-        </div>
+        <Shell
+          onLock={() => {
+            resetToLockedDefaults()
+            setLockReason('manual')
+            setStage('locked')
+          }}
+        />
       )
   }
 }
