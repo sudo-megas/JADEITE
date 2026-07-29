@@ -2,9 +2,9 @@
 
 **Project:** JADEITE — the secure personal wealth & possessions tracker
 **Copyright:** sudo-megas · **Licence:** GPL-3.0 · Free and Open-Source Software
-**Status:** Specification v2 (supersedes JADEITE.md v1) · Companion document: `REALISATION.md`
-**Amendments:** 2026-07-29 — §4.1, §5.1, §16.5, §17, §19 (configuration split into two files; point revisions), settled by the owner during Realisation II.
-**Provenance:** Every decision in this document was settled explicitly between the owner and the architect during pre-realisation review. Source artefacts: `JADEITorigin.xlsx` (the retiring workbook), `Altın_Eğrisi.pptx` (the retiring chart deck), one year-banding screenshot.
+**Status:** Specification v3 · amended 30 July 2026 (supersedes v2) · Companion document: `REALISATION.md`
+**Amendments:** 2026-07-29 — §4.1, §5.1, §7.3, §16.6, §17, §19 (configuration split into two files; the Section 2 freeze made explicit and reversible; point revisions), settled during Realisations II and IV. · 2026-07-30 — §1, §15, §16.2, §18, §19, §20 (the migration importer is retired before construction; the ladder ends at Realisation XI; nothing ships that only this owner could use; the `.jbk` importer's remit is backup, restore, copy and merge).
+**Provenance:** Every decision in this document was settled explicitly between the owner and the architect during pre-realisation review. The forensic findings below were extracted from `JADEITorigin.xlsx` (the retiring workbook), `Altın_Eğrisi.pptx` (the retiring chart deck) and one year-banding screenshot. Those artefacts are the owner's private reference material; **the build never reads them** (§18).
 
 ---
 
@@ -19,6 +19,7 @@ Guiding truths:
 - **It is a lifetime app.** Data outlives UI. The schema is the app; the interface is replaceable.
 - **It is eye-candy with a straight face** — elegant, serious, corporate-feeling, charismatic. Never chaotic, never childish. Clarity is a hard requirement, not a style preference.
 - **Dependency count is not a constraint.** The question is never "how minimal" but "how superb." Package size up to 1 GB is acceptable.
+- **Nothing single-use ships, and nothing ships that only this owner could use.** Every feature in the binary earns its place twice: through repeated use over the life of the app, and by being usable by a second person who has never seen the owner's files. A feature shaped around one particular document fails both tests at once. Scaffolding is refused at design time, which is the cheapest moment to refuse it (§18.1).
 - **Usage pattern is open → enter → close.** The app is not a resident. Therefore idle RAM is a non-metric and **cold start is a hard requirement** (§3.4).
 - Linux first, Windows after finalisation. Installer only; no portable usage.
 
@@ -54,6 +55,8 @@ Guiding truths:
 | KDF | `argon2` (Argon2id, native binding) | §4 |
 | i18n | i18next, **manual switching only** | §13 |
 | Packaging | electron-builder → **pacman** target (CachyOS/Arch) + deb; NSIS at the Windows realisation | installer only |
+
+No spreadsheet, presentation, or document-parsing library appears anywhere in the dependency tree — by construction (§16.2).
 
 ### 3.3 Electron hardening posture (non-negotiable)
 
@@ -147,13 +150,15 @@ Default OS user locations. Data is encrypted at rest exactly per the v1 manifest
 - **All monetary amounts are stored as integers in minor units** (kuruş / cents). No floats touch money.
 - **All amounts are stored positive; the category/direction carries the sign.** Expenses are not negative numbers; disposals are not sneaky sign flips. A refund is an explicit flag on an entry, not a `+` where a `−` was forgotten. (This retires two documented incidents in the source workbook: the June-2025 elektrik sign slip and the `'-'` text placeholders.)
 - Quantities of weighable valuables are stored as integer milligrams; countable coins as integer pieces.
-- Dates are ISO-8601 strings; a boolean `date_provisional` flag exists for migrated rows whose date is under review (§18).
+- Dates are ISO-8601 strings; a boolean `date_provisional` flag exists for hand-entered historical rows whose date is still under review (§18.3, item 6).
 
 ### 5.3 Schema sketch (informative, finalised in Realisation I)
 
 `settings` · `years` · `s1_categories(year, name, kind[income|expense], position)` · `s1_entries(year, month, category, amount, is_refund, note)` · `s2_banks(year, name, credit_limit, position, is_counter, counter_party)` · `s2_cells(year, month, bank, amount)` · `persons` · `valuable_types` (closed seed list, §8.2) · `s3_transactions(seq_auto, date, date_provisional, type, direction[acquire|dispose], quantity, unit_price, source, person, note)` · `s3_prices_manual(type, value, updated_at)` · `s3_prices_live(type, value, fetched_at)` · `s4_lines(label, value, position)` · `backup_log`.
 
 Derived values (totals, holdings, remaining limits, gains) are **computed, never stored**.
+
+The schema is authored from this document alone. It was never derived from, and does not mirror, the layout of any external file.
 
 ---
 
@@ -178,6 +183,10 @@ Years are **workspaces**, in the exact sense of Linux desktop-environment worksp
 - Amounts entered positive; the column's group decides the sign in computation.
 - Refund flag available on any entry (renders distinctly; counts against its category).
 - Empty means empty — no `'-'` placeholder text exists anywhere in JADEITE.
+
+### 6.4 Entry ergonomics (elevated requirement)
+
+Because **all** data — historical and future — arrives by hand (§18), keyboard-first entry is a first-class feature, not a convenience: Tab/Enter traversal, type-and-go without mouse acquisition, paste of a single value, undo of the last edit, and no modal dialogue on the common path. The same requirement applies to Sections 2, 3 and 4.
 
 ---
 
@@ -214,7 +223,7 @@ Grounded, per the manifesto, in Turkish economy and culture.
 
 ### 8.1 Persons
 
-Owner-defined persons (free creation, rename, colour dot). Every transaction belongs to a person; historical imports without ownership default to **Ortak (Unassigned)** for later reassignment.
+Owner-defined persons (free creation, rename, colour dot). Every transaction belongs to a person; historical rows whose ownership the owner cannot recall default to **Ortak (Unassigned)** for later reassignment.
 
 ### 8.2 Valuable types — closed list (owner's ruling: "only these")
 
@@ -322,61 +331,93 @@ Automatic: each year takes the next accent from the active palette's accent sequ
 - Backup destinations are local paths chosen by the owner (the archive HDD is the intended home). No cloud, ever.
 - The app prompts for a backup after every credential change (§4.4) and offers periodic reminders.
 - **Machine transfer:** primary home is the main rig; the laptop (or any future machine) is served by moving the `.jbk` by USB/drive and using the app's **import-database** function. Import fully replaces the local vault after explicit confirmation and credential verification. No network sync exists or will exist.
+- **`.jbk` import is the only import in the application.** It is JADEITE reading JADEITE: same schema, same DEK, no interpretation step, no legible payload. It is load-bearing for the rig ↔ laptop workflow and for disaster recovery, and it is used for the life of the app — which is precisely why it survives the rule in §1 that nothing single-use ships. It ingests no foreign format of any kind (§16.2).
+- **The importer's remit is backup, restore, copy and merge** (owner's ruling, 30 July 2026) — moving one JADEITE vault's data to another JADEITE, and nothing else. It carries no feature that reads or explains a foreign document. Full replacement is specified above and lands in Realisation IX; **merge** is named here as intended but not yet designed, because two vaults whose rows have diverged need a conflict rule and one invented in passing would be worse than none (open item Q2, §20).
 
 ---
 
 ## 16. Prohibitions (hard, permanent)
 
 1. **No outgoing data** in any legible form: no PDF/CSV/XLSX export, no printing pipeline, no share targets, no clipboard bulk-export features. The encrypted `.jbk` backup (§15) is the sole exception.
-2. **No telemetry, analytics, crash reporting, or update phoning** of any kind.
-3. **No cloud** anything.
-4. **No OS-locale detection** (§13).
-5. **No external configuration files beyond the single `config.json` of §4.1**, which carries the palette and the app language and nothing else. Every other setting lives inside the encrypted vault. *(Amended 2026-07-29; the original rule put all settings in the vault, which left the lock screen unable to honour the owner's own palette or language.)*
-6. **No portable build** — installer only.
-7. **No AI implications, flags, or banners anywhere in the build or release process**: commits, tags, release notes, code comments, and artefact metadata contain no AI attribution of any kind.
-8. Release tags contain **only** the version (`v0.5` — correct; `v0.5 - bugfix` — incorrect).
+2. **No foreign-format ingestion.** JADEITE cannot read `.xlsx`, `.ods`, `.pptx`, `.csv`, `.json`, or any other external data file. No import wizard, no column mapper, no parser. The only artefact the app ingests is its own sealed `.jbk` (§15). Data enters exclusively through the owner's keyboard.
+3. **No telemetry, analytics, crash reporting, or update phoning** of any kind.
+4. **No cloud** anything.
+5. **No OS-locale detection** (§13).
+6. **No external configuration files beyond the single `config.json` of §4.1**, which carries the palette and the app language and nothing else. Every other setting lives inside the encrypted vault. *(Amended 2026-07-29; the original rule put all settings in the vault, which left the lock screen unable to honour the owner's own palette or language.)*
+7. **No portable build** — installer only.
+8. **No AI implications, flags, or banners anywhere in the build or release process**: commits, tags, release notes, code comments, and artefact metadata contain no AI attribution of any kind.
+9. Release tags contain **only** the version (`v0.5` — correct; `v0.5 - bugfix` — incorrect).
 
 ---
 
 ## 17. Versioning, Repository & Release Discipline
 
-- Versions are two digits: **v0.1, v0.2, … v0.9, v1.0, v1.1, …** One bump per Realisation, regardless of the Realisation's size.
-- **Point revisions** (amended 2026-07-29): work that amends an already-released Realisation rather than advancing the ladder takes a lower-case letter suffix — **v0.2b, v0.2c, …** The next ladder rung still claims the next two-digit version, so a v0.2b never consumes v0.3. A suffix is a version, not a description: `v0.2b` is correct, `v0.2 - config split` is not (§16.8 stands unchanged). `package.json` must carry valid semver, so it holds the equivalent patch number: **v0.2b → `0.2.1`**, v0.2c → `0.2.2`.
-- Documents use Roman numerals (**Realisation I → v0.1**, Realisation II → v0.2, …); git tags use Arabic, version-only.
+- Versions are two digits: **v0.1, v0.2, … v0.9, v1.0, v1.1**. One bump per Realisation, regardless of the Realisation's size.
+- **Point revisions** (amended 2026-07-29): work that amends an already-released Realisation rather than advancing the ladder takes a lower-case letter suffix — **v0.2b, v0.2c, …** The next ladder rung still claims the next two-digit version, so a v0.2b never consumes v0.3. A suffix is a version, not a description: `v0.2b` is correct, `v0.2 - config split` is not (§16.9 stands unchanged). `package.json` must carry valid semver, so it holds the equivalent patch number: **v0.2b → `0.2.1`**, v0.2c → `0.2.2`.
+- **The ladder's final rung is Realisation XI → v1.1** (the Windows port). Data entry is not a Realisation and carries no version bump.
+- Documents use Roman numerals (**Realisation I → v0.1**, Realisation II → v0.2, … Realisation XI → v1.1); git tags use Arabic, version-only.
 - The repository is **private** on the owner's GitHub for the entire realisation ladder; every Realisation is built, tested, committed, pushed, and released privately. Any future opening of the source (GPL-3.0 permits it) is solely the owner's decision, after the ladder completes.
 - Security implementation starts at Realisation I — the vault exists before any section does.
 - The ladder may be subdivided further if implementation reality demands smaller chunks; Realisation quantity may grow, never shrink in rigour.
+- **Every release is data-free by construction.** A release contains code, palettes, and strings — never figures. No build step reads the owner's files; no acceptance check requires shipping data.
 
 ---
 
-## 18. Migration (scheduled last — Realisation XII, owner's ruling)
+## 18. Migration (manual, by the owner — no importer exists)
 
-Migration happens only after the app is fully realised **including the Windows port**: "everything built … the app became realized, then import."
+### 18.1 Ruling (amendment of 30 July 2026)
 
-### 18.1 Sources
+The migration importer — formerly Realisation XII, v1.2 — is **retired before construction**. It will not be built. Reasons recorded:
 
-1. `JADEITorigin.xlsx` — Sections 1–3 seed data (Sep 2022 → Jul 2026 at inspection).
-2. `Altın_Eğrisi.pptx` — the deep gold history: 36 purchase events Aug 2022 → Jun 2026 with dates (Excel serials), unit prices, and quantities.
+1. **Single use.** It would have been the most expensive-per-use code in the project: xlsx parsing, pptx parsing, Excel date-serial decoding, a nine-correction confirmation UI and a verification screen — all to run once, on one machine, against one file, and then sit in the binary forever. This contradicts §1: nothing single-use ships.
+2. **Not generalisable.** A correct importer for that workbook is hardcoded to that workbook's defects (the dropped F reference, the phantom column T, `0.300` meaning 300 g). It could never read anyone else's spreadsheet, because every person lays out a spreadsheet differently. A genuinely universal xlsx importer is a different product — column-mapping UI, type inference, date heuristics, merged-cell handling — and still fails on creative layouts. Out of scope, permanently.
+3. **Privacy.** No build session ever needs to read the owner's real financial history. The build produces the empty machine; only the owner fills it. Nothing that could carry the owner's figures out of the owner's hands is required to construct JADEITE.
 
-### 18.2 Correction table (agreed during forensic review — applied by the importer, each correction flagged for one-click confirmation)
+Historical data therefore enters JADEITE exactly as all future data will: **typed by the owner into the app's own grids.** The human is the parser. Every failure mode the importer would have guarded against is absent, because there is no interpretation step. A secondary benefit is deliberate: those typing sessions are the app's real ergonomics test (§6.4) — friction discovered there is a defect worth filing.
 
-| # | Finding in source | Correction |
+### 18.2 Source artefacts — handling
+
+`JADEITorigin.xlsx` and `Altın_Eğrisi.pptx` remain the owner's private reference material for the typing sessions.
+
+- Kept on the archive HDD, **outside the repository** and outside any build, tooling, or assistance session.
+- Never parsed by JADEITE and never opened by any tool acting on the app's behalf.
+- **Not to be deleted** until manual entry has been verified against §18.4 — they are the only copy of the history.
+- After verification passes: archive or destroy at the owner's discretion.
+- Note for any future opening of the source: **this document and `REALISATION.md` themselves contain real figures** (§18.4, and the acceptance lists of Realisations IV–V). If the repository is ever made public, either omit these documents or replace the fixtures with synthetic equivalents first.
+
+### 18.3 Manual-entry checklist (the forensic corrections, applied by hand)
+
+The forensic review found nine defects in the sources. Each is now a rule for the owner's typing rather than a line of code.
+
+| # | Finding in the source | What to type |
 |---|---|---|
-| 1 | Sheet 2 formulas `I16`/`I18` silently omit column F | Totals recomputed by engine; discrepancy report shown if any figure shifts |
-| 2 | June 2025 ELEKTRİK entered `+500.0` (owner: "forgot the minus") | Imported as an ordinary expense of 500.0 |
-| 3 | `'-'` text placeholders throughout | Imported as empty |
-| 4 | Phantom table column `T` headed "1" | Dropped |
-| 5 | Chart quantities `0.300` / `0.400` (owner: real values 300 g and 400 g, divided by 1000 to survive the linear axis) | Restored to **300** and **400** |
-| 6 | Chart row serial `45612` (16 Nov 2024) @ ₺1,865 — impossible for that date; fits Sep–Oct 2023 | Imported with price as ground truth, date ≈ Oct 2023, `date_provisional = true`, pending the owner's haremaltin history check (open item Q1) |
-| 7 | Frequency chart one-plus purchases behind the price chart / ledger | Sources merged and de-duplicated on (date, price, quantity) |
-| 8 | pptx rows carry no ownership | Person = **Ortak** pending reassignment |
-| 9 | Lifetime (~1,200 g through 18 Jul 2026: 1,090 g charted + two ledger buys missing from the frequency chart) vs current holdings (30 g) | Gap entered as dated **Elden Çıkarma** transaction(s) — the car — authored by the owner in the wizard, so holdings derive correctly |
+| 1 | Sheet 2 totals `I16`/`I18` silently omit column F | Type cell values only — **never a total**. JADEITE computes every total; the source's total cells are the thing being retired. |
+| 2 | June 2025 ELEKTRİK entered `+500.0` ("forgot the minus") | Enter `500.0` as an ordinary expense. Positive amount; the column's group carries the sign (§5.2). |
+| 3 | `'-'` text placeholders throughout | Leave the cell **empty**. No placeholder text exists in JADEITE. |
+| 4 | Phantom table column `T` headed "1" | Do not create it. |
+| 5 | Chart quantities `0.300` / `0.400` (real values divided by 1000 to survive a linear axis) | Enter **300 g** and **400 g**. The log-scale toggle (§11) makes falsification unnecessary forever. |
+| 6 | Chart row serial `45612` (16 Nov 2024) @ ₺1,865 — impossible for that date; fits Sep–Oct 2023 | Price is ground truth; date ≈ **Oct 2023** with `date_provisional` ticked. Clear the flag when Q1 resolves (§20). |
+| 7 | Frequency chart runs one-plus purchases behind the price chart / ledger | Reconcile by eye **before** typing: the charted events plus the two ledger buys missing from the frequency chart. Enter each event exactly once. Altın Eğrisi derives from the ledger, so the two can never drift again. |
+| 8 | pptx rows carry no ownership | Person = **Ortak**, reassigned later as the owner recalls. |
+| 9 | Lifetime ≈ 1,200 g (through 18 Jul 2026) vs current holdings 30 g — the car | Author the gap as dated **Elden Çıkarma** transaction(s) so holdings derive to 30 g. This is the event the two source documents hid between them. |
 
-### 18.3 Acceptance fixtures (the app must reproduce these from imported data)
+### 18.4 Verification fixtures (the typed data must reproduce these)
 
-- Section 2 grand total debt **₺48,271.63**; total remaining limit **₺1,240,596.08** (figures valid as of inspection; the importer recomputes and reports).
-- Section 3: current holdings **30 g**; cost basis **₺188,000**; market value **₺195,150** at the recorded manual price ₺6,505/g; unrealised **+₺7,150**; per person Kişi A **₺130,100**, Kişi B **₺65,050**.
-- Altın Eğrisi: 36+ merged acquisition events; corrected lifetime quantity **1,200 g** (through 18 Jul 2026); price series ₺1,000/g (4 Aug 2022) → ₺6,505/g (18 May 2026) rendered on a true date axis.
+After the typing sessions, JADEITE's own computed figures must match the inspected state of the retired sources:
+
+- **Section 2:** grand total debt **₺48,271.63**; total remaining limit **₺1,240,596.08**.
+- **Section 3:** holdings **30 g**; cost basis **₺188,000**; market value **₺195,150** at the recorded manual price ₺6,505/g; unrealised **+₺7,150**; per person Kişi A **₺130,100**, Kişi B **₺65,050**.
+- **Altın Eğrisi:** 40+ acquisition events; corrected lifetime quantity **1,200 g** through 18 Jul 2026; price series ₺1,000/g (4 Aug 2022) → ₺6,505/g (18 May 2026) on a true date axis.
+
+A mismatch means either a typo or an engine defect — both worth finding. Resolve before the sources are retired.
+
+### 18.5 Order of entry (suggested, after v1.1)
+
+1. **Section 3** — persons, then 3c current prices, then the 3a ledger oldest → newest, cross-checking each event against the Frekans chart of the deck. Holdings and Altın Eğrisi derive themselves.
+2. **Section 2** — the current tracking year only: banks, credit limits, month cells, counter columns. Verify against §18.4.
+3. **Section 1** — year-workspaces oldest → newest (Sep 2022 onward), letting column inheritance carry each year's set forward.
+
+Roughly 47 month-rows, ~38 gold events, and one debt year. Not a build task, not a Realisation, no tag.
 
 ---
 
@@ -386,7 +427,7 @@ Migration happens only after the app is fully realised **including the Windows p
 |---|---|
 | Framework | Electron + React (three-way comparison recorded; RAM cost accepted; cold start is the real metric) |
 | Platform order | Linux to full completion → finalise → Windows port |
-| Machine strategy | Main rig primary; transfer via encrypted file + import function; no sync |
+| Machine strategy | Main rig primary; transfer via encrypted `.jbk` + import function; no sync |
 | Language | Turkish primary, English optional, **manual switch only, never OS locale** |
 | Credentials | Master password; **every successful password reset consumes the recovery key and issues a fresh one**; exactly one valid at any time; both lost = unrecoverable |
 | Backup | Encrypted `.jbk` only; prompt after credential changes; truth table in §4.4 |
@@ -396,7 +437,10 @@ Migration happens only after the app is fully realised **including the Windows p
 | Section 2 totals | `TOTAL DEBT = Σ banks − Σ counters`; **`TOTAL REMAINING LIMIT` is the total of the Remaining Limit row** — counter columns have no limit and no cell in it |
 | Section 3 scope | Gold set + USD + EUR + silver + ziynet — **closed list** |
 | Cost vs market | Both, plus explicit unrealised G/L per person and total |
-| Migration | **Last of all**, after Windows; corrections table §18.2 |
+| Single-use code | **Refused.** Every shipped feature must earn its place through repeated use **and be usable by someone who has never seen the owner's files** (§1) |
+| Foreign-format import | **None, permanently** (§16.2). The only ingestible artefact is JADEITE's own `.jbk` |
+| Migration | **Manual, by the owner**, after v1.1; no importer is built; checklist §18.3, fixtures §18.4 |
+| Ladder end | **Realisation XI → v1.1** (Windows port). Typing carries no version |
 | Year accents | Automatic from palette, elegance constraint, manual override |
 | Overview | Yes — late realisation |
 | Altın Eğrisi | Yes — as a derived view, never a data store |
@@ -409,6 +453,7 @@ Migration happens only after the app is fully realised **including the Windows p
 
 ## 20. Open Items (owner-side, non-blocking)
 
-- **Q1:** true date of the ₺1,865 purchase (chart serial 45612) — check haremaltin price history; until then the row stays `date_provisional`.
+- **Q1:** true date of the ₺1,865 purchase (chart serial 45612) — check haremaltin price history; until then the row is typed with `date_provisional` set.
+- **Q2:** what **merge** should mean for `.jbk` import (§15). Full replacement is specified and sufficient for the rig ↔ laptop workflow. Merge needs a conflict rule for the case both vaults have been edited since they parted — newest-timestamp-wins, per-section choice, or a review screen. To be settled before Realisation IX designs the container, not during it.
 
 *End of specification. The build plan lives in `REALISATION.md`.*

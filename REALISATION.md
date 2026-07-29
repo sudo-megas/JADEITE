@@ -1,7 +1,8 @@
 # REALISATION
 
 **Project:** JADEITE · **Companion:** `XJADEITE.md` (the specification — authoritative for every rule referenced below)
-**Ladder:** twelve Realisations, Roman-numbered. One version bump per Realisation: **Realisation I → v0.1 … Realisation XII → v1.2.**
+**Ladder:** eleven Realisations, Roman-numbered. One version bump per Realisation: **Realisation I → v0.1 … Realisation XI → v1.1.**
+**Amended 30 July 2026:** the former Realisation XII (migration importer, v1.2) is retired before construction. Migration is manual and carries no version — see *After the ladder* and XJADEITE §18. The rulings of 2026-07-29 (the configuration split, the explicit and reversible Section 2 freeze, point revisions) stand unchanged and are restated where this document referenced them.
 
 ## Global rules of the ladder
 
@@ -9,7 +10,9 @@
 2. **Security exists from Realisation I.** No section is built before the vault.
 3. **Definition of Done (applies to every Realisation):** builds and runs on CachyOS; zero console errors on the happy path; cold-start budget respected (XJADEITE §3.4) from Realisation II onward; all *previous* Realisations' acceptance checks still pass (regression rule); no AI attribution anywhere in commits/tags/artefacts; no new network egress beyond the allowlist.
 4. A Realisation may be subdivided (I-a, I-b) if implementation reality demands smaller chunks; the version still bumps only when the whole Realisation's acceptance passes.
-5. Order of III–VIII may be tuned during the build if a dependency argues for it; XI (Windows) and XII (Migration) are fixed last by the owner's ruling.
+5. Order of III–VIII may be tuned during the build if a dependency argues for it; **XI (Windows) is fixed last** by the owner's ruling.
+6. **No Realisation reads a foreign file format, and no Realisation requires the owner's real data.** Every acceptance check below is reproducible with figures typed by hand into the app. The owner's source workbook and deck are never opened by the build (XJADEITE §18.2).
+7. **No single-use code ships.** If a feature would be run once and then carried forever, it is cut at design time rather than built (XJADEITE §1, §18.1).
 
 ---
 
@@ -68,13 +71,15 @@
 - Year-workspaces: create year (inherits previous year's column set), switch with the deliberate workspace transition, per-year accent applied (from II).
 - Column management: add/rename/reorder/retire per year; groups (Income | Expenses | TOTAL); column value types TRY/USD/EUR/plain.
 - Entry editing: positive-amount convention, refund flag, notes; empty is empty.
+- **Keyboard-first entry ergonomics (XJADEITE §6.4):** Tab/Enter traversal, type-and-go, single-value paste, undo of last edit, no modal on the common path. This is now a graded requirement, not a nicety — all historical data will be typed through this grid.
 - Computed income subtotal and net TOTAL per month row; year summary row.
 - Per-column filter and sort (view-only reordering).
 
 **Acceptance**
-- [ ] Recreate the source workbook's July 2026 row shape (6 income + 10 expense columns) manually and match its arithmetic to the kuruş.
+- [ ] A 6-income + 10-expense month row can be entered and its arithmetic matches to the kuruş.
 - [ ] A category retired in year N+1 leaves year N untouched.
 - [ ] Refund renders distinctly and sums correctly.
+- [ ] A full 12-month year can be entered **without touching the mouse**.
 - [ ] Workspace switch is smooth on the 280 Hz main display and acceptable on the laptop.
 - [ ] Tag `v0.3`.
 
@@ -91,7 +96,7 @@
 - Year rollover: freeze to read-only archive; new year carries banks, clears amounts; archive reachable by year selector.
 
 **Acceptance**
-- [ ] Reproduce the source's inspected state (6 banks, counter columns Sayaç A/Sayaç B/Sayaç C) and match: grand total debt **₺48,271.63**, total remaining limit **₺1,240,596.08** — with the engine, not formulas.
+- [ ] Typed by hand from the owner's known state (6 banks, counter columns Sayaç A/Sayaç B/Sayaç C), the engine reproduces grand total debt **₺48,271.63** and total remaining limit **₺1,240,596.08** — computed, not formula-copied.
 - [ ] Adding a December value in *any* bank updates every dependent total (the F-column bug is impossible).
 - [ ] Rollover archives are read-only and lossless.
 - [ ] Tag `v0.4`.
@@ -109,11 +114,13 @@
 - 3b holdings: derived per person × type, cross-checked against the ledger; discrepancy indicator if manual edits ever disagree with derivation.
 - 3c manual current prices per type, with timestamp; the live-value slot rendered (empty until VII).
 - Cost basis vs market value, unrealised G/L per person and grand (XJADEITE §8.6).
+- Ledger entry ergonomics: a long historical run of purchases must be typeable in one sitting — date/type/quantity/price flow, sensible field defaults carried from the previous row, keyboard-only path.
 
 **Acceptance**
 - [ ] Enter the three known 2026 purchases + a disposal; holdings, cost **₺188,000**, market **₺195,150** @ ₺6,505/g, unrealised **+₺7,150**, Kişi A **₺130,100** / Kişi B **₺65,050** all reproduced.
-- [ ] Ledger numbering cannot duplicate; dates validate.
+- [ ] Ledger numbering cannot duplicate; dates validate; `date_provisional` can be set and cleared per row.
 - [ ] Direction maths correct: disposals reduce holdings, never cost-basis history.
+- [ ] Thirty consecutive ledger rows can be entered without the mouse and without a modal.
 - [ ] Tag `v0.5`.
 
 ---
@@ -177,13 +184,14 @@
 **Scope**
 - `.jbk` container: envelope header + database + checksums; create/restore ceremonies with credential verification; backup log.
 - Post-credential-change backup prompt (mandated, XJADEITE §4.4); periodic reminder setting.
-- **Import-database** (machine transfer): full replacement after explicit confirmation.
+- **Import-database** (machine transfer): full replacement after explicit confirmation. This is JADEITE reading its own sealed container and is **the only import in the application** (XJADEITE §15, §16.2) — no foreign format is parsed here or anywhere.
 - In-app "Credentials & Backup Truth Table" page — the §4.4 contract, readable in thirty seconds by future-owner.
-- Hardening pass: dependency audit, IPC surface review, fuzz the importers, WAL/crash-recovery torture, cold-start re-verify on both machines.
+- Hardening pass: dependency audit, IPC surface review, **fuzz the `.jbk` container parser** (malformed header, truncated body, bad checksum, wrong format version — the only untrusted input the app has), WAL/crash-recovery torture, cold-start re-verify on both machines.
 
 **Acceptance**
 - [ ] Backup → wipe → restore = byte-equivalent data; old-credential backup opens per the truth table (live-vault path and dead-vault path both demonstrated).
 - [ ] Restore with wrong credentials fails cleanly and informatively.
+- [ ] A corrupted or hand-edited `.jbk` is rejected without a crash and without partial application.
 - [ ] Truth-table page ships in Turkish and English.
 - [ ] Tag `v0.9`.
 
@@ -206,9 +214,9 @@
 
 ---
 
-## Realisation XI — Windows Port · v1.1
+## Realisation XI — Windows Port · v1.1 *(final rung)*
 
-**Goal:** parity on Windows, pixel-identical by construction.
+**Goal:** parity on Windows, pixel-identical by construction — and the ladder's end.
 
 **Scope**
 - NSIS installer; `%APPDATA%\jadeite\` storage; native-module builds (SQLCipher, argon2) for Windows; code-path audit for path/locale assumptions.
@@ -217,25 +225,21 @@
 **Acceptance**
 - [ ] All prior acceptance lists pass on Windows 10/11.
 - [ ] A vault created on Linux, moved as `.jbk`, opens on Windows (and back).
-- [ ] Tag `v1.1`.
+- [ ] Tag `v1.1`. **The application is complete.**
 
 ---
 
-## Realisation XII — Migration · v1.2
+## After the ladder — Migration Day *(no version, no code, no tag)*
 
-**Goal:** the old life imported, corrected, and verified — last of all, per the owner's ruling.
+The old life enters by hand, per XJADEITE §18. This is an owner activity, not a Realisation: nothing is built, nothing is released, nothing is versioned.
 
-**Scope**
-- Import wizard: `JADEITorigin.xlsx` (Sections 1–3) + `Altın_Eğrisi.pptx` (deep gold history; Excel date-serial decoding built in).
-- The **correction table of XJADEITE §18.2 applied**, every correction surfaced for one-click confirm: F-column recompute report; June-2025 elektrik sign; `'-'` → empty; phantom column dropped; **0.300→300 g, 0.400→400 g**; the serial-45612 row at ≈ Oct 2023 `date_provisional` (pending open item Q1); chart/ledger merge + dedupe; pptx persons → Ortak; the car authored as dated Elden Çıkarma so holdings land at 30 g.
-- Post-import verification screen: the acceptance fixtures of XJADEITE §18.3, green/red.
-
-**Acceptance**
-- [ ] All §18.3 fixtures reproduced from imported data on both OSes.
-- [ ] Every applied correction is listed, confirmable, and reversible before commit.
-- [ ] The owner retires LibreOffice and PowerPoint for this job, permanently.
-- [ ] Tag `v1.2`.
+- Checklist of the nine forensic corrections: **XJADEITE §18.3** — kept beside the keyboard.
+- Verification fixtures the typed data must reproduce: **XJADEITE §18.4**.
+- Suggested order (Section 3 → Section 2 → Section 1): **XJADEITE §18.5**.
+- `JADEITorigin.xlsx` and `Altın_Eğrisi.pptx` stay on the archive HDD, outside the repo and outside every session, until the fixtures pass (§18.2).
+- Any friction met while typing is filed as a defect against the owning section — the sessions are the app's real ergonomics test.
+- When the fixtures go green: **LibreOffice and PowerPoint are retired for this job, permanently.**
 
 ---
 
-*Ladder ends. Anything after v1.2 — new palettes, new valuable types if the closed list is ever reopened, SAAT-family integrations — begins with a spec amendment to `XJADEITE.md`, then a new Realisation.*
+*Ladder ends at v1.1. Anything after — new palettes, new valuable types if the closed list is ever reopened, SAAT-family integrations — begins with a spec amendment to `XJADEITE.md`, then a new Realisation numbered XII.*
