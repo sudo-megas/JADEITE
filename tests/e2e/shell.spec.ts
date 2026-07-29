@@ -197,9 +197,9 @@ test('the six destinations exist and the keyboard map reaches them', async () =>
     'altinEgrisi'
   ].entries()) {
     await session.page.keyboard.press(`Control+${index + 1}`)
-    // Section 1 is furnished from Realisation III onward; the rest are still
-    // stubs that say which Realisation fills them in.
-    const testId = id === 'section1' ? 'section1' : `stub-${id}`
+    // Sections 1 and 2 are furnished from Realisations III and IV; the rest
+    // are still stubs that say which Realisation fills them in.
+    const testId = id === 'section1' || id === 'section2' ? id : `stub-${id}`
     await expect(session.page.getByTestId(testId)).toBeVisible()
   }
 

@@ -93,10 +93,10 @@ export const tr = {
     accentUseSequence: 'Palet sırasını kullan',
     deleteYear: 'Yılı sil',
     deleteYearDetail:
-      '{{year}} yılı, {{columns}} sütunu ve {{count}} kaydıyla birlikte kalıcı olarak silinecek.',
+      '{{year}} yılı, {{columns}} sütunu ve {{count}} kaydıyla, Ödemeler tablosundaki {{banks}} sütun ve {{cells}} hücreyle birlikte kalıcı olarak silinecek.',
     deleteYearWarningTitle: 'Bu işlem geri alınamaz.',
     deleteYearWarningBody:
-      'Bu yıla ait her şey silinir — ileride Ödemeler bölümünün o yıla ait tablosu da dahil. Diğer yıllar etkilenmez.',
+      'Bu yıla ait her şey silinir — Ödemeler bölümünün o yıla ait tablosu da dahil. Diğer yıllar etkilenmez.',
     deleteYearConfirm: 'Yılı kalıcı olarak sil',
     lastYearKept: 'Tek kalan yıl silinemez.',
 
@@ -161,6 +161,81 @@ export const tr = {
       DUPLICATE_NAME: 'Bu adda bir sütun zaten var.',
       INVALID_NAME: 'Sütun adı geçersiz.',
       INVALID_AMOUNT: 'Tutar geçersiz.',
+      INVALID_YEAR: 'Yıl geçersiz.',
+      INTERNAL: 'Beklenmeyen bir hata oluştu.'
+    }
+  },
+
+  // Bölüm 2 — Ödemeler. Başlıklar kaynak çalışma kitabının kendi adlarını
+  // korur, böylece sahibi zaten bildiği rakamı zaten kullandığı adla okur.
+  section2: {
+    month: 'AY',
+    groupBanks: 'BANKA / KART',
+    groupCounters: 'KARŞI SÜTUNLAR',
+    totalDebt: 'TOPLAM BORÇ',
+    creditLimit: 'KREDİ LİMİTİ',
+    debt: 'BORÇ',
+    remainingLimit: 'KALAN LİMİT',
+    totalRemainingLimit: 'TOPLAM KALAN LİMİT',
+    creditLimitOf: '{{name}} kredi limiti',
+    counterPartyOf: '{{name}} — kişi',
+
+    years: 'Yıllar',
+    year: 'Yıl',
+    addYear: 'Yıl ekle',
+    addYearLede: 'Yeni yıl, bir önceki yılın bankalarını devralır; tutarlar boş başlar.',
+    createYear: 'Yılı oluştur',
+    noBanks: 'Bu yılda henüz sütun yok. Aşağıdan bir banka veya kart ekleyin.',
+
+    newBankName: 'Banka / kart adı',
+    bankKind: 'Sütun türü',
+    bankKindBank: 'Banka / kart',
+    bankKindCounter: 'Karşı sütun',
+    newLimit: 'Kredi limiti',
+    newParty: 'Kişi (örn. annem)',
+    addColumn: 'Sütun ekle',
+
+    rename: 'Yeniden adlandır',
+    order: 'Sıra',
+    moveLeft: 'Sola',
+    moveRight: 'Sağa',
+    bankMenu: '{{name}} sütun menüsü',
+    bankMenuTitle: '{{name}} — sütun ayarları',
+
+    deleteColumn: 'Sütunu sil',
+    deleteColumnDetail: '{{name}} sütununda {{count}} kayıt var ({{total}}).',
+    deleteColumnWarningTitle: '{{name}} silinsin mi?',
+    deleteColumnWarningBody: 'Yalnızca bu yılın sütunu ve hücreleri silinir; diğer yıllar olduğu gibi kalır.',
+    deleteColumnConfirm: 'Sütunu sil',
+
+    archive: {
+      frozen: '{{year}} donduruldu — yalnızca okunur.',
+      frozenHint: 'Bir düzeltme gerekirse yeniden açabilirsiniz; hiçbir şey kaybolmaz.',
+      freeze: 'Yılı dondur',
+      freezeTitle: '{{year}} dondurulsun mu?',
+      freezeDetail: 'Bu yılın ızgarası salt okunur olur. Hiçbir şey silinmez ve istediğiniz an yeniden açabilirsiniz.',
+      freezeConfirm: 'Dondur',
+      reopen: 'Yeniden aç'
+    },
+
+    parse: {
+      NOT_A_NUMBER: 'Bu bir sayı değil.',
+      NEGATIVE: 'Tutarlar pozitif girilir; azaltan bir ödeme için karşı sütun kullanın.',
+      TOO_MANY_DECIMALS: 'En çok iki ondalık basamak (kuruş).',
+      BAD_GROUPING: 'Binlik ayracı hatalı — Türkçe biçim: 1.234,56',
+      TOO_LARGE: 'Bu sayı çok büyük.'
+    },
+
+    errors: {
+      LOCKED: 'Kasa kilitli.',
+      NO_SUCH_YEAR: 'Yıl bulunamadı.',
+      YEAR_EXISTS: 'Bu yıl zaten var.',
+      ARCHIVED: 'Bu yıl dondurulmuş. Değişiklik için yeniden açın.',
+      NO_SUCH_BANK: 'Sütun bulunamadı.',
+      DUPLICATE_NAME: 'Bu adda bir sütun zaten var.',
+      INVALID_NAME: 'Sütun adı geçersiz.',
+      INVALID_AMOUNT: 'Tutar geçersiz.',
+      INVALID_LIMIT: 'Kredi limiti geçersiz.',
       INVALID_YEAR: 'Yıl geçersiz.',
       INTERNAL: 'Beklenmeyen bir hata oluştu.'
     }

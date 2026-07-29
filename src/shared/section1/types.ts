@@ -22,12 +22,15 @@ export const VALUE_TYPES: readonly ValueType[] = Object.freeze(['TRY', 'USD', 'E
 /** The default a new column takes, per §6.2. */
 export const DEFAULT_VALUE_TYPE: ValueType = 'TRY'
 
-/** Ocak … Aralık. Twelve rows, always, in this order (§6.1). */
-export const MONTHS: readonly number[] = Object.freeze([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
-
-export function isMonth(value: number): boolean {
-  return Number.isInteger(value) && value >= 1 && value <= 12
-}
+/**
+ * The calendar, re-exported.
+ *
+ * The twelve months and the year bounds moved to shared/calendar.ts in
+ * Realisation IV, because Section 2 draws the same twelve lines and a calendar
+ * is not Section 1's property. Re-exported here so existing imports keep
+ * working.
+ */
+export { MAX_YEAR, MIN_YEAR, MONTHS, isMonth, isValidYear } from '../calendar.js'
 
 /** A column of one year's workspace. Each year owns its own set (§6.2). */
 export interface Category {
@@ -102,10 +105,17 @@ export interface CategoryUsage {
  * Counted rather than summed: a year can hold several value types, and a
  * confirmation is not the place to explain currency buckets. The counts are
  * enough to say plainly how much work is about to disappear.
+ *
+ * All four counts, because deleting a year cascades to all four tables. From
+ * Realisation IV the Payments grid goes with it, so the dialogue names that
+ * too; a confirmation that listed only columns and cells would be describing
+ * half of what the button does.
  */
 export interface YearUsage {
   categoryCount: number
   entryCount: number
+  bankCount: number
+  cellCount: number
 }
 
 /** Coarse failure reasons for Section 1, in the style of VaultErrorCode. */
@@ -121,15 +131,6 @@ export type Section1ErrorCode =
   | 'INVALID_AMOUNT'
   | 'INVALID_YEAR'
   | 'INTERNAL'
-
-/**
- * Bounds on a year number.
- *
- * Wide enough to be nobody's problem and narrow enough that a typo cannot
- * create a workspace at year 202600 and leave it in the switcher forever.
- */
-export const MIN_YEAR = 1970
-export const MAX_YEAR = 2200
 
 /** A column name has to fit in a header and be told apart from its neighbours. */
 export const MAX_CATEGORY_NAME_LENGTH = 48

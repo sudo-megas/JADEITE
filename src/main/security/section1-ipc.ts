@@ -22,6 +22,7 @@ import type {
 import { MAX_NOTE_LENGTH, VALUE_TYPES, isMonth } from '../../shared/section1/types.js'
 import * as s1 from '../vault/db/section1.js'
 import { Section1Error } from '../vault/db/section1.js'
+import { VaultDataError } from '../vault/db/errors.js'
 import * as vault from '../vault/vault.js'
 
 type S1Result<T> = Result<T, Section1ErrorCode>
@@ -55,7 +56,11 @@ function withVault<T>(fn: (db: DatabaseType) => T): S1Result<T> {
   try {
     return { ok: true, value: fn(db) }
   } catch (error) {
-    if (error instanceof Section1Error) return { ok: false, error: asCode(error.code) }
+    // The base class, not Section1Error: the year lifecycle is shared with
+    // Section 2 (db/years.ts) and cannot know which section is asking, so it
+    // throws the base. `asCode` still narrows anything unrecognised to
+    // INTERNAL, so catching wider cannot widen what crosses the bridge.
+    if (error instanceof VaultDataError) return { ok: false, error: asCode(error.code) }
     return { ok: false, error: 'INTERNAL' }
   }
 }

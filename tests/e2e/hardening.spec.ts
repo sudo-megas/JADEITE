@@ -45,11 +45,12 @@ test('the bridge exposes the contract and nothing more', async () => {
       vault: Object.keys(api.vault).sort(),
       settings: Object.keys(api.settings).sort(),
       config: Object.keys(api.config).sort(),
-      section1: Object.keys(api.section1).sort()
+      section1: Object.keys(api.section1).sort(),
+      section2: Object.keys(api.section2).sort()
     }
   })
 
-  expect(surface.top).toEqual(['config', 'section1', 'settings', 'vault'])
+  expect(surface.top).toEqual(['config', 'section1', 'section2', 'settings', 'vault'])
   expect(surface.vault).toEqual(['create', 'lock', 'onLocked', 'reset', 'status', 'unlock'])
   expect(surface.settings).toEqual(['get', 'set'])
   expect(surface.config).toEqual(['get', 'set'])
@@ -71,6 +72,24 @@ test('the bridge exposes the contract and nothing more', async () => {
     'yearUsage',
     'years'
   ])
+
+  // Section 2 arrives with Realisation IV, enumerated for the same reason.
+  // It has no deleteYear and no setAccentOverride: a year and its accent
+  // belong to the vault, and both already have one home in Section 1.
+  expect(surface.section2).toEqual([
+    'addBank',
+    'bankUsage',
+    'createYear',
+    'deleteBank',
+    'grid',
+    'renameBank',
+    'reorderBanks',
+    'setArchived',
+    'setCell',
+    'setCounterParty',
+    'setCreditLimit',
+    'years'
+  ])
 })
 
 test('Section 1 is unreachable while the vault is locked', async () => {
@@ -82,6 +101,21 @@ test('Section 1 is unreachable while the vault is locked', async () => {
 
   const years = await session.page.evaluate(() => window.jadeite.section1.years())
   expect(years).toEqual({ ok: false, error: 'LOCKED' })
+})
+
+test('Section 2 is unreachable while the vault is locked', async () => {
+  // The Payments grid is behind the lock for the same reason.
+  const grid = await session.page.evaluate(() => window.jadeite.section2.grid(2026))
+  expect(grid).toEqual({ ok: false, error: 'LOCKED' })
+
+  const years = await session.page.evaluate(() => window.jadeite.section2.years())
+  expect(years).toEqual({ ok: false, error: 'LOCKED' })
+
+  // A write is refused as firmly as a read.
+  const written = await session.page.evaluate(() =>
+    window.jadeite.section2.setCell({ year: 2026, month: 1, bankId: 1, amount: 1000 })
+  )
+  expect(written).toEqual({ ok: false, error: 'LOCKED' })
 })
 
 test('no key material or filesystem path is reachable through the bridge', async () => {

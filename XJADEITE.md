@@ -204,6 +204,8 @@ The source's icon-sets and data-bars are honoured in spirit, executed elegantly:
 
 On starting a new tracking year, the previous grid is frozen as a **read-only archive** reachable from a year selector; the new year begins with the bank set carried over and amounts cleared. Nothing is destroyed by January anymore (the source workbook overwrote itself annually).
 
+*(Amended 2026-07-29, during Realisation IV.)* The freeze is an **explicit, reversible act**, not an automatic consequence of creating the next year. Creating a year carries the bank set over and clears the amounts as above; freezing the old grid is a separate decision the owner makes in Section 2, and can be undone. The original wording made the freeze automatic, which would mean adding next year's workspace in October silently removed the ability to correct November. Nothing is destroyed in either direction, which is why neither direction needs a grave confirmation.
+
 ---
 
 ## 8. Section 3 — Valuables
@@ -390,7 +392,8 @@ Migration happens only after the app is fully realised **including the Windows p
 | Backup | Encrypted `.jbk` only; prompt after credential changes; truth table in §4.4 |
 | Sign convention | Amounts positive; category/direction carries sign; refunds explicit |
 | Section 1 | Year-workspaces (Niri-style), per-year column sets with inheritance |
-| Section 2 | Forward-looking tracker; read-only archive on rollover |
+| Section 2 | Forward-looking tracker; read-only archive on rollover, **frozen by an explicit and reversible act** (§7.3, amended) |
+| Section 2 totals | `TOTAL DEBT = Σ banks − Σ counters`; **`TOTAL REMAINING LIMIT` is the total of the Remaining Limit row** — counter columns have no limit and no cell in it |
 | Section 3 scope | Gold set + USD + EUR + silver + ziynet — **closed list** |
 | Cost vs market | Both, plus explicit unrealised G/L per person and total |
 | Migration | **Last of all**, after Windows; corrections table §18.2 |

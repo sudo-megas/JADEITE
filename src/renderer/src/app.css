@@ -403,14 +403,16 @@ button {
 
 /* --- Section 1: the year workspace -------------------------------------- */
 
-.s1 {
+.s1,
+.s2 {
   display: flex;
   flex-direction: column;
   gap: 18px;
   min-width: 0;
 }
 
-.s1-top {
+.s1-top,
+.s2-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -418,7 +420,8 @@ button {
   flex-wrap: wrap;
 }
 
-.s1-years {
+.s1-years,
+.s2-years {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -427,7 +430,8 @@ button {
 
 /* The switcher chip is the one place a year accent reaches full strength —
    a small mark, per the elegance constraint of §12.3. */
-.s1-year-chip {
+.s1-year-chip,
+.s2-year-chip {
   padding: 6px 14px;
   background: var(--surface-raised);
   border: 1px solid var(--border);
@@ -437,12 +441,14 @@ button {
   font-variant-numeric: tabular-nums;
 }
 
-.s1-year-chip:hover {
+.s1-year-chip:hover,
+.s2-year-chip:hover {
   border-color: var(--border-strong);
   color: var(--text);
 }
 
-.s1-year-chip[data-active='true'] {
+.s1-year-chip[data-active='true'],
+.s2-year-chip[data-active='true'] {
   background: var(--year-accent-tint);
   border-color: var(--year-accent-mark);
   color: var(--text);
@@ -451,7 +457,8 @@ button {
 
 /* The chip and its menu button travel together, so the menu can anchor to the
    year it belongs to. */
-.s1-year-slot {
+.s1-year-slot,
+.s2-year-slot {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -501,7 +508,8 @@ button {
   box-shadow: inset 0 0 0 2px var(--surface-raised);
 }
 
-.s1-year-add {
+.s1-year-add,
+.s2-year-add {
   width: 30px;
   height: 30px;
   background: none;
@@ -512,12 +520,14 @@ button {
   line-height: 1;
 }
 
-.s1-year-add:hover {
+.s1-year-add:hover,
+.s2-year-add:hover {
   color: var(--text);
   border-color: var(--accent);
 }
 
-.s1-tools {
+.s1-tools,
+.s2-tools {
   display: flex;
   gap: 8px;
 }
@@ -525,7 +535,8 @@ button {
 /* The workspace switch: one directional slide of the grid pane, transform and
    opacity only. Nothing that forces layout or paint animates, which is what
    keeps it smooth at 280 Hz and acceptable on the laptop's iGPU. */
-.s1-pane {
+.s1-pane,
+.s2-pane {
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -534,11 +545,13 @@ button {
   animation: s1-enter-forward 180ms cubic-bezier(0.2, 0, 0, 1);
 }
 
-.s1-pane[data-direction='backward'] {
+.s1-pane[data-direction='backward'],
+.s2-pane[data-direction='backward'] {
   animation-name: s1-enter-backward;
 }
 
-.s1-pane[data-direction='none'] {
+.s1-pane[data-direction='none'],
+.s2-pane[data-direction='none'] {
   animation: none;
   will-change: auto;
 }
@@ -568,7 +581,8 @@ button {
 /* A fade is still motion, so reduced motion gets an instantaneous swap. The
    direction cue survives statically in the switcher chip. */
 @media (prefers-reduced-motion: reduce) {
-  .s1-pane {
+  .s1-pane,
+  .s2-pane {
     animation: none;
     will-change: auto;
   }
@@ -750,7 +764,8 @@ button {
 }
 
 .s1-menu,
-.s1-cell-details {
+.s1-cell-details,
+.s2-menu {
   position: absolute;
   top: calc(100% + 4px);
   right: 0;
@@ -769,19 +784,22 @@ button {
   white-space: normal;
 }
 
-.s1-menu-row {
+.s1-menu-row,
+.s2-menu-row {
   display: flex;
   gap: 8px;
 }
 
-.s1-menu-foot {
+.s1-menu-foot,
+.s2-menu-foot {
   margin-top: 4px;
   padding-top: 10px;
   border-top: 1px solid var(--border);
   justify-content: space-between;
 }
 
-.s1-field-label {
+.s1-field-label,
+.s2-field-label {
   margin: 0;
   font-size: 11px;
   color: var(--text-subtle);
@@ -794,7 +812,11 @@ button {
 .s1-cell-details input[type='text'],
 .s1-add-column input[type='text'],
 .s1-add-column select,
-.s1-modal-body input[type='text'] {
+.s1-modal-body input[type='text'],
+.s2-menu input[type='text'],
+.s2-add-column input[type='text'],
+.s2-add-column select,
+.s2-modal-body input[type='text'] {
   width: 100%;
   padding: 6px 8px;
   background: var(--surface-sunken);
@@ -946,22 +968,26 @@ button {
 
 /* --- Adding a column ----------------------------------------------------- */
 
-.s1-add-column {
+.s1-add-column,
+.s2-add-column {
   display: flex;
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
 }
 
-.s1-add-column input[type='text'] {
+.s1-add-column input[type='text'],
+.s2-add-column input[type='text'] {
   width: 220px;
 }
 
-.s1-add-column select {
+.s1-add-column select,
+.s2-add-column select {
   width: auto;
 }
 
-.s1-btn {
+.s1-btn,
+.s2-btn {
   padding: 7px 14px;
   background: var(--accent);
   border: 1px solid var(--accent);
@@ -971,17 +997,20 @@ button {
   font-weight: 600;
 }
 
-.s1-btn:hover:not(:disabled) {
+.s1-btn:hover:not(:disabled),
+.s2-btn:hover:not(:disabled) {
   background: var(--accent-hover);
   border-color: var(--accent-hover);
 }
 
-.s1-btn:disabled {
+.s1-btn:disabled,
+.s2-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
 
-.s1-btn-quiet {
+.s1-btn-quiet,
+.s2-btn-quiet {
   padding: 6px 10px;
   background: none;
   border: 1px solid var(--border);
@@ -990,12 +1019,14 @@ button {
   font-size: 12px;
 }
 
-.s1-btn-quiet:hover {
+.s1-btn-quiet:hover,
+.s2-btn-quiet:hover {
   color: var(--text);
   border-color: var(--border-strong);
 }
 
-.s1-btn-danger {
+.s1-btn-danger,
+.s2-btn-danger {
   padding: 6px 12px;
   background: none;
   border: 1px solid var(--danger);
@@ -1005,12 +1036,14 @@ button {
   font-weight: 600;
 }
 
-.s1-btn-danger:hover {
+.s1-btn-danger:hover,
+.s2-btn-danger:hover {
   background: var(--danger);
   color: var(--text-on-accent);
 }
 
-.s1-error {
+.s1-error,
+.s2-error {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1023,7 +1056,8 @@ button {
   font-size: 13px;
 }
 
-.s1-empty-state {
+.s1-empty-state,
+.s2-empty-state {
   margin: 0;
   padding: 32px;
   border: 1px dashed var(--border-strong);
@@ -1034,7 +1068,8 @@ button {
 
 /* --- Modals -------------------------------------------------------------- */
 
-.s1-modal {
+.s1-modal,
+.s2-modal {
   position: fixed;
   inset: 0;
   z-index: 50;
@@ -1044,7 +1079,8 @@ button {
   background: var(--surface);
 }
 
-.s1-modal-body {
+.s1-modal-body,
+.s2-modal-body {
   width: 100%;
   max-width: 440px;
   display: flex;
@@ -1056,12 +1092,354 @@ button {
   border-radius: var(--radius);
 }
 
-.s1-modal-body h2 {
+.s1-modal-body h2,
+.s2-modal-body h2 {
   margin: 0;
   font-size: 17px;
   font-weight: 600;
 }
 
-.s1-modal-body .lede {
+.s1-modal-body .lede,
+.s2-modal-body .lede {
   margin: 0;
+}
+
+/* --- Section 2: the Payments grid ---------------------------------------- */
+
+/* The chrome above — pane, chips, buttons, menus, modals — is shared with
+   Section 1 on the same selector lists, so the two sections cannot drift apart
+   in appearance or in how the workspace switch moves. Only what Section 2
+   draws differently lives here. */
+
+.s2-grid-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+}
+
+.s2-grid {
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.s2-grid th,
+.s2-grid td {
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 0;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.s2-grid thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 6px 10px;
+  background: var(--surface-raised);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+/* The group band, in the year's own accent at tint strength. */
+.s2-grid thead tr:first-child th {
+  background: var(--year-accent-tint);
+  text-align: center;
+  border-bottom: 1px solid var(--year-accent-line);
+}
+
+.s2-grid thead .s2-th-empty {
+  background: var(--surface-raised);
+  border-bottom: 1px solid var(--border);
+}
+
+.s2-grid thead tr:nth-child(2) th {
+  top: 30px;
+  padding: 0;
+}
+
+/* The Credit Limit row is a header row that takes typing, so it is not sticky:
+   three stacked sticky rows would each need an offset kept in step with a font
+   size by hand. */
+.s2-grid thead tr:nth-child(3) th,
+.s2-grid thead tr:nth-child(3) td {
+  position: static;
+  background: var(--surface-sunken);
+  border-bottom: 1px solid var(--border-strong);
+}
+
+.s2-grid thead tr:nth-child(3) th {
+  padding: 6px 12px;
+}
+
+.s2-grid th:first-child,
+.s2-grid td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface-raised);
+  border-right: 1px solid var(--border-strong);
+}
+
+.s2-grid thead th:first-child {
+  z-index: 3;
+}
+
+.s2-month {
+  display: block;
+  padding: 7px 12px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.s2-grid tbody tr:nth-child(even) td {
+  background: var(--year-accent-wash);
+}
+
+.s2-grid tbody tr:hover td {
+  background: var(--surface-overlay);
+}
+
+.s2-grid td[data-group='total-debt'],
+.s2-grid th[data-group='total-debt'] {
+  background: var(--year-accent-wash);
+  border-left: 1px solid var(--year-accent-line);
+  border-right: 1px solid var(--year-accent-line);
+}
+
+.s2-grid th[data-group='group-counters'],
+.s2-grid td[data-group='group-counters'] {
+  background: var(--surface-sunken);
+}
+
+.s2-num {
+  display: block;
+  padding: 7px 10px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.s2-num[data-negative='true'] {
+  color: var(--danger);
+}
+
+.s2-grand {
+  font-weight: 600;
+}
+
+/* Paid and pending, read from the calendar (§7.2). A month that has been and
+   gone reads quieter; the current one carries a mark in the year's accent.
+   Never a badge, never a colour-coded row. */
+.s2-grid tbody tr[data-state='settled'] .s2-num,
+.s2-grid tbody tr[data-state='settled'] .s2-cell-input {
+  color: var(--text-muted);
+}
+
+.s2-grid tbody tr[data-state='settled'] td:first-child {
+  box-shadow: inset 2px 0 0 var(--border);
+}
+
+.s2-grid tbody tr[data-state='current'] td:first-child {
+  box-shadow: inset 2px 0 0 var(--year-accent-mark);
+}
+
+.s2-grid tbody tr[data-state='current'] .s2-month {
+  color: var(--text);
+}
+
+/* --- The magnitude bar (§7.2) -------------------------------------------- */
+
+/* Descended from the source sheet's data bars, executed quietly: one band
+   behind the figure, scaled by the largest month of the year so the eye can
+   compare months without reading twelve numbers. */
+.s2-total {
+  position: relative;
+  display: block;
+  padding: 7px 10px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.s2-bar {
+  position: absolute;
+  inset-block: 3px;
+  inset-inline-start: 0;
+  border-radius: var(--radius-sm);
+  background: color-mix(in oklch, var(--year-accent) 28%, transparent);
+  transition: width 120ms ease-out;
+}
+
+/* A month where the counter columns exceed the cards is money coming back,
+   which is not debt — so it does not wear the debt colour. */
+.s2-total[data-sign='negative'] .s2-bar {
+  background: color-mix(in oklch, var(--success) 26%, transparent);
+}
+
+.s2-total .s2-num {
+  position: relative;
+  display: block;
+  padding: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .s2-bar {
+    transition: none;
+  }
+}
+
+/* --- Cells --------------------------------------------------------------- */
+
+.s2-cell {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.s2-cell-input,
+.s2-party-input {
+  width: 100%;
+  min-width: 112px;
+  padding: 7px 10px;
+  background: none;
+  border: none;
+  border-radius: 0;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.s2-party-input {
+  text-align: left;
+  font-variant-numeric: normal;
+}
+
+.s2-cell-input:focus,
+.s2-party-input:focus {
+  background: var(--surface-sunken);
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.s2-cell-input:read-only,
+.s2-party-input:read-only {
+  cursor: default;
+}
+
+.s2-cell-problem {
+  position: absolute;
+  top: calc(100% + 2px);
+  right: 0;
+  z-index: 25;
+  margin: 0;
+  padding: 6px 8px;
+  background: var(--surface-overlay);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-sm);
+  color: var(--danger);
+  font-size: 11px;
+  white-space: normal;
+  min-width: 190px;
+}
+
+/* --- Footer rows --------------------------------------------------------- */
+
+/* Static, not sticky: twelve rows never scroll vertically — the scroll here is
+   horizontal — so the three bottom bars have no reason to be pinned, and the
+   hand-kept offset that pinning two of them would need does not arise. */
+.s2-grid tfoot th,
+.s2-grid tfoot td {
+  background: var(--surface-raised);
+  border-top: 1px solid var(--border);
+}
+
+.s2-grid tfoot th {
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+.s2-debt-row th,
+.s2-debt-row td {
+  border-top: 1px solid var(--border-strong);
+}
+
+.s2-debt-row td .s2-num,
+.s2-debt-row th {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.s2-total-remaining-row td {
+  background: var(--year-accent-wash);
+}
+
+.s2-total-remaining-row td .s2-num {
+  text-align: left;
+  padding-left: 12px;
+}
+
+/* --- The frozen year (§7.3) ---------------------------------------------- */
+
+.s2-frozen {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin: 0;
+  padding: 8px 12px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.s2-frozen .lede {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-subtle);
+}
+
+/* --- Header cells -------------------------------------------------------- */
+
+.s2-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 132px;
+}
+
+.s2-header-text {
+  display: block;
+  padding: 6px 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 168px;
+}
+
+.s2-header-menu {
+  padding: 4px 6px;
+  background: none;
+  border: none;
+  color: var(--text-subtle);
+  font-size: 13px;
+  line-height: 1;
+}
+
+.s2-header-menu:hover {
+  color: var(--text);
 }

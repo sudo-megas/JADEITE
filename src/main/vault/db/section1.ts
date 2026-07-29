@@ -1,17 +1,19 @@
 /**
- * Section 1 storage — year workspaces, their column sets, and their cells.
+ * Section 1 storage — column sets and cells, within a year.
  *
  * Everything here is a write against the encrypted database or a read out of
  * it. No arithmetic lives in this file: totals are computed by
  * shared/section1/engine.ts and stored nowhere (§5.3), so there is no cached
  * sum that can fall out of step with the rows it claims to describe.
  *
- * Two invariants are the reason most of these functions are transactions:
+ * The year lifecycle itself moved to db/years.ts in Realisation IV, because
+ * `years` parents Section 2's tables too and one section should not own the
+ * table another one hangs from. It is re-exported below so every caller keeps
+ * the import it already had.
  *
- *   - positions are contiguous from zero within a (year, kind) group, so a
- *     reorder cannot leave a gap that later reads have to guess about;
- *   - a year's rows are created together with the year, so a workspace never
- *     half-exists.
+ * The invariant that makes most of these functions transactions: positions are
+ * contiguous from zero within a (year, kind) group, so a reorder cannot leave a
+ * gap that later reads have to guess about.
  */
 
 import type { Database as DatabaseType } from 'better-sqlite3-multiple-ciphers'
@@ -24,23 +26,40 @@ import type {
   Entry,
   EntryPatch,
   ValueType,
-  YearUsage,
   YearWorkspace
 } from '../../../shared/section1/types.js'
 import {
   MAX_CATEGORY_NAME_LENGTH,
   MAX_NOTE_LENGTH,
-  MAX_YEAR,
-  MIN_YEAR,
-  VALUE_TYPES,
-  isMonth
+  VALUE_TYPES
 } from '../../../shared/section1/types.js'
-import { SETTING_KEYS } from '../../../shared/ipc-contract.js'
-import { getSetting, setSetting } from './settings.js'
+import { isMonth, isValidYear } from '../../../shared/calendar.js'
+import { VaultDataError } from './errors.js'
+import { yearExists } from './years.js'
+
+/**
+ * The year lifecycle, re-exported.
+ *
+ * Section 1 was where these lived and is where the rest of the app still looks
+ * for them; moving the file without moving the import surface keeps Realisation
+ * IV's refactor invisible to `section1-ipc.ts` and to the Realisation III
+ * suites, which is how it stays reviewable as a move rather than a rewrite.
+ */
+export {
+  accentAnchorYear,
+  createYear,
+  deleteYear,
+  ensureAnyYear,
+  isValidYear,
+  listYears,
+  setAccentOverride,
+  yearExists,
+  yearUsage
+} from './years.js'
 
 /** Thrown inside a transaction and turned into a Result by the IPC layer. */
-export class Section1Error extends Error {
-  constructor(readonly code: string) {
+export class Section1Error extends VaultDataError {
+  constructor(code: string) {
     super(code)
     this.name = 'Section1Error'
   }
@@ -51,10 +70,6 @@ function fail(code: string): never {
 }
 
 // --- Validation ------------------------------------------------------------
-
-export function isValidYear(year: unknown): year is number {
-  return typeof year === 'number' && Number.isInteger(year) && year >= MIN_YEAR && year <= MAX_YEAR
-}
 
 function cleanName(name: unknown): string {
   if (typeof name !== 'string') fail('INVALID_NAME')
@@ -83,164 +98,13 @@ function cleanKind(kind: unknown): CategoryKind {
   return kind
 }
 
-// --- Years -----------------------------------------------------------------
+// --- Reading a workspace ---------------------------------------------------
 
+/** The parent row, read for the accent the workspace paints itself with. */
 interface YearRow {
   year: number
   accent_override: string | null
 }
-
-export function listYears(db: DatabaseType): number[] {
-  const rows = db.prepare('SELECT year FROM years ORDER BY year ASC').all() as { year: number }[]
-  return rows.map((r) => r.year)
-}
-
-export function yearExists(db: DatabaseType, year: number): boolean {
-  const row = db.prepare('SELECT 1 AS present FROM years WHERE year = ?').get(year)
-  return row !== undefined
-}
-
-/**
- * The accent anchor — the year the palette's accent sequence starts counting
- * from (§12.3).
- *
- * It is written once and never recomputed. Deriving it from the earliest year
- * present would make every year's colour a function of the whole dataset, so
- * back-filling one older year would repaint every workspace the owner had
- * already learnt to recognise. The accent is how a year is known at a glance;
- * it does not get to move.
- */
-export function accentAnchorYear(db: DatabaseType): number {
-  const stored = getSetting(db, SETTING_KEYS.accentAnchorYear)
-  const parsed = stored === null ? NaN : Number.parseInt(stored, 10)
-  if (isValidYear(parsed)) return parsed
-
-  // Absent only for a vault that predates Realisation III. Repaired once, to a
-  // fixed value, and then treated as frozen like any other anchor.
-  const years = listYears(db)
-  const repaired = years[0] ?? new Date().getFullYear()
-  setSetting(db, SETTING_KEYS.accentAnchorYear, String(repaired))
-  return repaired
-}
-
-/**
- * Create a year, inheriting the previous year's columns as a starting point.
- *
- * "Previous" is strictly backwards: the donor is the newest year older than
- * this one. A year created before every existing year inherits nothing, because
- * borrowing forwards would furnish a historical workspace with categories the
- * owner had not invented yet. Columns are copied; amounts never are.
- */
-export function createYear(db: DatabaseType, year: number): void {
-  if (!isValidYear(year)) fail('INVALID_YEAR')
-
-  const run = db.transaction(() => {
-    if (yearExists(db, year)) fail('YEAR_EXISTS')
-
-    db.prepare('INSERT INTO years (year, created_at) VALUES (?, ?)').run(
-      year,
-      new Date().toISOString()
-    )
-
-    const donor = db
-      .prepare('SELECT year FROM years WHERE year < ? ORDER BY year DESC LIMIT 1')
-      .get(year) as { year: number } | undefined
-
-    if (donor) {
-      db.prepare(
-        `INSERT INTO s1_categories (year, name, kind, value_type, position)
-           SELECT ?, name, kind, value_type, position
-             FROM s1_categories WHERE year = ?
-            ORDER BY kind, position`
-      ).run(year, donor.year)
-    }
-
-    // The anchor belongs to the first year this vault ever had.
-    if (getSetting(db, SETTING_KEYS.accentAnchorYear) === null) {
-      setSetting(db, SETTING_KEYS.accentAnchorYear, String(year))
-    }
-  })
-
-  run()
-}
-
-/**
- * The year a fresh vault opens on.
- *
- * The system clock is read for the year number. That is not OS-locale
- * detection: §13 prohibits taking the *language* or the formatting conventions
- * from the machine, and the vault already timestamps every row it writes.
- */
-export function ensureAnyYear(db: DatabaseType): number {
-  const existing = listYears(db)
-  const first = existing[0]
-  if (first !== undefined) return first
-
-  const currentYear = new Date().getFullYear()
-  createYear(db, currentYear)
-  return currentYear
-}
-
-/** What deleting a year would destroy, asked for before the offer is made. */
-export function yearUsage(db: DatabaseType, year: number): YearUsage {
-  if (!isValidYear(year)) fail('INVALID_YEAR')
-  if (!yearExists(db, year)) fail('NO_SUCH_YEAR')
-
-  const categories = db
-    .prepare('SELECT COUNT(*) AS n FROM s1_categories WHERE year = ?')
-    .get(year) as { n: number }
-  const entries = db
-    .prepare('SELECT COUNT(*) AS n FROM s1_entries WHERE year = ?')
-    .get(year) as { n: number }
-
-  return { categoryCount: categories.n, entryCount: entries.n }
-}
-
-/**
- * Delete a year and everything in it.
- *
- * "Everything" is broader than Section 1: `years` is the parent of `s2_banks`
- * and `s2_cells` too (schema.ts), so from Realisation IV onward this also
- * removes that year's Payments grid. The confirmation says so — a dialogue that
- * named only columns would be describing half of what it does.
- *
- * The last remaining year is refused. The switcher has to have somewhere to be,
- * and a vault with no years would meet the owner with a modal instead of a grid.
- *
- * The accent anchor is a settings row and is deliberately untouched: deleting
- * and recreating a year gives it back the colour it had.
- */
-export function deleteYear(db: DatabaseType, year: number): void {
-  if (!isValidYear(year)) fail('INVALID_YEAR')
-
-  const run = db.transaction(() => {
-    if (!yearExists(db, year)) fail('NO_SUCH_YEAR')
-    if (listYears(db).length <= 1) fail('LAST_YEAR')
-    db.prepare('DELETE FROM years WHERE year = ?').run(year)
-  })
-
-  run()
-}
-
-/** The manual per-year accent override of §12.3, or null for the sequence value. */
-export function setAccentOverride(db: DatabaseType, year: number, accent: string | null): void {
-  if (!isValidYear(year)) fail('INVALID_YEAR')
-  if (!yearExists(db, year)) fail('NO_SUCH_YEAR')
-
-  // Only a palette-shaped token is accepted. The renderer paints this straight
-  // into a custom property, so anything else would be a stylesheet injection
-  // with extra steps.
-  const cleaned =
-    accent === null || accent.trim().length === 0
-      ? null
-      : /^#[0-9a-fA-F]{3,8}$/.test(accent.trim())
-        ? accent.trim()
-        : fail('INTERNAL')
-
-  db.prepare('UPDATE years SET accent_override = ? WHERE year = ?').run(cleaned, year)
-}
-
-// --- Reading a workspace ---------------------------------------------------
 
 interface CategoryRow {
   id: number

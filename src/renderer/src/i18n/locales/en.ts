@@ -91,10 +91,10 @@ export const en = {
     accentUseSequence: 'Use the palette sequence',
     deleteYear: 'Delete year',
     deleteYearDetail:
-      'The year {{year}}, its {{columns}} columns and its {{count}} entries will be permanently deleted.',
+      'The year {{year}}, its {{columns}} columns and {{count}} entries, and the {{banks}} columns and {{cells}} cells of its Payments grid, will be permanently deleted.',
     deleteYearWarningTitle: 'This cannot be undone.',
     deleteYearWarningBody:
-      'Everything belonging to this year goes — including its Payments grid once that section exists. Other years are unaffected.',
+      'Everything belonging to this year goes — including its Payments grid. Other years are unaffected.',
     deleteYearConfirm: 'Delete the year permanently',
     lastYearKept: 'The last remaining year cannot be deleted.',
 
@@ -159,6 +159,79 @@ export const en = {
       DUPLICATE_NAME: 'A column with that name already exists.',
       INVALID_NAME: 'That column name is not valid.',
       INVALID_AMOUNT: 'That amount is not valid.',
+      INVALID_YEAR: 'That year is not valid.',
+      INTERNAL: 'Something unexpected went wrong.'
+    }
+  },
+
+  section2: {
+    month: 'MONTH',
+    groupBanks: 'BANK / CARD',
+    groupCounters: 'COUNTER COLUMNS',
+    totalDebt: 'TOTAL DEBT',
+    creditLimit: 'CREDIT LIMIT',
+    debt: 'DEBT',
+    remainingLimit: 'REMAINING LIMIT',
+    totalRemainingLimit: 'TOTAL REMAINING LIMIT',
+    creditLimitOf: '{{name}} credit limit',
+    counterPartyOf: '{{name}} — person',
+
+    years: 'Years',
+    year: 'Year',
+    addYear: 'Add year',
+    addYearLede: 'A new year inherits the previous year’s banks; the amounts start empty.',
+    createYear: 'Create year',
+    noBanks: 'No columns in this year yet. Add a bank or card below.',
+
+    newBankName: 'Bank / card name',
+    bankKind: 'Column type',
+    bankKindBank: 'Bank / card',
+    bankKindCounter: 'Counter column',
+    newLimit: 'Credit limit',
+    newParty: 'Person (e.g. sayacA)',
+    addColumn: 'Add column',
+
+    rename: 'Rename',
+    order: 'Order',
+    moveLeft: 'Left',
+    moveRight: 'Right',
+    bankMenu: '{{name}} column menu',
+    bankMenuTitle: '{{name}} — column settings',
+
+    deleteColumn: 'Delete column',
+    deleteColumnDetail: '{{name}} holds {{count}} entries ({{total}}).',
+    deleteColumnWarningTitle: 'Delete {{name}}?',
+    deleteColumnWarningBody: 'Only this year’s column and its cells go; other years are untouched.',
+    deleteColumnConfirm: 'Delete column',
+
+    archive: {
+      frozen: '{{year}} is frozen — read only.',
+      frozenHint: 'Reopen it if a correction is needed; nothing is lost either way.',
+      freeze: 'Freeze year',
+      freezeTitle: 'Freeze {{year}}?',
+      freezeDetail: 'This year’s grid becomes read only. Nothing is deleted, and you can reopen it at any time.',
+      freezeConfirm: 'Freeze',
+      reopen: 'Reopen'
+    },
+
+    parse: {
+      NOT_A_NUMBER: 'That is not a number.',
+      NEGATIVE: 'Amounts are entered positive; use a counter column for money coming back.',
+      TOO_MANY_DECIMALS: 'At most two decimal places.',
+      BAD_GROUPING: 'Check the thousands separator — English format: 1,234.56',
+      TOO_LARGE: 'That number is too large.'
+    },
+
+    errors: {
+      LOCKED: 'The vault is locked.',
+      NO_SUCH_YEAR: 'No such year.',
+      YEAR_EXISTS: 'That year already exists.',
+      ARCHIVED: 'This year is frozen. Reopen it to make changes.',
+      NO_SUCH_BANK: 'No such column.',
+      DUPLICATE_NAME: 'A column with that name already exists.',
+      INVALID_NAME: 'That column name is not valid.',
+      INVALID_AMOUNT: 'That amount is not valid.',
+      INVALID_LIMIT: 'That credit limit is not valid.',
       INVALID_YEAR: 'That year is not valid.',
       INTERNAL: 'Something unexpected went wrong.'
     }

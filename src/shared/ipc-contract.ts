@@ -15,6 +15,13 @@ import type {
   YearUsage,
   YearWorkspace
 } from './section1/types.js'
+import type {
+  BankDraft,
+  BankUsage,
+  CellPatch,
+  Section2ErrorCode,
+  YearGrid
+} from './section2/types.js'
 
 export const IPC = {
   vaultStatus: 'vault:status',
@@ -41,7 +48,21 @@ export const IPC = {
   s1SetEntry: 's1:set-entry',
   s1SetAccentOverride: 's1:set-accent-override',
   s1YearUsage: 's1:year-usage',
-  s1DeleteYear: 's1:delete-year'
+  s1DeleteYear: 's1:delete-year',
+
+  // Section 2 — Payments / Installments (§7).
+  s2Years: 's2:years',
+  s2CreateYear: 's2:create-year',
+  s2Grid: 's2:grid',
+  s2AddBank: 's2:add-bank',
+  s2RenameBank: 's2:rename-bank',
+  s2SetCreditLimit: 's2:set-credit-limit',
+  s2SetCounterParty: 's2:set-counter-party',
+  s2ReorderBanks: 's2:reorder-banks',
+  s2BankUsage: 's2:bank-usage',
+  s2DeleteBank: 's2:delete-bank',
+  s2SetCell: 's2:set-cell',
+  s2SetArchived: 's2:set-archived'
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]
@@ -165,6 +186,8 @@ export interface JadeiteApi {
   }
   /** Section 1 — Income & Expenses (§6). Everything here needs the vault open. */
   section1: Section1Api
+  /** Section 2 — Payments / Installments (§7). Everything here needs the vault open. */
+  section2: Section2Api
 }
 
 /** What the year switcher needs before any workspace is loaded. */
@@ -195,4 +218,35 @@ export interface Section1Api {
   /** What deleting this year would destroy, asked before it is offered. */
   yearUsage(year: number): Promise<Result<YearUsage, Section1ErrorCode>>
   deleteYear(year: number): Promise<Result<YearIndex, Section1ErrorCode>>
+}
+
+/**
+ * Section 2 — Payments / Installments (§7).
+ *
+ * There is no `deleteYear` and no `setAccentOverride` here on purpose. A year
+ * and its accent belong to the vault rather than to a section, and both already
+ * have exactly one home in Section 1's year menu. A second copy of a
+ * destructive dialogue is the "same list kept in two places" defect of §7.1,
+ * rebuilt deliberately.
+ */
+export interface Section2Api {
+  /** Existing years, ascending, plus the accent anchor. Creates one if none exist. */
+  years(): Promise<Result<YearIndex, Section2ErrorCode>>
+  createYear(year: number): Promise<Result<YearIndex, Section2ErrorCode>>
+  grid(year: number): Promise<Result<YearGrid, Section2ErrorCode>>
+  addBank(year: number, draft: BankDraft): Promise<Result<number, Section2ErrorCode>>
+  renameBank(id: number, name: string): Promise<Result<null, Section2ErrorCode>>
+  setCreditLimit(id: number, limit: number): Promise<Result<null, Section2ErrorCode>>
+  setCounterParty(id: number, party: string | null): Promise<Result<null, Section2ErrorCode>>
+  reorderBanks(
+    year: number,
+    isCounter: boolean,
+    orderedIds: number[]
+  ): Promise<Result<null, Section2ErrorCode>>
+  /** What deleting this column would destroy, asked before it is offered. */
+  bankUsage(id: number): Promise<Result<BankUsage, Section2ErrorCode>>
+  deleteBank(id: number): Promise<Result<null, Section2ErrorCode>>
+  setCell(patch: CellPatch): Promise<Result<null, Section2ErrorCode>>
+  /** Freeze this year's grid, or reopen it (§7.3). */
+  setArchived(year: number, archived: boolean): Promise<Result<null, Section2ErrorCode>>
 }

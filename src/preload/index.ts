@@ -16,6 +16,7 @@ import {
   type RecoveryKeyIssue,
   type Result,
   type Section1Api,
+  type Section2Api,
   type VaultStatus,
   type YearIndex
 } from '../shared/ipc-contract.js'
@@ -29,6 +30,13 @@ import type {
   YearUsage,
   YearWorkspace
 } from '../shared/section1/types.js'
+import type {
+  BankDraft,
+  BankUsage,
+  CellPatch,
+  Section2ErrorCode,
+  YearGrid
+} from '../shared/section2/types.js'
 
 type S1<T> = Promise<Result<T, Section1ErrorCode>>
 
@@ -56,6 +64,30 @@ const section1: Section1Api = {
     ipcRenderer.invoke(IPC.s1SetAccentOverride, year, accent),
   yearUsage: (year: number): S1<YearUsage> => ipcRenderer.invoke(IPC.s1YearUsage, year),
   deleteYear: (year: number): S1<YearIndex> => ipcRenderer.invoke(IPC.s1DeleteYear, year)
+}
+
+type S2<T> = Promise<Result<T, Section2ErrorCode>>
+
+/** Section 2 is a plain pass-through too, and for the same reason. */
+const section2: Section2Api = {
+  years: (): S2<YearIndex> => ipcRenderer.invoke(IPC.s2Years),
+  createYear: (year: number): S2<YearIndex> => ipcRenderer.invoke(IPC.s2CreateYear, year),
+  grid: (year: number): S2<YearGrid> => ipcRenderer.invoke(IPC.s2Grid, year),
+  addBank: (year: number, draft: BankDraft): S2<number> =>
+    ipcRenderer.invoke(IPC.s2AddBank, year, draft),
+  renameBank: (id: number, name: string): S2<null> =>
+    ipcRenderer.invoke(IPC.s2RenameBank, id, name),
+  setCreditLimit: (id: number, limit: number): S2<null> =>
+    ipcRenderer.invoke(IPC.s2SetCreditLimit, id, limit),
+  setCounterParty: (id: number, party: string | null): S2<null> =>
+    ipcRenderer.invoke(IPC.s2SetCounterParty, id, party),
+  reorderBanks: (year: number, isCounter: boolean, orderedIds: number[]): S2<null> =>
+    ipcRenderer.invoke(IPC.s2ReorderBanks, year, isCounter, orderedIds),
+  bankUsage: (id: number): S2<BankUsage> => ipcRenderer.invoke(IPC.s2BankUsage, id),
+  deleteBank: (id: number): S2<null> => ipcRenderer.invoke(IPC.s2DeleteBank, id),
+  setCell: (patch: CellPatch): S2<null> => ipcRenderer.invoke(IPC.s2SetCell, patch),
+  setArchived: (year: number, archived: boolean): S2<null> =>
+    ipcRenderer.invoke(IPC.s2SetArchived, year, archived)
 }
 
 const api: JadeiteApi = {
@@ -88,7 +120,8 @@ const api: JadeiteApi = {
     set: (patch: Partial<AppConfig>): Promise<AppConfig> =>
       ipcRenderer.invoke(IPC.configSet, patch)
   },
-  section1
+  section1,
+  section2
 }
 
 contextBridge.exposeInMainWorld('jadeite', api)
