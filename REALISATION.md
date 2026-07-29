@@ -43,7 +43,7 @@
 
 **Scope**
 - App shell: section navigation (Sections 1–4 + Overview + Altın Eğrisi as destinations, stubs allowed), window chrome, keyboard map skeleton.
-- Token system (CSS custom properties); all **ten palettes** implemented from canonical published values; Default Light/Dark authored; instant palette switching; palette persisted in vault.
+- Token system (CSS custom properties); all **ten palettes** implemented from canonical published values; Default Light/Dark authored; instant palette switching; palette persisted in the unencrypted `config.json` (XJADEITE §4.1, amended 2026-07-29 — it must be readable before the vault opens, or the lock screen cannot honour it).
 - Year-accent derivation algorithm (accent sequence per palette, muted per the elegance constraint, manual override plumbing) — consumed later by III.
 - i18next with **manual-only** language switching; Turkish primary and default; English complete for all shell strings; Turkish number/currency/date formatting engine (`1.234,56 ₺`), used by everything thereafter.
 - Cold-start instrumentation; budget enforced from here on.
@@ -54,6 +54,7 @@
 - [ ] All ten palettes render the shell with no hard-coded colour anywhere (audit script greps for hex literals in components).
 - [ ] Language switches only by hand; OS locale demonstrably ignored (run under `LANG=en_US.UTF-8`, app stays Turkish).
 - [ ] Launch → lock ≤ 1.5 s; unlock → shell ≤ 1 s on the main rig.
+- [ ] The lock screen already wears the chosen palette and language, before any password is typed (§4.1 configuration split).
 - [ ] Tag `v0.2`.
 
 ---

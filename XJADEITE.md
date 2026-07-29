@@ -3,6 +3,7 @@
 **Project:** JADEITE — the secure personal wealth & possessions tracker
 **Copyright:** sudo-megas · **Licence:** GPL-3.0 · Free and Open-Source Software
 **Status:** Specification v2 (supersedes JADEITE.md v1) · Companion document: `REALISATION.md`
+**Amendments:** 2026-07-29 — §4.1, §5.1, §16.5, §17, §19 (configuration split into two files; point revisions), settled by the owner during Realisation II.
 **Provenance:** Every decision in this document was settled explicitly between the owner and the architect during pre-realisation review. Source artefacts: `JADEITorigin.xlsx` (the retiring workbook), `Altın_Eğrisi.pptx` (the retiring chart deck), one year-banding screenshot.
 
 ---
@@ -68,12 +69,28 @@ Guiding truths:
 
 ## 4. Security Architecture
 
-### 4.1 Vault layout
+### 4.1 Vault layout and the configuration split
 
-The data directory (per-OS, §5.1) contains exactly two app-managed files:
+**Amended 2026-07-29.** JADEITE keeps **two configuration files, split by sensitivity**: one unencrypted file for general application configuration, and the encrypted vault for everything else.
 
-- `jadeite.db` — the SQLCipher database. All user data **and all settings** live here. There are no external config files (.toml/.lua/anything); nothing about the app is configurable from outside it.
+The **data directory** (per-OS, §5.1) contains exactly two app-managed files:
+
+- `jadeite.db` — the SQLCipher database. All user data lives here, together with every setting that governs access to it (auto-lock timeout and, later, backup policy). Changing any of those requires the vault key.
 - `jadeite.keys` — the cleartext key-envelope header: format version, Argon2id parameters, two salts, and two wrapped copies of the DEK (§4.2). This file contains no secrets usable without a credential; it is data-store plumbing, not user configuration.
+
+The **config directory** (per-OS, §5.1) contains exactly one app-managed file:
+
+- `config.json` — general application configuration, unencrypted: **the active palette and the app language, and nothing else.**
+
+**Why the split exists (owner's ruling).** Both of those are needed *before* the vault is open. Keeping them inside it meant the lock screen could not honour the owner's own palette or language, so the app greeted its owner in a theme they had not chosen. That is a worse outcome than a plain file holding two preferences.
+
+**Rules that keep the split honest:**
+
+1. **One home per value.** Appearance and language live *only* in `config.json` and are never mirrored into the vault. Two copies of one truth is the failure that let the source workbook's bank list diverge from itself.
+2. **Nothing about money, ever.** `config.json` holds no amount, no credential, no key material, and nothing that assists in opening the vault. What it discloses to a reader is that JADEITE is installed and which colours its owner prefers.
+3. **Untrusted on read.** The file is hand-editable by construction, so every field is validated: an unknown palette or an unsupported language falls back to the default rather than propagating, and unrecognised keys are ignored.
+4. **Separate directories.** `config.json` lives in the OS configuration directory, not beside the database, so the data directory still holds exactly the two files named above.
+5. **Written atomically**, owner-only (`0600`).
 
 ### 4.2 Key model
 
@@ -113,10 +130,17 @@ A backup is sealed by the same DEK as the live vault but carries **the credentia
 
 ### 5.1 Location
 
-- Linux: `~/.local/share/jadeite/`
+**Data** (encrypted at rest — `jadeite.db`, `jadeite.keys`):
+
+- Linux: `~/.local/share/jadeite/` (honouring `XDG_DATA_HOME`)
 - Windows (post-port): `%APPDATA%\jadeite\`
 
-Default OS user locations, encrypted at rest, exactly per the v1 manifesto.
+**Configuration** (unencrypted — `config.json`, §4.1):
+
+- Linux: `~/.config/jadeite/` (honouring `XDG_CONFIG_HOME`)
+- Windows (post-port): `%APPDATA%\jadeite\`
+
+Default OS user locations. Data is encrypted at rest exactly per the v1 manifesto; configuration carries only appearance and language.
 
 ### 5.2 Value representation
 
@@ -305,7 +329,7 @@ Automatic: each year takes the next accent from the active palette's accent sequ
 2. **No telemetry, analytics, crash reporting, or update phoning** of any kind.
 3. **No cloud** anything.
 4. **No OS-locale detection** (§13).
-5. **No external configuration files** — all settings live inside the encrypted vault (§4.1).
+5. **No external configuration files beyond the single `config.json` of §4.1**, which carries the palette and the app language and nothing else. Every other setting lives inside the encrypted vault. *(Amended 2026-07-29; the original rule put all settings in the vault, which left the lock screen unable to honour the owner's own palette or language.)*
 6. **No portable build** — installer only.
 7. **No AI implications, flags, or banners anywhere in the build or release process**: commits, tags, release notes, code comments, and artefact metadata contain no AI attribution of any kind.
 8. Release tags contain **only** the version (`v0.5` — correct; `v0.5 - bugfix` — incorrect).
@@ -315,6 +339,7 @@ Automatic: each year takes the next accent from the active palette's accent sequ
 ## 17. Versioning, Repository & Release Discipline
 
 - Versions are two digits: **v0.1, v0.2, … v0.9, v1.0, v1.1, …** One bump per Realisation, regardless of the Realisation's size.
+- **Point revisions** (amended 2026-07-29): work that amends an already-released Realisation rather than advancing the ladder takes a lower-case letter suffix — **v0.2b, v0.2c, …** The next ladder rung still claims the next two-digit version, so a v0.2b never consumes v0.3. A suffix is a version, not a description: `v0.2b` is correct, `v0.2 - config split` is not (§16.8 stands unchanged). `package.json` must carry valid semver, so it holds the equivalent patch number: **v0.2b → `0.2.1`**, v0.2c → `0.2.2`.
 - Documents use Roman numerals (**Realisation I → v0.1**, Realisation II → v0.2, …); git tags use Arabic, version-only.
 - The repository is **private** on the owner's GitHub for the entire realisation ladder; every Realisation is built, tested, committed, pushed, and released privately. Any future opening of the source (GPL-3.0 permits it) is solely the owner's decision, after the ladder completes.
 - Security implementation starts at Realisation I — the vault exists before any section does.
@@ -373,6 +398,8 @@ Migration happens only after the app is fully realised **including the Windows p
 | Overview | Yes — late realisation |
 | Altın Eğrisi | Yes — as a derived view, never a data store |
 | Palettes | The ten named palettes, canonical published values |
+| Configuration | **Two files, split by sensitivity**: unencrypted `config.json` for palette and language (needed before unlock), encrypted vault for everything else. One home per value, never mirrored (§4.1) |
+| Versioning | Two digits per Realisation; **lower-case letter suffix for point revisions** to an already-released Realisation (§17) |
 | Naming | `XJADEITE.md`, `REALISATION.md`, Realisation I/II/III…, British *-isation* throughout, git tags Arabic version-only |
 
 ---
