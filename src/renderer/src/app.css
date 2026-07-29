@@ -2213,3 +2213,28 @@ input.s3-person-name:focus {
   color: var(--text-muted);
   text-align: center;
 }
+
+/* Cells wide enough for what they hold.
+   Found by looking: at 5,5em the ledger clipped its own values — a date read
+   "04.08.2" and a price "1.000,0". §1 makes clarity a hard requirement, and a
+   figure with its last digit cut off is worse than no figure, because it still
+   looks like one. Sized to the widest realistic content: a full ISO date beside
+   its provisional flag, and a lira figure in the hundreds of thousands. */
+.s3-date-cell .s3-cell-input {
+  min-width: 8em;
+}
+
+/* The append row's date is selected on reset, and a selection highlight eats a
+   little of the trailing character. Half an em of headroom, so the year and the
+   day are both fully legible while the field is the focused one. */
+.s3-append .s3-date-cell .s3-cell-input {
+  min-width: 8.75em;
+}
+
+.s3-ledger .s3-figure .s3-cell-input {
+  min-width: 8em;
+}
+
+.s3-ledger .s3-derived {
+  min-width: 7em;
+}

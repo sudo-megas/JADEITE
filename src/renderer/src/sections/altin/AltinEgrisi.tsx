@@ -285,16 +285,34 @@ function dateAxis(palette: Palette, language: AppLanguage): Record<string, unkno
 function valueAxis(
   palette: Palette,
   logScale: boolean,
-  formatter: (value: number) => string
+  formatter: (value: number) => string,
+  min?: number
 ): Record<string, unknown> {
   const tokens = palette.tokens
   return {
     type: logScale ? 'log' : 'value',
     logBase: 10,
+    ...(min === undefined ? {} : { min }),
     axisLine: { show: false },
     axisLabel: { color: tokens.textSubtle, formatter },
     splitLine: { lineStyle: { color: tokens.border, type: 'dotted' } }
   }
+}
+
+/**
+ * Where a logarithmic bar axis should start.
+ *
+ * A bar is drawn from the axis floor, and a logarithmic axis has no zero to use
+ * as one — so left to itself ECharts drops the floor several decades below the
+ * data and every bar becomes a full-height stripe over three empty decades. One
+ * decade below the smallest value gives each bar visible height and wastes no
+ * space, which is the whole reason the toggle exists.
+ */
+function logFloor(values: readonly number[]): number | undefined {
+  let smallest = Infinity
+  for (const value of values) if (value > 0 && value < smallest) smallest = value
+  if (smallest === Infinity) return undefined
+  return 10 ** (Math.floor(Math.log10(smallest)) - 1)
 }
 
 /** A quantity in the unit its own type is counted in. */
@@ -375,8 +393,11 @@ function frekansOption(
     // Labelled in the unit of the first type present: mixing coins and grams on
     // one axis is the owner's choice to make with the filter, not this chart's to
     // pretend away.
-    yAxis: valueAxis(palette, logScale, (value) =>
-      quantityLabel(value, firstType, unitOf, language)
+    yAxis: valueAxis(
+      palette,
+      logScale,
+      (value) => quantityLabel(value, firstType, unitOf, language),
+      logScale ? logFloor(series.frekans.map((p) => p.quantity)) : undefined
     ),
     series: [...byType.entries()].map(([code, points], index) => ({
       name: t(`section3.types.${code}`),

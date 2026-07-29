@@ -403,14 +403,23 @@ function AppendRow({
   const [problem, setProblem] = useState<string | null>(null)
   const dateRef = useRef<HTMLInputElement>(null)
 
-  // A commit resets the row and hands the caret back to its first field, so the
-  // next purchase can be typed without reaching for anything.
+  /**
+   * A commit resets the row and hands the caret back to its first field, so the
+   * next purchase can be typed without reaching for anything.
+   *
+   * The carried date is **selected**, not merely focused. With the caret left at
+   * the end, typing a new date would append to the old one and make
+   * `2026-04-0512` out of two perfectly good dates — while selecting it means
+   * typing replaces and tabbing past keeps, which is exactly the choice the next
+   * row needs. It also keeps the field scrolled to its start, so a ten-character
+   * date is read from the year rather than from its last nine characters.
+   */
   useEffect(() => {
     if (commitToken === 0) return
     setComposed(carriedForward(previous, types))
     setProvisional(false)
     setProblem(null)
-    dateRef.current?.focus()
+    dateRef.current?.select()
     // The token is the trigger; `previous` is read at the moment it moves.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [commitToken])
@@ -478,7 +487,9 @@ function AppendRow({
       </td>
 
       <td>
-        <div className="s3-cell">
+        {/* The same wrapper class an existing row's date uses, so both are sized
+            by one rule rather than by two that can drift. */}
+        <div className="s3-cell s3-date-cell">
           <input
             ref={dateRef}
             className="s3-cell-input"

@@ -338,6 +338,50 @@ test('Ortak can be neither renamed nor removed', async () => {
 })
 
 /**
+ * The carried date is selected, not merely focused.
+ *
+ * With the caret left at the end of it, typing the next purchase's date would
+ * append to the last one and make `2026-01-152026-02-20` out of two perfectly
+ * good dates. Selecting it means typing replaces and tabbing past keeps, which is
+ * the choice every row after the first actually needs.
+ */
+test('typing after a commit replaces the carried date rather than appending to it', async () => {
+  session = await launchFresh()
+  await createVaultAndEnter(session)
+  const page = session.page
+
+  await openSection3(page)
+  await addPerson(page, 'Kişi A')
+
+  await appendRow(page, {
+    date: '2026-01-15',
+    person: 'Kişi A',
+    type: 'gram',
+    direction: 'acquire',
+    quantity: '10',
+    price: '5.000,00'
+  })
+
+  // The caret is back in the date field with the previous date selected.
+  await expect(page.getByTestId('s3-new-date')).toHaveValue('2026-01-15')
+  await page.keyboard.type('2026-02-20')
+  await expect(page.getByTestId('s3-new-date')).toHaveValue('2026-02-20')
+
+  // And the row it produces carries that date, not a concatenation of two.
+  await page.keyboard.press('Tab')
+  await page.keyboard.press('Tab')
+  await page.keyboard.press('Tab')
+  await page.keyboard.press('Tab')
+  await page.keyboard.type('20')
+  await page.keyboard.press('Tab')
+  await page.keyboard.type('5.900,00')
+  await page.keyboard.press('Enter')
+
+  await expect(page.locator('[data-testid^="s3-seq-"]')).toHaveCount(2)
+  await expect(page.getByTestId('s3-date-2')).toHaveValue('20.02.2026')
+})
+
+/**
  * The graded requirement of §6.4, measured rather than asserted.
  *
  * Thirty consecutive rows, every keystroke through the keyboard, and not one
