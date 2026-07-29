@@ -400,3 +400,668 @@ button {
   font-family: var(--font-mono);
   font-size: 13px;
 }
+
+/* --- Section 1: the year workspace -------------------------------------- */
+
+.s1 {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+
+.s1-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.s1-years {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* The switcher chip is the one place a year accent reaches full strength —
+   a small mark, per the elegance constraint of §12.3. */
+.s1-year-chip {
+  padding: 6px 14px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.s1-year-chip:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.s1-year-chip[data-active='true'] {
+  background: var(--year-accent-tint);
+  border-color: var(--year-accent-mark);
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* The chip and its menu button travel together, so the menu can anchor to the
+   year it belongs to. */
+.s1-year-slot {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.s1-year-menu-button {
+  padding: 6px 6px;
+  margin-left: 2px;
+  background: none;
+  border: none;
+  color: var(--text-subtle);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.s1-year-menu-button:hover {
+  color: var(--text);
+}
+
+.s1-year-menu {
+  top: calc(100% + 6px);
+  left: 0;
+  right: auto;
+}
+
+.s1-accent-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+/* The swatch shows the palette's own accent, so it is the one place besides the
+   palette picker where a colour arrives as a value rather than through a token.
+   It is still not a literal: it comes from the active palette. */
+.s1-accent-swatch {
+  width: 100%;
+  height: 22px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.s1-accent-swatch[data-selected='true'] {
+  border-color: var(--text);
+  box-shadow: inset 0 0 0 2px var(--surface-raised);
+}
+
+.s1-year-add {
+  width: 30px;
+  height: 30px;
+  background: none;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  color: var(--text-subtle);
+  font-size: 16px;
+  line-height: 1;
+}
+
+.s1-year-add:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.s1-tools {
+  display: flex;
+  gap: 8px;
+}
+
+/* The workspace switch: one directional slide of the grid pane, transform and
+   opacity only. Nothing that forces layout or paint animates, which is what
+   keeps it smooth at 280 Hz and acceptable on the laptop's iGPU. */
+.s1-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  will-change: transform;
+  animation: s1-enter-forward 180ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.s1-pane[data-direction='backward'] {
+  animation-name: s1-enter-backward;
+}
+
+.s1-pane[data-direction='none'] {
+  animation: none;
+  will-change: auto;
+}
+
+@keyframes s1-enter-forward {
+  from {
+    transform: translate3d(28px, 0, 0);
+    opacity: 0;
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+}
+
+@keyframes s1-enter-backward {
+  from {
+    transform: translate3d(-28px, 0, 0);
+    opacity: 0;
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+}
+
+/* A fade is still motion, so reduced motion gets an instantaneous swap. The
+   direction cue survives statically in the switcher chip. */
+@media (prefers-reduced-motion: reduce) {
+  .s1-pane {
+    animation: none;
+    will-change: auto;
+  }
+}
+
+/* --- The grid ------------------------------------------------------------ */
+
+.s1-grid-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+}
+
+.s1-grid {
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.s1-grid th,
+.s1-grid td {
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 0;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.s1-grid thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface-raised);
+  padding: 7px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+.s1-grid thead tr:first-child th {
+  background: var(--year-accent-tint);
+  color: var(--text);
+  text-align: center;
+  border-bottom: 1px solid var(--year-accent-line);
+}
+
+.s1-grid thead tr:first-child th.s1-th-empty {
+  background: var(--surface-raised);
+  border-bottom-color: var(--border);
+}
+
+.s1-grid thead tr:nth-child(2) th {
+  top: 30px;
+  padding: 0;
+}
+
+/* The month column stays put while sixteen columns scroll past it. */
+.s1-grid th:first-child,
+.s1-grid td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface-raised);
+  border-right: 1px solid var(--border-strong);
+}
+
+.s1-grid thead th:first-child {
+  z-index: 3;
+}
+
+.s1-month {
+  display: block;
+  padding: 7px 12px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* Row banding in the year's own accent, at wash strength: visible enough to
+   follow a row across sixteen columns, quiet enough to read through. */
+.s1-grid tbody tr:nth-child(even) td {
+  background: var(--year-accent-wash);
+}
+
+.s1-grid tbody tr:hover td {
+  background: var(--surface-overlay);
+}
+
+.s1-grid td[data-group='group-total'] {
+  background: var(--year-accent-wash);
+}
+
+.s1-grid th[data-group='group-total'] {
+  border-left: 1px solid var(--year-accent-line);
+}
+
+.s1-num {
+  display: block;
+  padding: 7px 10px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.s1-net {
+  font-weight: 600;
+}
+
+.s1-net[data-negative='true'] {
+  color: var(--danger);
+}
+
+.s1-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-subtle);
+}
+
+/* --- Header cells -------------------------------------------------------- */
+
+.s1-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 132px;
+}
+
+.s1-header[data-filtered='true'] {
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.s1-header-name {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 7px 4px 7px 10px;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  text-align: left;
+  overflow: hidden;
+}
+
+.s1-header-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.s1-header-name:hover,
+.s1-header-name[data-sorted='true'] {
+  color: var(--text);
+}
+
+.s1-sort-mark {
+  color: var(--accent);
+}
+
+.s1-header-menu {
+  padding: 6px 8px;
+  background: none;
+  border: none;
+  color: var(--text-subtle);
+  font-size: 13px;
+  line-height: 1;
+}
+
+.s1-header-menu:hover {
+  color: var(--text);
+}
+
+.s1-menu,
+.s1-cell-details {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 226px;
+  padding: 12px;
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px var(--surface);
+  text-transform: none;
+  letter-spacing: normal;
+  white-space: normal;
+}
+
+.s1-menu-row {
+  display: flex;
+  gap: 8px;
+}
+
+.s1-menu-foot {
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  justify-content: space-between;
+}
+
+.s1-field-label {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-subtle);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.s1-menu input[type='text'],
+.s1-menu select,
+.s1-cell-details input[type='text'],
+.s1-add-column input[type='text'],
+.s1-add-column select,
+.s1-modal-body input[type='text'] {
+  width: 100%;
+  padding: 6px 8px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+}
+
+/* --- Cells --------------------------------------------------------------- */
+
+.s1-cell {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.s1-cell-input {
+  width: 100%;
+  min-width: 112px;
+  padding: 7px 22px 7px 10px;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.s1-cell-input:focus {
+  background: var(--surface-sunken);
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+/* A refund is stored positive and flagged; it is told apart by a rule and a
+   mark rather than by a minus sign, which §5.2 keeps out of cells entirely. */
+.s1-cell[data-refund='true'] {
+  box-shadow: inset 2px 0 0 var(--info);
+}
+
+.s1-cell[data-refund='true'] .s1-cell-input {
+  color: var(--info);
+  font-style: italic;
+}
+
+.s1-cell-mark {
+  position: absolute;
+  right: 2px;
+  padding: 2px 4px;
+  background: none;
+  border: none;
+  color: var(--text-subtle);
+  font-size: 11px;
+  line-height: 1;
+  opacity: 0;
+}
+
+.s1-cell:hover .s1-cell-mark,
+.s1-cell:focus-within .s1-cell-mark,
+.s1-cell-mark[data-marked='true'] {
+  opacity: 1;
+}
+
+.s1-cell-mark[data-marked='true'] {
+  color: var(--info);
+}
+
+.s1-cell-problem {
+  position: absolute;
+  top: calc(100% + 2px);
+  right: 0;
+  z-index: 25;
+  margin: 0;
+  padding: 6px 8px;
+  max-width: 260px;
+  background: var(--surface-overlay);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-sm);
+  color: var(--danger);
+  font-size: 11px;
+  white-space: normal;
+}
+
+.s1-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text);
+  margin: 0;
+}
+
+.s1-check input {
+  accent-color: var(--accent);
+}
+
+.s1-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-subtle);
+}
+
+/* --- Footer rows --------------------------------------------------------- */
+
+.s1-grid tfoot th,
+.s1-grid tfoot td {
+  position: sticky;
+  bottom: 0;
+  background: var(--surface-raised);
+  border-top: 1px solid var(--border-strong);
+}
+
+.s1-grid tfoot th {
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+.s1-year-total td .s1-num,
+.s1-year-total th {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* The filtered subset sits above the year's own figure and reads lighter, so
+   the eye lands on the year last.
+
+   Only the year total is pinned. Stacking two sticky rows means giving this one
+   an offset equal to the other's height, which is a number that has to be kept
+   in step with a font size by hand — and the figure that must never scroll away
+   is the year's, not the selection's. */
+.s1-selection th,
+.s1-selection td {
+  position: static;
+  background: var(--year-accent-wash);
+  border-top: 1px solid var(--border);
+}
+
+.s1-selection td .s1-num {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+/* --- Adding a column ----------------------------------------------------- */
+
+.s1-add-column {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.s1-add-column input[type='text'] {
+  width: 220px;
+}
+
+.s1-add-column select {
+  width: auto;
+}
+
+.s1-btn {
+  padding: 7px 14px;
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  color: var(--text-on-accent);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.s1-btn:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.s1-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.s1-btn-quiet {
+  padding: 6px 10px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.s1-btn-quiet:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.s1-btn-danger {
+  padding: 6px 12px;
+  background: none;
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  color: var(--danger);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.s1-btn-danger:hover {
+  background: var(--danger);
+  color: var(--text-on-accent);
+}
+
+.s1-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  color: var(--danger);
+  font-size: 13px;
+}
+
+.s1-empty-state {
+  margin: 0;
+  padding: 32px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* --- Modals -------------------------------------------------------------- */
+
+.s1-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--surface);
+}
+
+.s1-modal-body {
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 24px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+}
+
+.s1-modal-body h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.s1-modal-body .lede {
+  margin: 0;
+}

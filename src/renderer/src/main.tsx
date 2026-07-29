@@ -8,9 +8,10 @@ import { FALLBACK_PALETTE_ID, paletteById } from '@shared/theme/palettes/index.j
 import './theme/tokens.css'
 import './app.css'
 
-// Paint before the first frame so the lock screen never flashes unstyled. The
-// owner's chosen palette lives inside the vault and cannot be read until it
-// unlocks, so this is Default Dark by necessity, not by preference.
+// Paint before the first frame so the lock screen never flashes unstyled.
+// Reading config.json is a round trip through the bridge, so the owner's chosen
+// palette lands a moment later (App → loadAppearance); this is the colour of
+// that moment, not a preference.
 applyPalette(paletteById(FALLBACK_PALETTE_ID), document.documentElement)
 initI18n()
 document.documentElement.lang = 'tr'

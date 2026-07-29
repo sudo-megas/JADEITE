@@ -1,5 +1,6 @@
 /**
- * Appearance and language, both stored inside the vault.
+ * Appearance and language, both stored in config.json outside the vault (§4.1),
+ * so the lock screen can already wear them.
  *
  * Language changes only when the owner changes it here (§13). The formatting
  * sample is live so the effect of the choice is visible before it matters to
@@ -12,7 +13,8 @@ import { useTranslation } from 'react-i18next'
 import { useAppStore } from '../store/app-store.js'
 import { PALETTES } from '@shared/theme/palettes/index.js'
 import { LANGUAGES } from '../i18n/index.js'
-import { formatDate, formatGrams, formatMoney } from '../i18n/format.js'
+import { formatCount, formatDate, formatGrams, formatMoney, formatNumber } from '../i18n/format.js'
+import { useFrameStats } from '../store/frame-stats.js'
 
 export function SettingsPanel(): ReactElement {
   const { t } = useTranslation()
@@ -107,6 +109,60 @@ export function SettingsPanel(): ReactElement {
           {autoLockMinutes} {t('settings.autoLockUnit')}
         </span>
       </div>
+
+      <h2 className="settings-heading">{t('settings.performance')}</h2>
+      <SwitchPerformance />
     </section>
+  )
+}
+
+/**
+ * What the last workspace switch actually cost.
+ *
+ * Realisation III's acceptance asks for a switch that is smooth on a 280 Hz
+ * display and acceptable on a laptop, which is a judgement no headless test can
+ * make. So the figure is put where the owner can read it on the machine in
+ * question, after switching a year or two. Nothing is recorded and nothing
+ * leaves — it is the cold-start line of Realisation II, with a home.
+ */
+function SwitchPerformance(): ReactElement {
+  const { t } = useTranslation()
+  const language = useAppStore((s) => s.language)
+  const last = useFrameStats((s) => s.last)
+
+  if (!last) {
+    return (
+      <p className="lede" data-testid="switch-frames-empty">
+        {t('settings.noSwitchYet')}
+      </p>
+    )
+  }
+
+  const ms = (value: number): string => `${formatNumber(value, language, 1)} ms`
+
+  return (
+    <div data-testid="switch-frames">
+      <div className="status-row">
+        <span>{t('settings.switchDisplay')}</span>
+        <span data-testid="switch-hz">
+          {formatCount(last.impliedHz, language)} Hz · {formatCount(last.frames, language)}{' '}
+          {t('settings.switchFrames')}
+        </span>
+      </div>
+      <div className="status-row">
+        <span>{t('settings.switchMedian')}</span>
+        <span data-testid="switch-median">{ms(last.median)}</span>
+      </div>
+      <div className="status-row">
+        <span>{t('settings.switchWorst')}</span>
+        <span data-testid="switch-worst">
+          {ms(last.worst)} · p95 {ms(last.p95)}
+        </span>
+      </div>
+      <div className="status-row">
+        <span>{t('settings.switchDropped')}</span>
+        <span data-testid="switch-dropped">{formatCount(last.dropped, language)}</span>
+      </div>
+    </div>
   )
 }

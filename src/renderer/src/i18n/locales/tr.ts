@@ -65,6 +65,107 @@ export const tr = {
     altinEgrisi: 'Varlık defterinden türetilen grafikler.'
   },
 
+  section1: {
+    // The two computed headers keep the source workbook's own names, so the
+    // owner reads the figure they already know by the name they already use.
+    month: 'Ay',
+    groupIncome: 'GELİR',
+    groupExpense: 'GİDER',
+    groupTotal: 'TOPLAM',
+    incomeSubtotal: 'GELİR TOPLAM',
+    netTotal: 'GENEL TOPLAM',
+    yearTotal: 'Yıl toplamı',
+    selection: 'Seçim · {{count}} ay',
+    noRowsMatch: 'Filtreye uyan ay yok.',
+
+    years: 'Yıllar',
+    year: 'Yıl',
+    addYear: 'Yıl ekle',
+    addYearLede:
+      'Yeni yıl, kendisinden önceki yılın sütunlarını devralır. Hiçbir tutar kopyalanmaz.',
+    createYear: 'Yılı oluştur',
+    noColumns: 'Bu yılın henüz sütunu yok. Aşağıdan ilk sütunu ekleyin.',
+
+    yearMenu: '{{year}} yıl menüsü',
+    yearMenuTitle: '{{year}} — yıl ayarları',
+    accent: 'Yıl rengi',
+    accentChoice: '{{index}}. renk',
+    accentUseSequence: 'Palet sırasını kullan',
+    deleteYear: 'Yılı sil',
+    deleteYearDetail:
+      '{{year}} yılı, {{columns}} sütunu ve {{count}} kaydıyla birlikte kalıcı olarak silinecek.',
+    deleteYearWarningTitle: 'Bu işlem geri alınamaz.',
+    deleteYearWarningBody:
+      'Bu yıla ait her şey silinir — ileride Ödemeler bölümünün o yıla ait tablosu da dahil. Diğer yıllar etkilenmez.',
+    deleteYearConfirm: 'Yılı kalıcı olarak sil',
+    lastYearKept: 'Tek kalan yıl silinemez.',
+
+    newColumnName: 'Sütun adı',
+    group: 'Grup',
+    valueType: 'Değer türü',
+    typePlain: 'Sayı',
+    addColumn: 'Sütun ekle',
+    rename: 'Yeniden adlandır',
+    moveLeft: 'Sola',
+    moveRight: 'Sağa',
+    columnMenu: '{{name}} sütun menüsü',
+    columnMenuTitle: 'Sütun ayarları',
+    sortState: {
+      none: 'sıralanmamış',
+      ascending: 'artan sırada',
+      descending: 'azalan sırada'
+    },
+    sortHint: 'Sıralamak için tıklayın',
+    clearSort: 'Sıralamayı temizle',
+    clearFilters: 'Filtreleri temizle',
+
+    filter: 'Filtre',
+    filterThreshold: 'Filtre değeri',
+    filterMode: {
+      all: 'Tümü',
+      filled: 'Dolu',
+      empty: 'Boş',
+      refund: 'Yalnızca iadeler',
+      atLeast: 'En az',
+      atMost: 'En çok'
+    },
+
+    refund: 'İade',
+    note: 'Not',
+    cellDetails: '{{cell}} — ayrıntılar',
+    cellDetailsTitle: 'Hücre ayrıntıları',
+    detailsNeedAmount: 'Önce bir tutar girin: not ve iade işareti bir tutara aittir.',
+
+    deleteColumn: 'Sütunu sil',
+    deleteColumnDetail:
+      '{{name}} sütunu ve bu yıldaki {{count}} kaydı ({{total}}) kalıcı olarak silinecek.',
+    deleteColumnWarningTitle: 'Bu işlem geri alınamaz.',
+    deleteColumnWarningBody:
+      'Önceki yıllar etkilenmez — her yıl kendi sütun takımına sahiptir.',
+    deleteColumnConfirm: 'Kalıcı olarak sil',
+
+    parse: {
+      NOT_A_NUMBER: 'Bu bir sayı değil.',
+      NEGATIVE: 'Tutarlar pozitif girilir; geri ödeme için İade işaretini kullanın.',
+      TOO_MANY_DECIMALS: 'En çok iki ondalık basamak (kuruş).',
+      BAD_GROUPING: 'Binlik ayracı hatalı — Türkçe biçim: 1.234,56',
+      TOO_LARGE: 'Bu sayı çok büyük.'
+    },
+
+    errors: {
+      LOCKED: 'Kasa kilitli.',
+      NO_SUCH_YEAR: 'Yıl bulunamadı.',
+      YEAR_EXISTS: 'Bu yıl zaten var.',
+      LAST_YEAR: 'Tek kalan yıl silinemez.',
+      NO_SUCH_CATEGORY: 'Sütun bulunamadı.',
+      DUPLICATE_NAME: 'Bu adda bir sütun zaten var.',
+      INVALID_NAME: 'Sütun adı geçersiz.',
+      INVALID_AMOUNT: 'Tutar geçersiz.',
+      INVALID_YEAR: 'Yıl geçersiz.',
+      INTERNAL: 'Beklenmeyen bir hata oluştu.'
+    }
+  },
+
   settings: {
     title: 'Ayarlar',
     appearance: 'Görünüm',
@@ -77,6 +178,13 @@ export const tr = {
     autoLockUnit: 'dakika',
     paletteModeLight: 'açık',
     paletteModeDark: 'koyu',
+    performance: 'Performans',
+    noSwitchYet: 'Henüz yıl değiştirilmedi. Bir yıla geçin, ölçüm burada görünür.',
+    switchDisplay: 'Ekran',
+    switchFrames: 'kare',
+    switchMedian: 'Ortanca kare süresi',
+    switchWorst: 'En kötü kare',
+    switchDropped: 'Düşen kare',
     formattingPreview: 'Biçim örneği'
   },
 

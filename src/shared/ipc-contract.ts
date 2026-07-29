@@ -5,6 +5,17 @@
  * imported by both sides of the context bridge.
  */
 
+import type {
+  CategoryDraft,
+  CategoryKind,
+  CategoryUsage,
+  EntryPatch,
+  Section1ErrorCode,
+  ValueType,
+  YearUsage,
+  YearWorkspace
+} from './section1/types.js'
+
 export const IPC = {
   vaultStatus: 'vault:status',
   vaultCreate: 'vault:create',
@@ -15,7 +26,22 @@ export const IPC = {
   settingsGet: 'settings:get',
   settingsSet: 'settings:set',
   configGet: 'config:get',
-  configSet: 'config:set'
+  configSet: 'config:set',
+
+  // Section 1 — Income & Expenses (§6).
+  s1Years: 's1:years',
+  s1CreateYear: 's1:create-year',
+  s1Workspace: 's1:workspace',
+  s1AddCategory: 's1:add-category',
+  s1RenameCategory: 's1:rename-category',
+  s1RetypeCategory: 's1:retype-category',
+  s1ReorderCategories: 's1:reorder-categories',
+  s1CategoryUsage: 's1:category-usage',
+  s1DeleteCategory: 's1:delete-category',
+  s1SetEntry: 's1:set-entry',
+  s1SetAccentOverride: 's1:set-accent-override',
+  s1YearUsage: 's1:year-usage',
+  s1DeleteYear: 's1:delete-year'
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]
@@ -35,7 +61,14 @@ export type VaultErrorCode =
   | 'ENVELOPE_CORRUPT'
   | 'INTERNAL'
 
-export type Result<T> = { ok: true; value: T } | { ok: false; error: VaultErrorCode }
+/**
+ * Every crossing of the bridge answers with one of these.
+ *
+ * The error type is a parameter so a section can name its own failures without
+ * widening `VaultErrorCode`, which exists to say as little as possible about
+ * credentials and must not acquire "that column name is taken" as a member.
+ */
+export type Result<T, E = VaultErrorCode> = { ok: true; value: T } | { ok: false; error: E }
 
 export interface VaultStatus {
   /** A vault exists on disk (both envelope and database present). */
@@ -73,7 +106,17 @@ export const MIN_PASSWORD_LENGTH = 8
  * them requires the vault key.
  */
 export const SETTING_KEYS = {
-  autoLockMinutes: 'auto_lock_minutes'
+  autoLockMinutes: 'auto_lock_minutes',
+  /**
+   * The year the palette's accent sequence counts from (§12.3).
+   *
+   * Written once, when the vault's first year is created, and never
+   * recalculated. Deriving it from the earliest year present would make every
+   * workspace's colour depend on the whole dataset, so adding one older year
+   * later would repaint all the others — and the accent is exactly what the
+   * owner navigates by after a month of use.
+   */
+  accentAnchorYear: 'accent_anchor_year'
 } as const
 
 export const DEFAULT_SETTINGS: Readonly<Record<string, string>> = {
@@ -120,4 +163,36 @@ export interface JadeiteApi {
     get(): Promise<AppConfig>
     set(patch: Partial<AppConfig>): Promise<AppConfig>
   }
+  /** Section 1 — Income & Expenses (§6). Everything here needs the vault open. */
+  section1: Section1Api
+}
+
+/** What the year switcher needs before any workspace is loaded. */
+export interface YearIndex {
+  years: number[]
+  /** The year the accent sequence counts from (§12.3). */
+  anchorYear: number
+}
+
+export interface Section1Api {
+  /** Existing years, ascending, plus the accent anchor. Creates one if none exist. */
+  years(): Promise<Result<YearIndex, Section1ErrorCode>>
+  createYear(year: number): Promise<Result<YearIndex, Section1ErrorCode>>
+  workspace(year: number): Promise<Result<YearWorkspace, Section1ErrorCode>>
+  addCategory(year: number, draft: CategoryDraft): Promise<Result<number, Section1ErrorCode>>
+  renameCategory(id: number, name: string): Promise<Result<null, Section1ErrorCode>>
+  retypeCategory(id: number, valueType: ValueType): Promise<Result<null, Section1ErrorCode>>
+  reorderCategories(
+    year: number,
+    kind: CategoryKind,
+    orderedIds: number[]
+  ): Promise<Result<null, Section1ErrorCode>>
+  /** What deleting this column would destroy, asked before it is offered. */
+  categoryUsage(id: number): Promise<Result<CategoryUsage, Section1ErrorCode>>
+  deleteCategory(id: number): Promise<Result<null, Section1ErrorCode>>
+  setEntry(patch: EntryPatch): Promise<Result<null, Section1ErrorCode>>
+  setAccentOverride(year: number, accent: string | null): Promise<Result<null, Section1ErrorCode>>
+  /** What deleting this year would destroy, asked before it is offered. */
+  yearUsage(year: number): Promise<Result<YearUsage, Section1ErrorCode>>
+  deleteYear(year: number): Promise<Result<YearIndex, Section1ErrorCode>>
 }

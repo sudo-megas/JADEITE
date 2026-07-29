@@ -15,6 +15,7 @@ import { RecoveryKeyPanel } from './screens/RecoveryKeyPanel'
 import { Reset } from './screens/Reset'
 import { Shell } from './shell/Shell'
 import { useAppStore } from './store/app-store.js'
+import { forgetVaultData } from './store/vault-scoped.js'
 
 type Stage = 'loading' | 'first-run' | 'locked' | 'reset' | 'recovery' | 'unlocked'
 
@@ -46,9 +47,15 @@ export function App(): ReactElement {
   }, [loadAppearance, refresh])
 
   // The vault can lock itself while the renderer is showing something else.
-  // Appearance is unaffected: it never came from the vault.
+  //
+  // The main process has already zeroised the key and closed the database by
+  // the time this arrives; the renderer's own copies of what it read go here,
+  // in the same breath. Unmounting a section is not enough — its store is
+  // module state and outlives it. Appearance is unaffected: it never came from
+  // the vault (§4.1).
   useEffect(() => {
     return window.jadeite.vault.onLocked((reason) => {
+      forgetVaultData()
       setLockReason(reason)
       setStage((current) => (current === 'recovery' ? current : 'locked'))
     })

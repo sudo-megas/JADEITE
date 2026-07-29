@@ -13,6 +13,7 @@ import { IPC, type AppConfig, type Result, type VaultStatus } from '../../shared
 import * as vault from '../vault/vault.js'
 import { getSetting, setSetting } from '../vault/db/settings.js'
 import { readAppConfig, updateAppConfig } from '../config/app-config.js'
+import { registerSection1Handlers } from './section1-ipc.js'
 
 /** Long enough for any real passphrase, short enough to bound Argon2id input. */
 const MAX_CREDENTIAL_LENGTH = 1024
@@ -35,6 +36,8 @@ async function guarded<T>(fn: () => Promise<Result<T>> | Result<T>): Promise<Res
 }
 
 export function registerIpcHandlers(): void {
+  registerSection1Handlers()
+
   ipcMain.handle(IPC.vaultStatus, (): VaultStatus => vault.status())
 
   ipcMain.handle(IPC.vaultCreate, (_e, password: unknown) =>

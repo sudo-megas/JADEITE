@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next'
 import { DESTINATIONS, SETTINGS_DESTINATION_ID } from './destinations.js'
 import { SectionStub } from './SectionStub.js'
 import { SettingsPanel } from './SettingsPanel.js'
+import { Section1 } from '../sections/section1/Section1.js'
 
 interface Props {
   onLock: () => void
@@ -100,10 +101,12 @@ export function Shell({ onLock }: Props): ReactElement {
       </nav>
 
       <main className="content" data-testid="content">
-        {destination ? (
-          <SectionStub destination={destination} />
-        ) : (
+        {!destination ? (
           <SettingsPanel />
+        ) : destination.id === 'section1' ? (
+          <Section1 />
+        ) : (
+          <SectionStub destination={destination} />
         )}
       </main>
     </div>

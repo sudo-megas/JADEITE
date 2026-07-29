@@ -44,14 +44,44 @@ test('the bridge exposes the contract and nothing more', async () => {
       top: Object.keys(api).sort(),
       vault: Object.keys(api.vault).sort(),
       settings: Object.keys(api.settings).sort(),
-      config: Object.keys(api.config).sort()
+      config: Object.keys(api.config).sort(),
+      section1: Object.keys(api.section1).sort()
     }
   })
 
-  expect(surface.top).toEqual(['config', 'settings', 'vault'])
+  expect(surface.top).toEqual(['config', 'section1', 'settings', 'vault'])
   expect(surface.vault).toEqual(['create', 'lock', 'onLocked', 'reset', 'status', 'unlock'])
   expect(surface.settings).toEqual(['get', 'set'])
   expect(surface.config).toEqual(['get', 'set'])
+
+  // Section 1 arrives with Realisation III. Enumerated rather than merely
+  // present, so a method added without thought fails this test on purpose.
+  expect(surface.section1).toEqual([
+    'addCategory',
+    'categoryUsage',
+    'createYear',
+    'deleteCategory',
+    'deleteYear',
+    'renameCategory',
+    'reorderCategories',
+    'retypeCategory',
+    'setAccentOverride',
+    'setEntry',
+    'workspace',
+    'yearUsage',
+    'years'
+  ])
+})
+
+test('Section 1 is unreachable while the vault is locked', async () => {
+  // The grid is behind the lock like everything else that touches money.
+  const workspace = await session.page.evaluate(() =>
+    window.jadeite.section1.workspace(2026)
+  )
+  expect(workspace).toEqual({ ok: false, error: 'LOCKED' })
+
+  const years = await session.page.evaluate(() => window.jadeite.section1.years())
+  expect(years).toEqual({ ok: false, error: 'LOCKED' })
 })
 
 test('no key material or filesystem path is reachable through the bridge', async () => {

@@ -86,6 +86,26 @@ export async function launchFresh(env: NodeJS.ProcessEnv = {}): Promise<Session>
 
 export const TEST_PASSWORD = 'kuyumcu-defteri-2026'
 
+/**
+ * Stop the idle watch from locking the vault in the middle of a long suite.
+ *
+ * Auto-lock measures the *operating system's* input clock (src/main/idle.ts),
+ * deliberately, so a window left open behind other work still locks. Playwright
+ * drives the app through the debugging protocol, which never touches that
+ * clock, so a headless run looks idle no matter how much typing it does — and a
+ * suite that runs past the ten-minute default gets locked out mid-test.
+ *
+ * The timeout is raised through the app's own settings API rather than by
+ * disabling anything, so the behaviour under test is the shipped behaviour. The
+ * idle lock itself is proved in the Electron-hosted vault suite, where the clock
+ * can be controlled.
+ */
+async function holdTheVaultOpen(session: Session): Promise<void> {
+  await session.page.evaluate(
+    async () => await window.jadeite.settings.set('auto_lock_minutes', '600')
+  )
+}
+
 /** Run the first-run ceremony and land in the shell. */
 export async function createVaultAndEnter(
   session: Session,
@@ -99,6 +119,7 @@ export async function createVaultAndEnter(
   await session.page.getByTestId('recovery-ack').check()
   await session.page.getByTestId('recovery-continue').click()
   await session.page.getByTestId('shell').waitFor()
+  await holdTheVaultOpen(session)
   return key
 }
 
@@ -110,4 +131,5 @@ export async function unlockAndEnter(
   await session.page.getByTestId('password').fill(password)
   await session.page.getByTestId('submit').click()
   await session.page.getByTestId('shell').waitFor()
+  await holdTheVaultOpen(session)
 }

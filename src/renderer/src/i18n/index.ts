@@ -4,8 +4,7 @@
  * The owner's explicit prohibition: the app must never read the OS locale and
  * must never change language on its own. So there is no language detector
  * here, and `i18next-browser-languagedetector` is deliberately absent from
- * package.json. Language is a setting inside the vault, defaulting to Turkish
- * on vault creation.
+ * package.json. Language lives in config.json (§4.1), defaulting to Turkish.
  *
  * Before the vault opens, Turkish is shown — the chosen language cannot be
  * read until the database is unlocked, and Turkish is the primary language, so

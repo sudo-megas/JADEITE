@@ -12,6 +12,8 @@
 
 import { create } from 'zustand'
 
+import { registerVaultScoped } from './vault-scoped.js'
+
 import { SETTING_KEYS } from '@shared/ipc-contract'
 import { applyPalette } from '../theme/apply.js'
 import { FALLBACK_PALETTE_ID, isKnownPaletteId, paletteById } from '@shared/theme/palettes/index.js'
@@ -30,6 +32,8 @@ interface AppState {
   loadAppearance(): Promise<void>
   /** Read the settings that only exist behind the lock. */
   loadVaultSettings(): Promise<void>
+  /** Drop those settings again when the vault closes. */
+  forgetVaultSettings(): void
   setPalette(id: string): Promise<void>
   setLanguage(language: AppLanguage): Promise<void>
 }
@@ -53,6 +57,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     paint(paletteId)
     await applyLanguage(language)
     set({ paletteId, language, appearanceLoaded: true })
+  },
+
+  /**
+   * Forget the settings that came out of the vault.
+   *
+   * Only those: the palette and the language live in config.json, outside the
+   * vault, and the lock screen needs them (§4.1). This store therefore resets
+   * a part of itself rather than all of it.
+   */
+  forgetVaultSettings() {
+    set({ autoLockMinutes: DEFAULT_AUTO_LOCK_MINUTES })
   },
 
   async loadVaultSettings() {
@@ -79,3 +94,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     await window.jadeite.config.set({ language })
   }
 }))
+
+// The auto-lock timeout is read out of the vault, so it is vault-scoped like
+// any other such value. Appearance and language deliberately are not.
+registerVaultScoped(() => {
+  useAppStore.getState().forgetVaultSettings()
+})

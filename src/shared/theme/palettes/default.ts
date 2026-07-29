@@ -5,8 +5,9 @@
  * deliberately quiet: near-neutral greys carrying a faint green cast, with a
  * single jade accent doing all the work. Nothing competes with the numbers.
  *
- * Default Dark is the palette shown before the vault is open, because the
- * chosen palette lives inside the vault and cannot be read until it unlocks.
+ * Default Dark is what the very first frame wears, before config.json has been
+ * read back across the bridge — a few milliseconds, not a policy. The owner's
+ * chosen palette arrives immediately after and needs no unlock to do it (§4.1).
  */
 
 import type { Palette } from '../types.js'

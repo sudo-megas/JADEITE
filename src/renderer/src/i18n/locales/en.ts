@@ -65,6 +65,105 @@ export const en = {
     altinEgrisi: 'Charts derived from the valuables ledger.'
   },
 
+  section1: {
+    month: 'Month',
+    groupIncome: 'INCOME',
+    groupExpense: 'EXPENSES',
+    groupTotal: 'TOTAL',
+    incomeSubtotal: 'INCOME SUBTOTAL',
+    netTotal: 'NET TOTAL',
+    yearTotal: 'Year total',
+    selection: 'Selection · {{count}} months',
+    noRowsMatch: 'No month matches the filter.',
+
+    years: 'Years',
+    year: 'Year',
+    addYear: 'Add a year',
+    addYearLede:
+      'A new year inherits the columns of the year before it. No amount is copied.',
+    createYear: 'Create the year',
+    noColumns: 'This year has no columns yet. Add the first one below.',
+
+    yearMenu: '{{year}} year menu',
+    yearMenuTitle: '{{year}} — year settings',
+    accent: 'Year colour',
+    accentChoice: 'Colour {{index}}',
+    accentUseSequence: 'Use the palette sequence',
+    deleteYear: 'Delete year',
+    deleteYearDetail:
+      'The year {{year}}, its {{columns}} columns and its {{count}} entries will be permanently deleted.',
+    deleteYearWarningTitle: 'This cannot be undone.',
+    deleteYearWarningBody:
+      'Everything belonging to this year goes — including its Payments grid once that section exists. Other years are unaffected.',
+    deleteYearConfirm: 'Delete the year permanently',
+    lastYearKept: 'The last remaining year cannot be deleted.',
+
+    newColumnName: 'Column name',
+    group: 'Group',
+    valueType: 'Value type',
+    typePlain: 'Number',
+    addColumn: 'Add column',
+    rename: 'Rename',
+    moveLeft: 'Left',
+    moveRight: 'Right',
+    columnMenu: '{{name}} column menu',
+    columnMenuTitle: 'Column settings',
+    sortState: {
+      none: 'not sorted',
+      ascending: 'sorted ascending',
+      descending: 'sorted descending'
+    },
+    sortHint: 'Click to sort',
+    clearSort: 'Clear sorting',
+    clearFilters: 'Clear filters',
+
+    filter: 'Filter',
+    filterThreshold: 'Filter value',
+    filterMode: {
+      all: 'All',
+      filled: 'Filled',
+      empty: 'Empty',
+      refund: 'Refunds only',
+      atLeast: 'At least',
+      atMost: 'At most'
+    },
+
+    refund: 'Refund',
+    note: 'Note',
+    cellDetails: '{{cell}} — details',
+    cellDetailsTitle: 'Cell details',
+    detailsNeedAmount: 'Enter an amount first: a note and a refund mark belong to an amount.',
+
+    deleteColumn: 'Delete column',
+    deleteColumnDetail:
+      'The {{name}} column and its {{count}} entries ({{total}}) in this year will be permanently deleted.',
+    deleteColumnWarningTitle: 'This cannot be undone.',
+    deleteColumnWarningBody:
+      'Earlier years are unaffected — each year owns its own column set.',
+    deleteColumnConfirm: 'Delete permanently',
+
+    parse: {
+      NOT_A_NUMBER: 'That is not a number.',
+      NEGATIVE: 'Amounts are entered positive; use the Refund mark for money returned.',
+      TOO_MANY_DECIMALS: 'At most two decimal places.',
+      BAD_GROUPING: 'Check the thousands separator — English format: 1,234.56',
+      TOO_LARGE: 'That number is too large.'
+    },
+
+    errors: {
+      LOCKED: 'The vault is locked.',
+      NO_SUCH_YEAR: 'That year was not found.',
+      YEAR_EXISTS: 'That year already exists.',
+      LAST_YEAR: 'The last remaining year cannot be deleted.',
+      NO_SUCH_CATEGORY: 'That column was not found.',
+      DUPLICATE_NAME: 'A column with that name already exists.',
+      INVALID_NAME: 'That column name is not valid.',
+      INVALID_AMOUNT: 'That amount is not valid.',
+      INVALID_YEAR: 'That year is not valid.',
+      INTERNAL: 'Something unexpected went wrong.'
+    }
+  },
+
   settings: {
     title: 'Settings',
     appearance: 'Appearance',
@@ -77,6 +176,13 @@ export const en = {
     autoLockUnit: 'minutes',
     paletteModeLight: 'light',
     paletteModeDark: 'dark',
+    performance: 'Performance',
+    noSwitchYet: 'No year switched yet. Switch to a year and the measurement appears here.',
+    switchDisplay: 'Display',
+    switchFrames: 'frames',
+    switchMedian: 'Median frame',
+    switchWorst: 'Worst frame',
+    switchDropped: 'Dropped frames',
     formattingPreview: 'Formatting sample'
   },
 
