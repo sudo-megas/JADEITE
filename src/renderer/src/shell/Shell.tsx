@@ -14,6 +14,8 @@ import { SettingsPanel } from './SettingsPanel.js'
 import { Section1 } from '../sections/section1/Section1.js'
 import { Section2 } from '../sections/section2/Section2.js'
 import { Section3 } from '../sections/section3/Section3.js'
+import { Section4 } from '../sections/section4/Section4.js'
+import { AltinEgrisi } from '../sections/altin/AltinEgrisi.js'
 
 interface Props {
   onLock: () => void
@@ -111,6 +113,10 @@ export function Shell({ onLock }: Props): ReactElement {
           <Section2 />
         ) : destination.id === 'section3' ? (
           <Section3 />
+        ) : destination.id === 'section4' ? (
+          <Section4 />
+        ) : destination.id === 'altinEgrisi' ? (
+          <AltinEgrisi />
         ) : (
           <SectionStub destination={destination} />
         )}

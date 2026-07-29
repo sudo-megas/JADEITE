@@ -197,9 +197,9 @@ test('the six destinations exist and the keyboard map reaches them', async () =>
     'altinEgrisi'
   ].entries()) {
     await session.page.keyboard.press(`Control+${index + 1}`)
-    // Sections 1, 2 and 3 are furnished from Realisations III, IV and V; the
-    // rest are still stubs that say which Realisation fills them in.
-    const furnished = id === 'section1' || id === 'section2' || id === 'section3'
+    // Everything but the Overview is furnished by Realisation VI; that one
+    // arrives with Realisation VIII and still says so.
+    const furnished = id !== 'overview'
     await expect(session.page.getByTestId(furnished ? id : `stub-${id}`)).toBeVisible()
   }
 

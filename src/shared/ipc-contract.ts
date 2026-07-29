@@ -31,6 +31,12 @@ import type {
   TransactionPatch,
   TypeCode
 } from './section3/types.js'
+import type {
+  Line,
+  LineDraft,
+  LinePatch,
+  Section4ErrorCode
+} from './section4/types.js'
 
 export const IPC = {
   vaultStatus: 'vault:status',
@@ -86,7 +92,14 @@ export const IPC = {
   s3UpdateTransaction: 's3:update-transaction',
   s3DeleteTransaction: 's3:delete-transaction',
   s3SetManualPrice: 's3:set-manual-price',
-  s3ClearManualPrice: 's3:clear-manual-price'
+  s3ClearManualPrice: 's3:clear-manual-price',
+
+  // Section 4 — Calculation Zone (§9).
+  s4Lines: 's4:lines',
+  s4AddLine: 's4:add-line',
+  s4UpdateLine: 's4:update-line',
+  s4DeleteLine: 's4:delete-line',
+  s4ReorderLines: 's4:reorder-lines'
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]
@@ -214,6 +227,8 @@ export interface JadeiteApi {
   section2: Section2Api
   /** Section 3 — Valuables (§8). Everything here needs the vault open. */
   section3: Section3Api
+  /** Section 4 — Calculation Zone (§9). Everything here needs the vault open. */
+  section4: Section4Api
 }
 
 /** What the year switcher needs before any workspace is loaded. */
@@ -307,4 +322,20 @@ export interface Section3Api {
 
   setManualPrice(typeCode: TypeCode, value: number): Promise<Result<null, Section3ErrorCode>>
   clearManualPrice(typeCode: TypeCode): Promise<Result<null, Section3ErrorCode>>
+}
+
+/**
+ * Section 4 — Calculation Zone (§9).
+ *
+ * The smallest surface in the application, for the least fancy section in it.
+ * Total, average and median are computed in the renderer from the lines this
+ * returns — they are three additions and a sort, and a crossing of the bridge to
+ * fetch what the renderer already holds would be a second home for one truth.
+ */
+export interface Section4Api {
+  lines(): Promise<Result<Line[], Section4ErrorCode>>
+  addLine(draft: LineDraft): Promise<Result<number, Section4ErrorCode>>
+  updateLine(patch: LinePatch): Promise<Result<null, Section4ErrorCode>>
+  deleteLine(id: number): Promise<Result<null, Section4ErrorCode>>
+  reorderLines(orderedIds: number[]): Promise<Result<null, Section4ErrorCode>>
 }

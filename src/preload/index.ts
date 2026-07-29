@@ -18,6 +18,7 @@ import {
   type Section1Api,
   type Section2Api,
   type Section3Api,
+  type Section4Api,
   type VaultStatus,
   type YearIndex
 } from '../shared/ipc-contract.js'
@@ -47,6 +48,12 @@ import type {
   TransactionPatch,
   TypeCode
 } from '../shared/section3/types.js'
+import type {
+  Line,
+  LineDraft,
+  LinePatch,
+  Section4ErrorCode
+} from '../shared/section4/types.js'
 
 type S1<T> = Promise<Result<T, Section1ErrorCode>>
 
@@ -125,6 +132,18 @@ const section3: Section3Api = {
     ipcRenderer.invoke(IPC.s3ClearManualPrice, typeCode)
 }
 
+type S4<T> = Promise<Result<T, Section4ErrorCode>>
+
+/** Section 4 is a plain pass-through as well, and for the same reason. */
+const section4: Section4Api = {
+  lines: (): S4<Line[]> => ipcRenderer.invoke(IPC.s4Lines),
+  addLine: (draft: LineDraft): S4<number> => ipcRenderer.invoke(IPC.s4AddLine, draft),
+  updateLine: (patch: LinePatch): S4<null> => ipcRenderer.invoke(IPC.s4UpdateLine, patch),
+  deleteLine: (id: number): S4<null> => ipcRenderer.invoke(IPC.s4DeleteLine, id),
+  reorderLines: (orderedIds: number[]): S4<null> =>
+    ipcRenderer.invoke(IPC.s4ReorderLines, orderedIds)
+}
+
 const api: JadeiteApi = {
   vault: {
     status: (): Promise<VaultStatus> => ipcRenderer.invoke(IPC.vaultStatus),
@@ -157,7 +176,8 @@ const api: JadeiteApi = {
   },
   section1,
   section2,
-  section3
+  section3,
+  section4
 }
 
 contextBridge.exposeInMainWorld('jadeite', api)

@@ -1,7 +1,7 @@
 {
   "name": "jadeite",
   "productName": "JADEITE",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Secure personal wealth and possessions tracker",
   "author": "sudo-megas",
   "license": "GPL-3.0-only",
@@ -28,7 +28,8 @@
   "dependencies": {
     "@tanstack/react-table": "8.21.3",
     "argon2": "0.45.1",
-    "better-sqlite3-multiple-ciphers": "12.11.1"
+    "better-sqlite3-multiple-ciphers": "12.11.1",
+    "echarts": "6.1.0"
   },
   "devDependencies": {
     "@playwright/test": "1.62.0",

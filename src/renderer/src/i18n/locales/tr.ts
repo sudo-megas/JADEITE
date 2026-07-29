@@ -357,6 +357,56 @@ export const tr = {
     }
   },
 
+  section4: {
+    total: 'TOPLAM',
+    average: 'ORTALAMA',
+    median: 'ORTANCA',
+    counted: '{{count}} değer',
+    none: '—',
+    label: 'Etiket',
+    value: 'Değer',
+    newLabel: 'Yeni etiket',
+    newValue: 'Değer',
+    addLine: 'Satır ekle',
+    moveUp: 'Yukarı taşı',
+    moveDown: 'Aşağı taşı',
+    deleteLine: 'Satırı sil',
+    deleteConfirm: 'Sil',
+
+    parse: {
+      NOT_A_NUMBER: 'Bu bir sayı değil.',
+      NEGATIVE: 'Değerler pozitif girilir.',
+      TOO_MANY_DECIMALS: 'En çok iki ondalık basamak.',
+      BAD_GROUPING: 'Binlik ayracı hatalı — Türkçe biçim: 1.234,56',
+      TOO_LARGE: 'Bu sayı çok büyük.'
+    },
+
+    errors: {
+      LOCKED: 'Kasa kilitli.',
+      NO_SUCH_LINE: 'Satır bulunamadı.',
+      INVALID_LABEL: 'Etiket geçersiz.',
+      INVALID_VALUE: 'Değer geçersiz.',
+      INTERNAL: 'Beklenmeyen bir hata oluştu.'
+    }
+  },
+
+  altin: {
+    logScale: 'Logaritmik ölçek',
+    filterType: 'Tür',
+    filterPerson: 'Kişi',
+    allTypes: 'Tümü',
+    allPersons: 'Herkes',
+    spektrum: 'Spektrum — birim fiyat',
+    frekans: 'Frekans — alınan miktar',
+    marketValue: 'Değer — elde olanın piyasa değeri',
+    empty: 'Grafikler Varlıklar defterinden türetilir. Deftere bir alış girin, grafikler kendiliğinden çizilir.',
+    crushed:
+      'Değerler birkaç kat fark ediyor; doğrusal ölçekte küçükler eziliyor. Logaritmik ölçek her ikisini de okunur kılar.',
+    marketStaysLinear:
+      'Değer grafiği doğrusal kalır: elde olan sıfır veya eksi olabilir, bunların logaritmik ölçekte yeri yoktur.',
+    provisional: 'Tarihi henüz doğrulanmamış {{count}} kayıt var; eğri o noktada yanıltabilir.'
+  },
+
   settings: {
     title: 'Ayarlar',
     appearance: 'Görünüm',

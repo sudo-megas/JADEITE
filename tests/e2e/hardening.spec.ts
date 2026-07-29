@@ -47,7 +47,8 @@ test('the bridge exposes the contract and nothing more', async () => {
       config: Object.keys(api.config).sort(),
       section1: Object.keys(api.section1).sort(),
       section2: Object.keys(api.section2).sort(),
-      section3: Object.keys(api.section3).sort()
+      section3: Object.keys(api.section3).sort(),
+      section4: Object.keys(api.section4).sort()
     }
   })
 
@@ -56,6 +57,7 @@ test('the bridge exposes the contract and nothing more', async () => {
     'section1',
     'section2',
     'section3',
+    'section4',
     'settings',
     'vault'
   ])
@@ -117,6 +119,17 @@ test('the bridge exposes the contract and nothing more', async () => {
     'setManualPrice',
     'setPersonColour',
     'updateTransaction'
+  ])
+
+  // Section 4 arrives with Realisation VI, enumerated for the same reason. The
+  // smallest surface in the application: total, average and median are computed
+  // in the renderer from the lines, so no channel exists to fetch them.
+  expect(surface.section4).toEqual([
+    'addLine',
+    'deleteLine',
+    'lines',
+    'reorderLines',
+    'updateLine'
   ])
 })
 

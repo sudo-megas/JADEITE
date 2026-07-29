@@ -353,6 +353,56 @@ export const en = {
     }
   },
 
+  section4: {
+    total: 'TOTAL',
+    average: 'AVERAGE',
+    median: 'MEDIAN',
+    counted: '{{count}} value(s)',
+    none: '—',
+    label: 'Label',
+    value: 'Value',
+    newLabel: 'New label',
+    newValue: 'Value',
+    addLine: 'Add line',
+    moveUp: 'Move up',
+    moveDown: 'Move down',
+    deleteLine: 'Delete line',
+    deleteConfirm: 'Delete',
+
+    parse: {
+      NOT_A_NUMBER: 'That is not a number.',
+      NEGATIVE: 'Values are entered positive.',
+      TOO_MANY_DECIMALS: 'At most two decimal places.',
+      BAD_GROUPING: 'Check the thousands separator — English format: 1,234.56',
+      TOO_LARGE: 'That number is too large.'
+    },
+
+    errors: {
+      LOCKED: 'The vault is locked.',
+      NO_SUCH_LINE: 'That line was not found.',
+      INVALID_LABEL: 'That label is not valid.',
+      INVALID_VALUE: 'That value is not valid.',
+      INTERNAL: 'Something unexpected went wrong.'
+    }
+  },
+
+  altin: {
+    logScale: 'Logarithmic scale',
+    filterType: 'Type',
+    filterPerson: 'Person',
+    allTypes: 'All',
+    allPersons: 'Everyone',
+    spektrum: 'Spektrum — unit price',
+    frekans: 'Frekans — quantity acquired',
+    marketValue: 'Value — market value of what is held',
+    empty: 'These charts derive from the Valuables ledger. Enter an acquisition there and they draw themselves.',
+    crushed:
+      'These values span orders of magnitude, so the linear scale crushes the small ones. The logarithmic scale makes both readable.',
+    marketStaysLinear:
+      'The value chart stays linear: a holding can be zero or negative, and neither belongs on a logarithmic scale.',
+    provisional: '{{count}} row(s) still carry an unconfirmed date, so the curve may mislead there.'
+  },
+
   settings: {
     title: 'Settings',
     appearance: 'Appearance',
