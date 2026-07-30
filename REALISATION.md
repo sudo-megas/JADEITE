@@ -142,21 +142,53 @@
 
 ---
 
+## Point revision v0.6c — the valuables model
+
+**Goal:** settle what a valuables row *is* before live prices are pointed at it.
+
+Not a ladder rung. It amends Sections 3 and Altın Eğrisi, both already released, so it takes a letter per §17 and Realisation VII still claims `v0.7`. Recorded plainly because it is the **first point revision to carry a schema migration**, and that must not become licence to smuggle rungs into letters: it qualifies only because it advances no section and adds no feature — it corrects the shape of data already being stored.
+
+Three owner rulings of 30 July 2026 drive it (§8.2, §8.3, §8.5 as amended), all of which arrived from reading a sample of the owner's own outgoing-gold record and reconnoitring the real price source.
+
+**Scope**
+- **Schema v2** — the first migration since Realisation I. `s3_transactions` gains `denomination` and `count`; existing rows migrate as `denomination = quantity, count = 1`, which is lossless and true of every row typed so far.
+- **Ledger grid** — `Denomination` and `Count` columns, with `Quantity` derived beside them. Inert denomination for `piece`-unit types, one grid for both.
+- **Ata as a sixth gold coin** (§8.2), distinct from Tam. Seeded into the closed list; no user-defined types still.
+- **Holdings composition** — 3b may report *30 g as 2 × 10 g + 2 × 5 g*, not only a weight.
+- **Altın Eğrisi** — Frekans continues to plot total quantity per date; the new fields must not change a single existing series point.
+
+**Acceptance**
+- [ ] A v1 vault opens, migrates to v2, and every Realisation V figure is unchanged afterwards — 30 g, ₺188.000, ₺195.150, +₺7.150, Kişi A ₺130.100 / Kişi B ₺65.050.
+- [ ] `1 × 10 g` and `2 × 5 g` are distinguishable records that agree on total quantity, and holdings reports the chunk count for each.
+- [ ] Ata and Tam coexist as separate types with separate prices.
+- [ ] Altın Eğrisi's three series are point-for-point identical to v0.6b for the same ledger.
+- [ ] Cost basis still consumes lots oldest-first **by weight** — a 7 g disposal against a 10 g bar behaves as before.
+- [ ] `package.json` reads `0.6.2` (§17).
+- [ ] Tag `v0.6c`, and `gh release create`.
+
+---
+
 ## Realisation VII — Live Prices · v0.7
 
 **Goal:** haremaltin beside the owner's numbers — never over them.
 
+The source's real shape is now known rather than assumed — §14.1 records it, §14.2 the two silent failures, §14.3 the type mapping. Build against those, not against a search result.
+
 **Scope**
-- Provider interface + haremaltin implementation (site or derived endpoint); polite rate limiting; response validation.
+- Provider interface + haremaltin implementation: **websocket snapshot** (connect → first `price_changed` frame → disconnect) for current prices; `ajax/cur/history` for series. Polite rate limiting; response validation.
 - Manual refresh button (primary); optional auto-refresh interval setting; timestamped snapshots into `s3_prices_live`.
+- **Coins fetched at their ESKİ codes** (§8.5); Gram from `KULCEALTIN`; **satış** is the displayed figure.
 - Side-by-side rendering in 3c and holdings; drift indicator when live and manual diverge notably.
-- Egress allowlist enforced at session level: provider host **only**; a test proves other hosts are blocked.
+- Egress allowlist enforced at session level: provider host **only**; a test proves other hosts are blocked. Note the socket lives on a **different host** from the history endpoint — the allowlist needs both, and nothing else.
 - Graceful offline/broken-provider behaviour: quiet, non-blocking, manual authority intact.
 
 **Acceptance**
 - [ ] Refresh populates live values with timestamps; airplane-mode run degrades silently.
 - [ ] Egress test: any non-allowlisted request is blocked and logged in dev.
 - [ ] Provider swap demonstrated with a mock second provider behind the same interface.
+- [ ] **A response whose returned date range falls short of the range requested is rejected as a failed fetch**, not stored (§14.2 item 1). Proven with a recorded stale response.
+- [ ] **A response with no `data` key is handled as absent data, not as zero** (§14.2 item 2).
+- [ ] Ziynet, which the source does not quote, shows no live value and does not read as ₺0.
 - [ ] Tag `v0.7`.
 
 ---

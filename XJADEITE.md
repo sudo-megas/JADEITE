@@ -227,11 +227,29 @@ Owner-defined persons (free creation, rename, colour dot). Every transaction bel
 
 ### 8.2 Valuable types — closed list (owner's ruling: "only these")
 
-Built-in gold set: **Gram**, **Çeyrek**, **Yarım**, **Tam (Cumhuriyet)**, **2.5 (İki Buçuklu)**, **5 (Beşli)** · plus **USD**, **EUR**, **Gümüş (silver, gram)**, **Ziynet (gram)**. No user-defined custom types.
+Built-in gold set: **Gram**, **Çeyrek**, **Yarım**, **Tam**, **Ata (Cumhuriyet)**, **2.5 (Gremse / İki Buçuklu)**, **5 (Ata5 / Beşli)** · plus **USD**, **EUR**, **Gümüş (silver, gram)**, **Ziynet (22 ayar, gram)**. No user-defined custom types.
+
+**Amendment of 30 July 2026 — Tam and Ata are two products, not one.** The list previously read "Tam (Cumhuriyet)", which conflated them. The owner's real source quotes both, and they are distinct: measured against the çeyrek price on 28 March 2026, Tam is 3,722× and Ata is 3,833× — about 3% apart, because *Cumhuriyet altını is the Ata*, not the Tam. The owner's own retiring workbook priced its coins at ₺10.280, which is a **Tam** price (real quotes that day: Tam 10.270/10.572, Ata 10.542/10.799), so the holding being retired is Tam and Ata was simply absent from the list. Both now exist, and the closed list is six gold coins rather than five.
+
+Recorded so the sizes are never re-derived: ordered smallest to largest, **Çeyrek < Yarım < Tam < Ata < 2.5 < 5** — verified against real quotes, at 1,000 · 1,917 · 3,722 · 3,833 · 9,444 · 18,996 times the çeyrek price. The ordering is the useful fact; the ratios drift, because each denomination carries its own premium (Tam trades at 3,722× çeyrek, not the 4,0× its gold content implies).
+
+The names *Gremse* for 2.5 and *Ata5* for 5 are the source's, and market usage reads them as two-and-a-half Tam and five Ata respectively. That is not asserted here as measurement — the observed ratios cannot separate 2,5 × Tam from 2,5 × Ata within the premium noise — and nothing depends on it, since each of the six has exactly one quoted counterpart and no mapping choice arises.
+
+Every coin above is 22 ayar, which is also what **Ziynet** is; ziynet differs only in being sold by the gram rather than as a struck coin.
 
 ### 8.3 Sub-section 3a — Transaction ledger
 
-Columns: **No** (auto-numbered — the source's hand-typed duplicates 14,14,17,17 are structurally impossible), **Date** (+ provisional flag), **Type**, **Direction** (**Alış / Elden Çıkarma** — acquire / dispose), **Quantity**, **Total Quantity** (auto), **Unit Price**, **Transaction Total** (auto), **Obtained where / gone where**, **Person**, note. Bottom row: computed totals.
+Columns: **No** (auto-numbered — the source's hand-typed duplicates 14,14,17,17 are structurally impossible), **Date** (+ provisional flag), **Type**, **Direction** (**Alış / Elden Çıkarma** — acquire / dispose), **Denomination**, **Count**, **Quantity** (auto = denomination × count), **Total Quantity** (auto), **Unit Price**, **Transaction Total** (auto), **Obtained where / gone where**, **Person**, note. Bottom row: computed totals.
+
+**Amendment of 30 July 2026 — a weighable row records its denomination and its count, not only the total.** The ledger previously stored one quantity, which made `1 × 10 g` and `2 × 5 g` the same row. They are not the same thing, in the owner's words: *"'2 x 5gr' let me know that there are physically 2 chunks of gold, that is pretty much matters."* A total destroys information that no later computation can recover — how many physical pieces are in the drawer — so the two fields are stored and the total is derived, in the same spirit as every other computed figure in this application.
+
+This applies to the **weighable** types only (`mg` units: Gram, Gümüş, Ziynet). Coins are counted in pieces, so their denomination is the type itself and `Count` is the whole story; the denomination column is inert for them rather than absent, so one grid serves both.
+
+Holdings (§8.4) may therefore report a composition — *30 g held as 2 × 10 g + 2 × 5 g* — and not merely a weight. Cost basis is unaffected: lots are still consumed oldest-first **by weight**, because a disposal of 7 g out of a 10 g bar is a real event and a bar is not indivisible in the market.
+
+**Those two sentences pull against each other, and the resolution is that composition is reported only while it is knowable.** A disposal that consumes whole chunks leaves a composition; one that splits a chunk does not, because 10 g acquired against 7 g disposed leaves 3 g with no honest chunk story — the bar was cut, or swapped, or was never a bar. In that case 3b reports the remainder as **an unattributed weight and says so**, in the same spirit as `oversold` (§8.4): the figure that cannot be derived is named rather than invented. A composition that quietly reported *3 g as 1 × 3 g* would be the workbook's defect wearing a new hat.
+
+**This is the first schema migration since Realisation I** and the reason it is worth one: the alternative was the note field, which would hold the same fact where nothing can total, chart or verify it.
 
 Direction exists because reality demanded it: lifetime purchases (~1,2 kg charted+ledgered) versus current holdings (30 g) differ by a car — that event becomes an honest ledger entry instead of gold silently vanishing between two documents.
 
@@ -243,6 +261,18 @@ Per person × per type: current quantity (derived from the ledger and cross-chec
 
 - **Manual entry is the authority.** Owner types current unit prices per type.
 - If the live provider (§14) has data, it is displayed **beside** the manual value — backing it up, never replacing it — with its fetch timestamp.
+- **One price per type**, not a series. Price history is the ledger's own rows (§11.3).
+
+**Amendment of 30 July 2026 — coins are quoted at the ESKİ price.** The source quotes every coin twice, ESKİ and YENİ. **The owner's ruling is that the ESKİ quote is the one that values their holdings**, on the owner's understanding that YENİ denotes a coin struck in the current year and that everything from an earlier year — 2025 included — is ESKİ. The holdings were acquired between 2022 and 2025.
+
+The ruling stands, and the reasoning behind it is recorded as **the owner's, not as measurement**, because the price data does not confirm it. Two findings, both from the source's own ten-year history:
+
+- **The gap is small.** Over 3.628 shared days the çeyrek ESKİ/YENİ satış ratio averages **0,9946** — about half a percent — ranging 0,9670 to 1,0000. On 29 July 2026 the six coins sat at 0,9908 · 0,9893 · 0,9877 · 0,9937 · 0,9941, and **`ATA5` quoted ESKİ and YENİ identically**, so for the 5 the distinction is inert. An earlier draft of this clause claimed roughly 2,5%; that figure came from a handful of late-March 2026 days and was not representative.
+- **There is no annual reclassification visible in the prices.** If YENİ rolled over each 1 January, the ratio would step at the boundary. Tested across ten consecutive new years (2017–2026) the change was between −0,0044 and +0,0013 — noise, against daily variation ten times larger. The series behave like two standing products with a small drifting premium, not like a category that reassigns itself yearly.
+
+Nothing here overturns the ruling: ESKİ is the lower of the two, so the choice errs toward understating the §8.6 market value rather than overstating it, which is the right direction for a figure the owner checks by hand. But if the owner's definition is right, then a coin bought this year is misvalued by roughly a percent until January; and if it is wrong, the whole distinction is a product difference the holdings should simply be matched against once. Either way the correction is the same and is deliberately deferred: **store each coin's mint year and derive the classification.** That is more schema than a half-percent question earns today, and it is written down so a later Realisation can disagree on purpose.
+
+The other rejected alternative was storing both quotes, which doubles every price row and pushes a choice onto each ledger row for the same half percent.
 
 ### 8.6 Cost vs. market (owner: "exactly should")
 
@@ -323,6 +353,39 @@ Automatic: each year takes the next accent from the active palette's accent sequ
 - Graceful degradation: offline or provider-broken states are quiet and non-blocking; manual values carry on as authority.
 - This is the **only** permitted network egress in the entire application.
 
+### 14.1 What the source actually is (reconnoitred 30 July 2026)
+
+Recorded because it was established by real requests, and because a provider written against a guess fails silently. **None of this is a stable contract** — it is an unofficial source, which is exactly why §14 requires the interface to be swappable.
+
+**Live prices arrive over a websocket, not an HTTP endpoint.** `wss://hrmsocketonly.haremaltin.com`. On connection the server pushes an unsolicited `price_changed` event carrying all 55 instruments, with no subscribe step — so *connect → take the first frame → disconnect* is a single-shot snapshot of about one and a half seconds, which is precisely the primitive manual-refresh-primary needs. The socket.io **polling** transport is disabled server-side, so there is no plain-HTTP route to a current price.
+
+**History is a plain JSON endpoint.** `POST https://www.haremaltin.com/ajax/cur/history`, form body `kod` · `dil_kodu` · `tarih1` · `tarih2`, requiring the header `X-Requested-With: XMLHttpRequest` (without it the request 404s) and a session cookie from the chart page. It returns daily closes as `{alis, satis, kayit_tarihi}` — dot-decimal strings, four places — reaching back to 2012 for gold. No key, no token, no authentication.
+
+**The widely-circulated recipe is dead.** `/tmp/altin.json` and its siblings are still named in the source's own JavaScript, every call site preceded by `PASIF: AJAX SİSTEMİ DEVRE DIŞI` and an early return. They 404. Anyone reviving this module from a web search will find that recipe first; it has not worked since before this was written.
+
+### 14.2 Two silent failures the provider must defend against
+
+Both were observed, and both return HTTP 200 with `error:false`. This is what §14's "response validation" is for, and neither is detectable by checking the status code.
+
+1. **A stale cache silently truncates the tail.** Asking for history from 2022-01-01 returned a complete-looking series ending four months early; asking from 2023-01-01 returned one that was current. It is not monotone in the start date and it reproduces, so it is a cache keyed on the parameter tuple rather than a stale product — two of seven coin series were affected on the day of testing. **The returned range must therefore be validated against the range requested, and a stale tail treated as a failed fetch.** A provider that trusted it would quietly price today's holdings at a four-month-old figure.
+2. **Short ranges omit the data key entirely.** A span of thirty days or fewer returns valid JSON with no `data` key at all — not an empty array. The source's own page guards on exactly this, which is evidence the behaviour is expected rather than a fault.
+
+### 14.3 Type mapping
+
+Established against 24 of the owner's own dated purchase prices, each tested for whether it falls inside that day's real quoted alış/satış band.
+
+| §8.2 type | Source code | Basis |
+|---|---|---|
+| Gram | `KULCEALTIN` (GRAM ALTIN) | **16 of 24** owner prices inside band, against 7 for `ALTIN` (HAS ALTIN) and 0 for `AYAR22`. The tempting label match and the tighter spread both pointed at HAS ALTIN on two anchor points; twenty-four points settled it the other way. |
+| Çeyrek · Yarım · Tam · Ata · 2.5 · 5 | `CEYREK_ESKI` · `YARIM_ESKI` · `TEK_ESKI` · `ATA_ESKI` · `GREMESE_ESKI` · `ATA5_ESKI` | ESKİ per §8.5. All six ESKİ codes were called and **all six return real series** — presence in the source's catalogue is not evidence of that, since `/tmp/altin.json` is also catalogued and 404s. Sizes verified in ascending order. |
+| USD · EUR | `USDTRY` · `EURTRY` | TRY per unit. |
+| Gümüş | `GUMUSTRY` | TRY per gram — confirmed against `GUMUSUSD`, which is quoted per kilogram. |
+| Ziynet | `AYAR22` | Quoted per gram, and ziynet is 22 ayar. The source has **no** ZIYNET instrument; this is the nearest true equivalent rather than a match. |
+
+The owner's recorded purchase prices sit **at or slightly above satış**, which is an ordinary retail premium, so **satış** is the figure to display and a small positive spread against it is not an error.
+
+**Nothing on the source prohibits this.** `robots.txt` permits everything but `/uye/` and sets no crawl delay; there is no terms-of-use document, no copyright assertion and no anti-automation clause. The etiquette is therefore entirely self-imposed, which for a single-user desktop app doing a handful of manual refreshes a day means: identify politely, cache, and back off on error.
+
 ---
 
 ## 15. Backup & Machine Transfer
@@ -396,7 +459,7 @@ The forensic review found nine defects in the sources. Each is now a rule for th
 | 3 | `'-'` text placeholders throughout | Leave the cell **empty**. No placeholder text exists in JADEITE. |
 | 4 | Phantom table column `T` headed "1" | Do not create it. |
 | 5 | Chart quantities `0.300` / `0.400` (real values divided by 1000 to survive a linear axis) | Enter **300 g** and **400 g**. The log-scale toggle (§11) makes falsification unnecessary forever. |
-| 6 | Chart row serial `45612` (16 Nov 2024) @ ₺1,865 — impossible for that date; fits Sep–Oct 2023 | Price is ground truth; date ≈ **Oct 2023** with `date_provisional` ticked. Clear the flag when Q1 resolves (§20). |
+| 6 | Chart row serial `45612` (16 Nov 2024) @ ₺1,865 — impossible for that date | **Resolved: the date is 16 Nov 2023** (§20 Q1, closed 30 July 2026). Type it plainly — **no provisional flag**. The year was typed wrong, not the month. |
 | 7 | Frequency chart runs one-plus purchases behind the price chart / ledger | Reconcile by eye **before** typing: the charted events plus the two ledger buys missing from the frequency chart. Enter each event exactly once. Altın Eğrisi derives from the ledger, so the two can never drift again. |
 | 8 | pptx rows carry no ownership | Person = **Ortak**, reassigned later as the owner recalls. |
 | 9 | Lifetime ≈ 1,200 g (through 18 Jul 2026) vs current holdings 30 g — the car | Author the gap as dated **Elden Çıkarma** transaction(s) so holdings derive to 30 g. This is the event the two source documents hid between them. |
@@ -435,7 +498,11 @@ Roughly 47 month-rows, ~38 gold events, and one debt year. Not a build task, not
 | Section 1 | Year-workspaces (Niri-style), per-year column sets with inheritance |
 | Section 2 | Forward-looking tracker; read-only archive on rollover, **frozen by an explicit and reversible act** (§7.3, amended) |
 | Section 2 totals | `TOTAL DEBT = Σ banks − Σ counters`; **`TOTAL REMAINING LIMIT` is the total of the Remaining Limit row** — counter columns have no limit and no cell in it |
-| Section 3 scope | Gold set + USD + EUR + silver + ziynet — **closed list** |
+| Section 3 scope | Gold set + USD + EUR + silver + ziynet — **closed list**; **six** gold coins, Tam and Ata being different products (§8.2, amended) |
+| Weighable quantities | **Denomination × count, stored; total derived** — `2 × 5 g` is two physical chunks and not the same record as `1 × 10 g` (§8.3, amended) |
+| Coin pricing | **ESKİ quotes** — owner's ruling. The gap averages 0,5% and shows no annual step, so the owner's "struck this year" reading is recorded as theirs, not as measurement; mint-year storage is the deferred correction (§8.5, amended) |
+| Live provider | Websocket for current prices, `ajax/cur/history` for history; **the returned date range must be validated** — a stale cache silently truncates it behind HTTP 200 (§14.1–14.2) |
+| Gold price series | `KULCEALTIN` (GRAM ALTIN), established against 24 of the owner's own dated prices — not `ALTIN`/HAS, whose label and spread both mislead (§14.3) |
 | Cost vs market | Both, plus explicit unrealised G/L per person and total |
 | Single-use code | **Refused.** Every shipped feature must earn its place through repeated use **and be usable by someone who has never seen the owner's files** (§1) |
 | Foreign-format import | **None, permanently** (§16.2). The only ingestible artefact is JADEITE's own `.jbk` |
@@ -453,7 +520,11 @@ Roughly 47 month-rows, ~38 gold events, and one debt year. Not a build task, not
 
 ## 20. Open Items (owner-side, non-blocking)
 
-- **Q1:** true date of the ₺1,865 purchase (chart serial 45612) — check haremaltin price history; until then the row is typed with `date_provisional` set.
+- ~~**Q1:** true date of the ₺1,865 purchase (chart serial 45612).~~ **Closed 30 July 2026 — the date is 16 November 2023,** confirmed by the owner as real history.
+
+  Two independent lines agree. The owner's outgoing-gold record carries a row dated **2023-11-16 at ₺1.865/g**, and the chart's serial `45612` decodes to 2024-11-16 — exactly **366 days** later, one leap year. **The year was typed wrong, not the month**, which is why the earlier reading of "fits Sep–Oct 2023" was close without being right. Independently, GRAM ALTIN quoted **1.850,41 / 1.873,93** on 2023-11-16 and ₺1.865 falls inside that band, so the price corroborates the date without reference to the owner's files at all.
+
+  The row is therefore typed with its real date and **no provisional flag**. This also retires §18.3 item 6's assumption that the price was ground truth and the date merely approximate: both are now known exactly.
 - **Q2:** what **merge** should mean for `.jbk` import (§15). Full replacement is specified and sufficient for the rig ↔ laptop workflow. Merge needs a conflict rule for the case both vaults have been edited since they parted — newest-timestamp-wins, per-section choice, or a review screen. To be settled before Realisation IX designs the container, not during it.
 
 *End of specification. The build plan lives in `REALISATION.md`.*
