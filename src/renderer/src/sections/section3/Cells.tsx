@@ -24,6 +24,7 @@ import { amountToInput, parseAmount, type ParseFailure } from '@shared/money'
 import { parseQuantity, quantityToInput, type QuantityFailure } from '@shared/section3/units'
 import type { QuantityUnit, TypeCode } from '@shared/section3/types'
 import type { AppLanguage } from '../../i18n/format.js'
+import { formatCount } from '../../i18n/format.js'
 import { formatQuantity, formatTry } from './format.js'
 
 interface CoreProps {
@@ -34,6 +35,14 @@ interface CoreProps {
   label: string
   testId: string
   readOnly: boolean
+  /**
+   * A width modifier, as `s3-date-cell` is for a date.
+   *
+   * The ledger is wide and every column it does not need costs the one after it,
+   * so a cell holding a count of pieces says so rather than taking the width a
+   * lira figure needs.
+   */
+  cellClass?: string
   /** Returns a translation key for a refusal, or null when it committed. */
   onCommit: (draft: string) => string | null
   onEnter?: () => void
@@ -52,6 +61,7 @@ function TextEntryCell({
   label,
   testId,
   readOnly,
+  cellClass,
   onCommit,
   onEnter
 }: CoreProps): ReactElement {
@@ -77,7 +87,7 @@ function TextEntryCell({
   }
 
   return (
-    <div className="s3-cell">
+    <div className={cellClass ? `s3-cell ${cellClass}` : 's3-cell'}>
       <input
         ref={inputRef}
         className="s3-cell-input"
@@ -180,6 +190,7 @@ interface QuantityCellProps {
   label: string
   testId: string
   readOnly?: boolean
+  cellClass?: string
   onCommit: (quantity: number) => void
   onEnter?: () => void
 }
@@ -193,6 +204,7 @@ export function QuantityCell({
   label,
   testId,
   readOnly = false,
+  cellClass,
   onCommit,
   onEnter
 }: QuantityCellProps): ReactElement {
@@ -203,11 +215,63 @@ export function QuantityCell({
       label={label}
       testId={testId}
       readOnly={readOnly}
+      cellClass={cellClass}
       onEnter={onEnter}
       onCommit={(draft) => {
         const parsed = parseQuantity(draft, unit, language)
         // A quantity is never optional: `s3_transactions` requires one, and a
         // row where nothing moved is not a transaction.
+        if (parsed.kind === 'empty') return 'section3.parse.REQUIRED'
+        if (parsed.kind === 'error') return failureKey(parsed.reason)
+        if (parsed.scaled !== value) onCommit(parsed.scaled)
+        return null
+      }}
+    />
+  )
+}
+
+interface CountCellProps {
+  value: number
+  language: AppLanguage
+  label: string
+  testId: string
+  readOnly?: boolean
+  onCommit: (count: number) => void
+  onEnter?: () => void
+}
+
+/**
+ * How many pieces of this denomination — the **Count** column of §8.3.
+ *
+ * A bare whole number, and deliberately parsed by `parseQuantity` with the
+ * `piece` unit rather than by a rule of its own: `piece` already means scale 1
+ * and zero decimal places, which is exactly what a count is. Half a bar is a
+ * denomination question, never a count one, so refusing the decimal point here
+ * costs nothing and one parser keeps the two columns' failures identical.
+ *
+ * Never null. A row records at least one of something, which the `piece_count > 0`
+ * CHECK also says.
+ */
+export function CountCell({
+  value,
+  language,
+  label,
+  testId,
+  readOnly = false,
+  onCommit,
+  onEnter
+}: CountCellProps): ReactElement {
+  return (
+    <TextEntryCell
+      display={formatCount(value, language)}
+      editable={quantityToInput(value, 'piece', language)}
+      label={label}
+      testId={testId}
+      readOnly={readOnly}
+      cellClass="s3-count-cell"
+      onEnter={onEnter}
+      onCommit={(draft) => {
+        const parsed = parseQuantity(draft, 'piece', language)
         if (parsed.kind === 'empty') return 'section3.parse.REQUIRED'
         if (parsed.kind === 'error') return failureKey(parsed.reason)
         if (parsed.scaled !== value) onCommit(parsed.scaled)

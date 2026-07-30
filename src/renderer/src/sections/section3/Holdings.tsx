@@ -184,6 +184,11 @@ function PersonBlock({
               unitOf.get(holding.typeCode) ?? holding.unit,
               language
             )}
+            <Made
+              holding={holding}
+              unit={unitOf.get(holding.typeCode) ?? holding.unit}
+              language={language}
+            />
           </td>
 
           <td className="s3-figure">{formatTry(holding.costBasis, language)}</td>
@@ -229,6 +234,55 @@ function PersonBlock({
  * The sign is written explicitly for a gain, because "+₺7.150" answers the
  * question and "₺7.150" in a column of money does not.
  */
+/**
+ * What the holding is physically made of — *2 × 10 g + 2 × 5 g* (§8.3, amended).
+ *
+ * Shown only for the weighable types. A coin's denomination is its own type, so a
+ * çeyrek holding composes to *30 × 1* and the count beside it already said that;
+ * printing it twice would be noise in a column that has to stay readable.
+ *
+ * The **unattributed** remainder is the part worth putting on screen. A disposal
+ * that cut a bar leaves weight that is not a piece of anything, and the honest
+ * report is to name it rather than to round it into a piece it is not. It is
+ * styled as a note rather than as an alarm, because unlike `oversold` nothing is
+ * wrong — the ledger is consistent and the shape is simply no longer knowable.
+ */
+function Made({
+  holding,
+  unit,
+  language
+}: {
+  holding: Holding
+  unit: QuantityUnit
+  language: AppLanguage
+}): ReactElement | null {
+  const { t } = useTranslation()
+  if (unit !== 'mg') return null
+
+  const { chunks, unattributed } = holding.composition
+  // One whole piece and nothing left over is the quantity already shown.
+  if (unattributed === 0 && chunks.length === 1 && chunks[0]!.count === 1) return null
+  if (chunks.length === 0 && unattributed === 0) return null
+
+  const pieces = chunks.map(
+    (chunk) => `${chunk.count} × ${formatQuantity(chunk.denomination, holding.typeCode, unit, language)}`
+  )
+
+  return (
+    <span className="s3-made" data-testid={`s3-made-${holding.personId}-${holding.typeCode}`}>
+      {pieces.join(' + ')}
+      {unattributed > 0 ? (
+        <span className="s3-made-loose" title={t('section3.unattributedHint')}>
+          {pieces.length > 0 ? ' + ' : ''}
+          {t('section3.unattributed', {
+            amount: formatQuantity(unattributed, holding.typeCode, unit, language)
+          })}
+        </span>
+      ) : null}
+    </span>
+  )
+}
+
 function Gain({ value, language }: { value: number; language: AppLanguage }): ReactElement {
   const sign = value > 0 ? 'gain' : value < 0 ? 'loss' : 'flat'
   return (

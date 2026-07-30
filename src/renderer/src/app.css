@@ -1768,6 +1768,29 @@ button {
   font-size: 11px;
 }
 
+/*
+  What a holding is physically made of (§8.3, amended) — "2 × 5 g" under the
+  weight. Subdued and on its own line: the quantity is the figure, and this is
+  the shape of it.
+*/
+.s3-made {
+  display: block;
+  color: var(--text-subtle);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/*
+  Weight left over from a piece a disposal cut into. Not an error — the ledger is
+  consistent and only the shape is unknowable — so it takes the muted accent
+  rather than the warning colour `oversold` uses.
+*/
+.s3-made-loose {
+  color: color-mix(in oklch, var(--text-subtle) 70%, var(--accent-1));
+  font-style: italic;
+}
+
 .s3-holding[data-oversold='true'] {
   background: color-mix(in oklch, var(--warning) 12%, transparent);
 }
@@ -2237,4 +2260,22 @@ input.s3-person-name:focus {
 
 .s3-ledger .s3-derived {
   min-width: 7em;
+}
+
+/* §8.3's amendment cost the ledger two columns, and at 1080p that pushed the
+   append row's own commit button off the edge — "Ekl". Found by photographing,
+   as the three defects of v0.6b were. Neither new column needs a lira figure's
+   width: a denomination is "100 g" at its longest and a count is rarely two
+   digits, so they are sized to what they hold and the row fits again. */
+/* Specific enough to beat `.s3-ledger .s3-figure .s3-cell-input` above, which is
+   three classes and was quietly winning at 8em. Measured rather than assumed —
+   the computed min-width is what settles a cascade argument. */
+.s3-ledger .s3-figure .s3-denomination-cell .s3-cell-input,
+.s3-ledger .s3-figure .s3-cell-input.s3-denomination-input {
+  min-width: 5.5em;
+}
+
+.s3-ledger .s3-figure .s3-count-cell .s3-cell-input,
+.s3-ledger .s3-figure .s3-cell-input.s3-count-input {
+  min-width: 3.75em;
 }

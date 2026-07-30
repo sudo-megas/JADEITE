@@ -44,23 +44,49 @@ async function addPerson(page: Page, name: string): Promise<void> {
   await expect(list.last().locator('input.s3-person-name')).toHaveValue(name)
 }
 
+/** The coin types of §8.2 — quantity is a count of pieces, not a weight. */
+const COIN_TYPES = new Set(['ceyrek', 'yarim', 'tam', 'ata', 'iki_bucuk', 'besli'])
+
 interface Row {
   date: string
   person: string
   type: string
   direction: 'acquire' | 'dispose'
+  /** The whole quantity, as it was typed before §8.3's amendment. */
   quantity: string
   price: string
+  /**
+   * The two factors, for the rows where the split is the point. Given, they are
+   * typed verbatim and `quantity` is only documentation. Left alone, a weighable
+   * goes in as one chunk of its whole quantity — which is what every figure in
+   * this file was written against.
+   */
+  denomination?: string
+  count?: string
 }
 
-/** Compose the append row and commit it with Enter, never the mouse. */
+/**
+ * Compose the append row and commit it with Enter, never the mouse.
+ *
+ * Since §8.3's amendment the quantity is two cells. A coin's denomination is its
+ * own type, so its field is disabled and the figure belongs in the count; a
+ * weighable takes the figure as its denomination and a count of one.
+ */
 async function appendRow(page: Page, row: Row): Promise<void> {
   const before = await page.getByTestId('s3-ledger').locator('tbody tr').count()
 
   await page.getByTestId('s3-new-date').fill(row.date)
   await page.getByTestId('s3-new-type').selectOption(row.type)
   await page.getByTestId('s3-new-direction').selectOption(row.direction)
-  await page.getByTestId('s3-new-quantity').fill(row.quantity)
+
+  if (COIN_TYPES.has(row.type)) {
+    await expect(page.getByTestId('s3-new-denomination')).toBeDisabled()
+    await page.getByTestId('s3-new-count').fill(row.count ?? row.quantity)
+  } else {
+    await page.getByTestId('s3-new-denomination').fill(row.denomination ?? row.quantity)
+    await page.getByTestId('s3-new-count').fill(row.count ?? '1')
+  }
+
   await page.getByTestId('s3-new-price').fill(row.price)
   await page.getByTestId('s3-new-person').selectOption({ label: row.person })
   await page.getByTestId('s3-new-price').press('Enter')
@@ -230,7 +256,7 @@ test('a date the calendar does not have is refused at the cell', async () => {
   await openSection3(page)
 
   await page.getByTestId('s3-new-date').fill('2026-02-31')
-  await page.getByTestId('s3-new-quantity').fill('10')
+  await page.getByTestId('s3-new-denomination').fill('10')
   await page.getByTestId('s3-new-price').fill('5.000,00')
   await page.getByTestId('s3-new-price').press('Enter')
 
@@ -238,7 +264,7 @@ test('a date the calendar does not have is refused at the cell', async () => {
   await expect(page.getByTestId('section3-error')).toBeVisible()
   await expect(page.locator('[data-testid^="s3-seq-"]')).toHaveCount(0)
   // What was typed is still on screen — a refusal never discards a row.
-  await expect(page.getByTestId('s3-new-quantity')).toHaveValue('10')
+  await expect(page.getByTestId('s3-new-denomination')).toHaveValue('10')
 })
 
 test('the provisional flag can be set and cleared per row', async () => {
@@ -250,7 +276,7 @@ test('the provisional flag can be set and cleared per row', async () => {
   await addPerson(page, 'Kişi A')
 
   await page.getByTestId('s3-new-date').fill('2023-10-15')
-  await page.getByTestId('s3-new-quantity').fill('300')
+  await page.getByTestId('s3-new-denomination').fill('300')
   await page.getByTestId('s3-new-price').fill('1.865,00')
   await page.getByTestId('s3-new-provisional').check()
   await page.getByTestId('s3-new-price').press('Enter')
@@ -368,12 +394,13 @@ test('typing after a commit replaces the carried date rather than appending to i
   await expect(page.getByTestId('s3-new-date')).toHaveValue('2026-02-20')
 
   // And the row it produces carries that date, not a concatenation of two.
-  await page.keyboard.press('Tab')
-  await page.keyboard.press('Tab')
-  await page.keyboard.press('Tab')
-  await page.keyboard.press('Tab')
+  await page.keyboard.press('Tab') // date → provisional flag
+  await page.keyboard.press('Tab') // flag → type
+  await page.keyboard.press('Tab') // type → direction
+  await page.keyboard.press('Tab') // direction → denomination
   await page.keyboard.type('20')
-  await page.keyboard.press('Tab')
+  await page.keyboard.press('Tab') // denomination → count, kept at 1
+  await page.keyboard.press('Tab') // count → unit price
   await page.keyboard.type('5.900,00')
   await page.keyboard.press('Enter')
 
@@ -404,9 +431,10 @@ test('thirty consecutive rows go in without the mouse and without a dialogue', a
   await page.keyboard.type('2026-01-01')
   await page.getByTestId('s3-new-person').selectOption({ label: 'Kişi A' })
 
-  await page.getByTestId('s3-new-quantity').click()
+  await page.getByTestId('s3-new-denomination').click()
   await page.keyboard.type('1')
-  await page.keyboard.press('Tab')
+  await page.keyboard.press('Tab') // denomination → count, left at its default 1
+  await page.keyboard.press('Tab') // count → unit price
   await page.keyboard.type('5.000,00')
   await page.keyboard.press('Enter')
   await expect(page.locator('[data-testid^="s3-seq-"]')).toHaveCount(1)
@@ -414,14 +442,19 @@ test('thirty consecutive rows go in without the mouse and without a dialogue', a
   for (let i = 2; i <= 30; i += 1) {
     // The caret is already back in the date field, carrying the previous row's
     // date, so a purchase on the same day needs no date typed at all. The path
-    // to the quantity runs date → provisional flag → type → direction, all four
-    // of them carried forward or reachable, none of them needing a mouse.
+    // to the denomination runs date → provisional flag → type → direction, all
+    // four of them carried forward or reachable, none of them needing a mouse.
     await page.keyboard.press('Tab') // date → provisional flag
     await page.keyboard.press('Tab') // flag → type
     await page.keyboard.press('Tab') // type → direction
-    await page.keyboard.press('Tab') // direction → quantity
+    await page.keyboard.press('Tab') // direction → denomination
     await page.keyboard.type(String(i))
-    await page.keyboard.press('Tab') // quantity → unit price
+    // §8.3's amendment costs exactly one keystroke per row: the count carries a
+    // default of 1, so it is tabbed past rather than typed. That is the price of
+    // being able to say two chunks rather than ten grams, and §6.4's promise —
+    // thirty rows, no mouse, no dialogue — survives it.
+    await page.keyboard.press('Tab') // denomination → count, kept at 1
+    await page.keyboard.press('Tab') // count → unit price
     await page.keyboard.type('5.000,00')
     await page.keyboard.press('Enter')
 
@@ -435,4 +468,128 @@ test('thirty consecutive rows go in without the mouse and without a dialogue', a
   // Σ 1..30 grams = 465 g, all Kişi A's.
   await page.getByTestId('s3-view-holdings').click()
   await expect(page.getByTestId('s3-holdings')).toContainText('465 g')
+})
+
+/**
+ * §8.3's amendment, through the running application: the owner's reason for
+ * storing a denomination is that two chunks and one chunk are different facts,
+ * and the holdings page has to say which it is looking at.
+ */
+test('holdings say what the gold is physically made of', async () => {
+  session = await launchFresh()
+  await createVaultAndEnter(session)
+  const page = session.page
+
+  await openSection3(page)
+  await addPerson(page, 'Kişi A')
+
+  // Two five-gram pieces, not one ten-gram piece.
+  await appendRow(page, {
+    date: '2026-01-15',
+    person: 'Kişi A',
+    type: 'gram',
+    direction: 'acquire',
+    quantity: '10',
+    denomination: '5',
+    count: '2',
+    price: '5.000,00'
+  })
+
+  // The ledger shows both factors and the product it generated from them.
+  // `formatGrams` writes a non-breaking space, and unlike `toHaveText`,
+  // `toHaveValue` does not normalise whitespace.
+  await expect(page.getByTestId('s3-denomination-1')).toHaveValue('5 g')
+  await expect(page.getByTestId('s3-count-1')).toHaveValue('2')
+  await expect(page.getByTestId('s3-quantity-1')).toHaveText('10 g')
+
+  await page.getByTestId('s3-view-holdings').click()
+  const made = page.getByTestId(/^s3-made-/)
+  await expect(made).toContainText('2 ×')
+  await expect(made).toContainText('5 g')
+
+  // Ten grams either way — the composition is a partition of it, not a rival.
+  await expect(page.locator('[data-testid^="s3-qty-"]').first()).toContainText('10 g')
+})
+
+test('a disposal that cuts a piece leaves a remainder the page admits to', async () => {
+  session = await launchFresh()
+  await createVaultAndEnter(session)
+  const page = session.page
+
+  await openSection3(page)
+  await addPerson(page, 'Kişi A')
+
+  await appendRow(page, {
+    date: '2026-01-15',
+    person: 'Kişi A',
+    type: 'gram',
+    direction: 'acquire',
+    quantity: '10',
+    price: '5.000,00'
+  })
+  // Seven grams out of a single ten-gram bar: the three left are not a piece.
+  await appendRow(page, {
+    date: '2026-02-20',
+    person: 'Kişi A',
+    type: 'gram',
+    direction: 'dispose',
+    quantity: '7',
+    price: '6.000,00'
+  })
+
+  await page.getByTestId('s3-view-holdings').click()
+  await expect(page.locator('[data-testid^="s3-qty-"]').first()).toContainText('3 g')
+
+  // Named as loose weight rather than rounded into a piece it is not — and not
+  // flagged as a discrepancy, because nothing about the ledger is wrong.
+  await expect(page.getByTestId(/^s3-made-/)).toContainText('3 g')
+  await expect(page.getByTestId('s3-discrepancy')).toHaveCount(0)
+})
+
+/**
+ * §8.2 as amended — Tam and Ata are different coins about 3% apart, and the
+ * closed list carries both. They must be separately priceable, because pricing
+ * one at the other's quote is the error the amendment exists to prevent.
+ */
+test('Ata and Tam coexist as separate coins with separate prices', async () => {
+  session = await launchFresh()
+  await createVaultAndEnter(session)
+  const page = session.page
+
+  await openSection3(page)
+  await addPerson(page, 'Kişi A')
+
+  await appendRow(page, {
+    date: '2026-01-15',
+    person: 'Kişi A',
+    type: 'tam',
+    direction: 'acquire',
+    quantity: '2',
+    price: '40.413,00'
+  })
+  await appendRow(page, {
+    date: '2026-01-16',
+    person: 'Kişi A',
+    type: 'ata',
+    direction: 'acquire',
+    quantity: '3',
+    price: '41.344,00'
+  })
+
+  // A coin's denomination is its own type, so the cell is not editable and the
+  // figure went in as a count of pieces.
+  await expect(page.getByTestId('s3-count-1')).toHaveValue('2')
+  await expect(page.getByTestId('s3-count-2')).toHaveValue('3')
+
+  await setPrice(page, 'tam', '40.413,00')
+  await setPrice(page, 'ata', '41.344,00')
+
+  await page.getByTestId('s3-view-holdings').click()
+  const holdings = page.getByTestId('s3-holdings')
+  await expect(holdings).toContainText('Tam')
+  await expect(holdings).toContainText('Ata')
+
+  // Two Tam at ₺40.413 and three Ata at ₺41.344 — separate rows, separate money.
+  await expect(page.locator('[data-testid$="-tam"]').first()).toContainText('80.826,00')
+  await expect(page.locator('[data-testid$="-ata"]').first()).toContainText('124.032,00')
 })

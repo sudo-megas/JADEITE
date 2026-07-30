@@ -160,8 +160,82 @@ INSERT INTO valuable_types (code, unit, position) VALUES
   ('ziynet',    'mg',   10);
 `
 
+/**
+ * Schema v2 — the valuables model of point revision v0.6c.
+ *
+ * **The first migration this vault has ever performed.** `migrate` in
+ * `connection.ts` has existed since Realisation I and has never had a second
+ * migration to run, so everything below was verified against SQLite 3.53 (the
+ * amalgamation this project bundles) before being written: every statement
+ * applies inside one explicit transaction, and a failure part-way rolls the
+ * table back untouched. That matters more here than anywhere else in the
+ * application — the thing being altered is the owner's only copy of their
+ * history.
+ *
+ * Three changes, all from the rulings of 30 July 2026.
+ *
+ * **1. A weighable row records its denomination and its count** (§8.3, amended).
+ * `1 × 10 g` and `2 × 5 g` were the same row when quantity was one integer, and
+ * they are not the same fact: the second says two physical chunks are in the
+ * drawer. A total destroys that, and no later computation recovers it.
+ *
+ * **2. `quantity` becomes a generated column** rather than a stored one. §5.3's
+ * opening rule is that derived values are computed and never stored, and a
+ * generated column is that rule enforced by SQLite instead of by discipline —
+ * `INSERT`ing into it is refused by the engine. Every existing `SELECT` that
+ * reads `quantity` keeps working unchanged, which is why this is preferable to
+ * dropping the column and making nine call sites multiply.
+ *
+ * The column is `VIRTUAL` rather than `STORED`: the product of two small
+ * integers is cheaper to recompute than to keep on disk, and a virtual column
+ * cannot drift from its inputs even in a file someone edited by hand.
+ *
+ * **3. The backfill is unit-aware,** which is a correction to the wording in
+ * §8.3 that described it as `denomination = quantity, count = 1` for every row.
+ * That is right for a weighable — 10 g of gold with nothing recorded about how
+ * it was split is one chunk of 10 g — but wrong for a coin: thirty çeyrek are
+ * thirty pieces of one, not one piece of thirty. Coins therefore migrate as
+ * `denomination = 1, count = quantity`, which is both lossless and what the
+ * grid should show. Every row's derived quantity is identical afterwards, which
+ * is what keeps Realisation V's figures and Altın Eğrisi's series intact.
+ *
+ * `piece_count` rather than `count`, because `count` beside an aggregate
+ * function of the same name in hand-written SQL is a trap for whoever reads it
+ * next.
+ *
+ * **Ata** joins the closed list (§8.2, amended) between Tam and 2.5, since the
+ * ordering is Çeyrek < Yarım < Tam < Ata < 2.5 < 5. Positions above it shift by
+ * one; `position` carries no UNIQUE constraint, so the shift needs no dance.
+ */
+const V2 = `
+ALTER TABLE s3_transactions
+  ADD COLUMN denomination INTEGER NOT NULL DEFAULT 1 CHECK (denomination > 0);
+
+ALTER TABLE s3_transactions
+  ADD COLUMN piece_count INTEGER NOT NULL DEFAULT 1 CHECK (piece_count > 0);
+
+-- Coins are pieces of one. Thirty çeyrek is 30 × 1, never 1 × 30.
+UPDATE s3_transactions SET denomination = 1, piece_count = quantity
+  WHERE type_code IN (SELECT code FROM valuable_types WHERE unit = 'piece');
+
+-- A weighable or a currency amount is one chunk of itself until the owner says
+-- otherwise; nothing in a v1 vault recorded how it was split.
+UPDATE s3_transactions SET denomination = quantity, piece_count = 1
+  WHERE type_code IN (SELECT code FROM valuable_types WHERE unit <> 'piece');
+
+ALTER TABLE s3_transactions DROP COLUMN quantity;
+
+ALTER TABLE s3_transactions
+  ADD COLUMN quantity INTEGER GENERATED ALWAYS AS (denomination * piece_count) VIRTUAL;
+
+-- Ata (Cumhuriyet) — §8.2 as amended. Tam and Ata are different coins.
+UPDATE valuable_types SET position = position + 1 WHERE position >= 5;
+INSERT INTO valuable_types (code, unit, position) VALUES ('ata', 'piece', 5);
+`
+
 export const MIGRATIONS: readonly Migration[] = Object.freeze([
-  { version: 1, name: 'initial', sql: V1 }
+  { version: 1, name: 'initial', sql: V1 },
+  { version: 2, name: 'denomination-and-count', sql: V2 }
 ])
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version

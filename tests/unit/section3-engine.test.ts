@@ -62,6 +62,15 @@ interface RowOptions {
   provisional?: boolean
   source?: string | null
   personId?: number | null
+  /**
+   * How many pieces the quantity is made of (§8.3, amended).
+   *
+   * Left alone, a row is one chunk of its whole quantity — which is exactly what
+   * schema v2's migration writes for a weighable, and what keeps every figure in
+   * this file identical across that migration. Pass it to express *2 × 5 g*
+   * rather than *1 × 10 g*, where the difference is the point of the test.
+   */
+  count?: number
 }
 
 function row(
@@ -73,12 +82,21 @@ function row(
   unitPrice: number,
   options: RowOptions = {}
 ): Transaction {
+  // Unit-aware, exactly as schema v2's backfill and the ledger grid both are: a
+  // coin is N pieces of one, a weighable is one chunk of its whole weight unless
+  // the caller says otherwise. Either way the product is the quantity asked for,
+  // which is what lets fixtures written before the amendment assert the same
+  // figures.
+  const isPiece = TYPES.find((t) => t.code === typeCode)?.unit === 'piece'
+  const count = options.count ?? (isPiece ? quantity : 1)
   return {
     seq: nextSeq++,
     date,
     dateProvisional: options.provisional ?? false,
     typeCode,
     direction,
+    denomination: quantity / count,
+    count,
     quantity,
     unitPrice,
     source: options.source ?? null,
@@ -515,6 +533,134 @@ describe('every acquisition moves every figure that depends on it', () => {
       expect(after.costBasis - before.costBasis, label).toBe(
         transactionValue(1_000, transaction.unitPrice, 'mg')
       )
+    })
+  })
+})
+
+describe('what a holding is physically made of (§8.3, amended)', () => {
+  /**
+   * The whole reason a denomination is stored: two chunks and one chunk are
+   * different facts about what is in the drawer, and the total cannot tell them
+   * apart. Both holdings below are ten grams.
+   */
+  it('distinguishes two five-gram pieces from one ten-gram piece', () => {
+    const one = computeHoldings(ledger([row('2026-01-01', KISI_A, 'gram', 'acquire', 10_000, 500_000)]))
+    const two = computeHoldings(
+      ledger([row('2026-01-01', KISI_A, 'gram', 'acquire', 10_000, 500_000, { count: 2 })])
+    )
+
+    const holdingOf = (view: ReturnType<typeof computeHoldings>) =>
+      view.byPerson.find((e) => e.person.id === KISI_A.id)!.holdings[0]!
+
+    // They agree on the quantity, and on nothing else about the shape of it.
+    expect(holdingOf(one).quantity).toBe(10_000)
+    expect(holdingOf(two).quantity).toBe(10_000)
+
+    expect(holdingOf(one).composition.chunks).toEqual([{ denomination: 10_000, count: 1 }])
+    expect(holdingOf(two).composition.chunks).toEqual([{ denomination: 5_000, count: 2 }])
+
+    // And cost basis is untouched by the split, being a question about weight.
+    expect(holdingOf(one).costBasis).toBe(holdingOf(two).costBasis)
+  })
+
+  it('adds up pieces of the same size across separate acquisitions', () => {
+    const view = computeHoldings(
+      ledger([
+        row('2026-01-01', KISI_A, 'gram', 'acquire', 10_000, 500_000, { count: 2 }),
+        row('2026-02-01', KISI_A, 'gram', 'acquire', 15_000, 500_000, { count: 3 }),
+        row('2026-03-01', KISI_A, 'gram', 'acquire', 10_000, 500_000)
+      ])
+    )
+    const holding = view.byPerson.find((e) => e.person.id === KISI_A.id)!.holdings[0]!
+
+    // Five five-gram pieces and one ten-gram piece, largest first.
+    expect(holding.composition.chunks).toEqual([
+      { denomination: 10_000, count: 1 },
+      { denomination: 5_000, count: 5 }
+    ])
+    expect(holding.composition.unattributed).toBe(0)
+    expect(holding.quantity).toBe(35_000)
+  })
+
+  it('keeps a composition when a disposal takes whole pieces', () => {
+    const view = computeHoldings(
+      ledger([
+        row('2026-01-01', KISI_A, 'gram', 'acquire', 10_000, 500_000, { count: 2 }),
+        // Exactly one of the two five-gram pieces.
+        row('2026-02-01', KISI_A, 'gram', 'dispose', 5_000, 600_000)
+      ])
+    )
+    const holding = view.byPerson.find((e) => e.person.id === KISI_A.id)!.holdings[0]!
+
+    expect(holding.composition.chunks).toEqual([{ denomination: 5_000, count: 1 }])
+    expect(holding.composition.unattributed).toBe(0)
+    expect(holding.quantity).toBe(5_000)
+  })
+
+  /**
+   * The case §8.3 commits to in writing: ten grams acquired as one piece, seven
+   * disposed of, and the three grams left are not a piece of anything. Reporting
+   * `1 × 3 g` would state something false about the drawer.
+   */
+  it('reports an unattributed remainder when a disposal cuts a piece', () => {
+    const view = computeHoldings(
+      ledger([
+        row('2026-01-01', KISI_A, 'gram', 'acquire', 10_000, 500_000),
+        row('2026-02-01', KISI_A, 'gram', 'dispose', 7_000, 600_000)
+      ])
+    )
+    const holding = view.byPerson.find((e) => e.person.id === KISI_A.id)!.holdings[0]!
+
+    expect(holding.composition.chunks).toEqual([])
+    expect(holding.composition.unattributed).toBe(3_000)
+    expect(holding.quantity).toBe(3_000)
+    // Not a discrepancy: the ledger is perfectly consistent, the shape is just
+    // no longer knowable. `oversold` is a different complaint.
+    expect(holding.oversold).toBe(false)
+  })
+
+  it('reports whole pieces beside a remainder when a disposal does both', () => {
+    const view = computeHoldings(
+      ledger([
+        // Three ten-gram pieces, then twenty-five grams gone: two pieces whole
+        // and half of the third.
+        row('2026-01-01', KISI_A, 'gram', 'acquire', 30_000, 500_000, { count: 3 }),
+        row('2026-02-01', KISI_A, 'gram', 'dispose', 25_000, 600_000)
+      ])
+    )
+    const holding = view.byPerson.find((e) => e.person.id === KISI_A.id)!.holdings[0]!
+
+    expect(holding.quantity).toBe(5_000)
+    expect(holding.composition.chunks).toEqual([])
+    expect(holding.composition.unattributed).toBe(5_000)
+  })
+
+  it('always accounts for every milligram it holds', () => {
+    for (const disposal of [0, 1_000, 5_000, 7_500, 12_000, 19_999]) {
+      const rows = [row('2026-01-01', KISI_A, 'gram', 'acquire', 20_000, 500_000, { count: 4 })]
+      if (disposal > 0) rows.push(row('2026-02-01', KISI_A, 'gram', 'dispose', disposal, 600_000))
+
+      const holding = computeHoldings(ledger(rows)).byPerson.find(
+        (e) => e.person.id === KISI_A.id
+      )!.holdings[0]!
+
+      const composed =
+        holding.composition.chunks.reduce((sum, c) => sum + c.denomination * c.count, 0) +
+        holding.composition.unattributed
+
+      // The composition is a partition of the holding, never a summary of it.
+      expect(composed, `disposal of ${disposal}`).toBe(holding.lotQuantity)
+    }
+  })
+
+  it('composes a coin holding as pieces of one, its denomination being its type', () => {
+    const view = computeHoldings(
+      ledger([row('2026-01-01', KISI_A, 'ceyrek', 'acquire', 30, 257_000)])
+    )
+    const holding = view.byPerson.find((e) => e.person.id === KISI_A.id)!.holdings[0]!
+    expect(holding.composition).toEqual({
+      chunks: [{ denomination: 1, count: 30 }],
+      unattributed: 0
     })
   })
 })

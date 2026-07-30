@@ -212,6 +212,72 @@ export function computeLedger(data: LedgerData): LedgerView {
 interface Lot {
   remaining: number
   unitPrice: number
+  /** The size of one piece in this lot, for §8.4's composition. */
+  denomination: number
+}
+
+/** *Two pieces of five grams* — one line of a holding's composition. */
+export interface Chunk {
+  denomination: number
+  count: number
+}
+
+/**
+ * What a holding is physically made of (§8.3, amended).
+ *
+ * The owner's reason for storing a denomination at all is that *2 × 5 g* says
+ * two chunks are in the drawer where *10 g* does not. So a holding reports the
+ * pieces it consists of — but only as far as that is knowable, which is the part
+ * worth stating carefully.
+ *
+ * A disposal is consumed by **weight**, oldest lot first, because a bar is not
+ * indivisible in the market. When it takes whole pieces, the pieces that remain
+ * are still pieces and `chunks` names them. When it cuts one — 10 g acquired
+ * against 7 g gone — the 3 g left is not a piece of anything, and inventing
+ * *1 × 3 g* for it would be the workbook's defect wearing a new hat. That weight
+ * goes to `unattributed` instead, where the interface can say so.
+ */
+export interface Composition {
+  /** Whole pieces still held, largest denomination first. */
+  chunks: readonly Chunk[]
+  /** Weight left over from pieces a disposal cut into. Zero when all is tidy. */
+  unattributed: number
+}
+
+/**
+ * Break a lot's surviving weight into whole pieces and a remainder.
+ *
+ * `remaining` counts down by weight as disposals consume it, so what is left of a
+ * lot of two ten-gram bars after fifteen grams have gone is five grams — half a
+ * bar, and therefore no bars at all plus five grams unattributed. Integer
+ * division says exactly that, which is why there is no branch here.
+ */
+function splitLot(lot: Lot): { whole: number; remainder: number } {
+  if (lot.denomination <= 0) return { whole: 0, remainder: lot.remaining }
+  return {
+    whole: Math.trunc(lot.remaining / lot.denomination),
+    remainder: lot.remaining % lot.denomination
+  }
+}
+
+function composeLots(queue: readonly Lot[]): Composition {
+  const byDenomination = new Map<number, number>()
+  let unattributed = 0
+
+  for (const lot of queue) {
+    if (lot.remaining === 0) continue
+    const { whole, remainder } = splitLot(lot)
+    if (whole > 0) {
+      byDenomination.set(lot.denomination, (byDenomination.get(lot.denomination) ?? 0) + whole)
+    }
+    unattributed += remainder
+  }
+
+  const chunks = [...byDenomination.entries()]
+    .map(([denomination, count]): Chunk => ({ denomination, count }))
+    .sort((a, b) => b.denomination - a.denomination)
+
+  return { chunks, unattributed }
 }
 
 /**
@@ -239,6 +305,14 @@ export interface Holding {
   unrealised: number | null
   /** The two axes disagree. See `HoldingsView.discrepancies`. */
   oversold: boolean
+  /**
+   * The pieces this holding consists of (§8.3, amended).
+   *
+   * Computed for every type, and meaningful for the weighable ones. A coin's
+   * denomination is its own type, so a coin holding composes to *N × 1* and the
+   * interface has nothing to add beyond the count it already shows.
+   */
+  composition: Composition
 }
 
 /** Per-person subtotals of §8.4, and §8.6's comparison at person scope. */
@@ -348,7 +422,11 @@ export function computeHoldings(data: LedgerData): HoldingsView {
     if (!lotRow.has(type.code)) lotRow.set(type.code, queue)
 
     if (transaction.direction === 'acquire') {
-      queue.push({ remaining: transaction.quantity, unitPrice: transaction.unitPrice })
+      queue.push({
+        remaining: transaction.quantity,
+        unitPrice: transaction.unitPrice,
+        denomination: transaction.denomination
+      })
       continue
     }
 
@@ -416,7 +494,8 @@ export function computeHoldings(data: LedgerData): HoldingsView {
         costBasis,
         marketValue,
         unrealised: marketValue === null ? null : marketValue - costBasis,
-        oversold: quantity !== lotQuantity
+        oversold: quantity !== lotQuantity,
+        composition: composeLots(queue)
       }
 
       if (holding.oversold) discrepancies.push(holding)

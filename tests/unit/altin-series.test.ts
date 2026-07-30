@@ -50,6 +50,11 @@ function row(
     dateProvisional: provisional,
     typeCode,
     direction,
+    // One chunk of the whole quantity — schema v2's migration for a weighable.
+    // The series read `quantity` and nothing else, which is what makes all three
+    // point-for-point identical across the amendment.
+    denomination: quantity,
+    count: 1,
     quantity,
     unitPrice,
     source: null,

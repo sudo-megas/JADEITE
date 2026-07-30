@@ -151,7 +151,8 @@ Not a ladder rung. It amends Sections 3 and Altın Eğrisi, both already release
 Three owner rulings of 30 July 2026 drive it (§8.2, §8.3, §8.5 as amended), all of which arrived from reading a sample of the owner's own outgoing-gold record and reconnoitring the real price source.
 
 **Scope**
-- **Schema v2** — the first migration since Realisation I. `s3_transactions` gains `denomination` and `count`; existing rows migrate as `denomination = quantity, count = 1`, which is lossless and true of every row typed so far.
+- **Schema v2** — the first migration since Realisation I. `s3_transactions` gains `denomination` and `piece_count`, and `quantity` becomes a **generated column** (`denomination × piece_count`), so §5.3's "derived values are computed, never stored" is enforced by SQLite rather than by discipline and every existing `SELECT` keeps working.
+- The backfill is **unit-aware**: a coin migrates as `denomination = 1, piece_count = quantity` (thirty çeyrek are thirty pieces of one), a weighable as `denomination = quantity, piece_count = 1` (10 g with nothing recorded about how it was split is one chunk). Both are lossless and every row's derived quantity is unchanged, which is what preserves Realisation V's figures and Altın Eğrisi's series.
 - **Ledger grid** — `Denomination` and `Count` columns, with `Quantity` derived beside them. Inert denomination for `piece`-unit types, one grid for both.
 - **Ata as a sixth gold coin** (§8.2), distinct from Tam. Seeded into the closed list; no user-defined types still.
 - **Holdings composition** — 3b may report *30 g as 2 × 10 g + 2 × 5 g*, not only a weight.

@@ -59,7 +59,7 @@ async function acquire(
   await page.getByTestId('s3-new-date').fill(date)
   await page.getByTestId('s3-new-type').selectOption('gram')
   await page.getByTestId('s3-new-direction').selectOption('acquire')
-  await page.getByTestId('s3-new-quantity').fill(grams)
+  await page.getByTestId('s3-new-denomination').fill(grams)
   await page.getByTestId('s3-new-price').fill(pricePerGram)
   if (person) await page.getByTestId('s3-new-person').selectOption({ label: person })
   await page.getByTestId('s3-new-price').press('Enter')
@@ -188,7 +188,7 @@ test('a provisional date is called out, because the curve misleads there', async
   await addPerson(page, 'Kişi A')
 
   await page.getByTestId('s3-new-date').fill('2023-10-15')
-  await page.getByTestId('s3-new-quantity').fill('300')
+  await page.getByTestId('s3-new-denomination').fill('300')
   await page.getByTestId('s3-new-price').fill('1.865,00')
   await page.getByTestId('s3-new-provisional').check()
   await page.getByTestId('s3-new-price').press('Enter')

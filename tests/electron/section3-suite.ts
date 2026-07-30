@@ -57,7 +57,10 @@ function add(
     dateProvisional: provisional,
     typeCode,
     direction,
-    quantity,
+    // One chunk of the whole quantity, so every figure asserted below is the
+    // figure that was asserted before §8.3's amendment split the column.
+    denomination: quantity,
+    count: 1,
     unitPrice,
     source: null,
     personId,
@@ -75,13 +78,21 @@ function ortak(): number {
 // --- The closed list --------------------------------------------------------
 
 describe('the seeded closed list (§8.2)', () => {
-  it('holds exactly the ten types, in the owner’s order', () => {
+  /**
+   * Eleven since §8.2's amendment: Ata is a different coin from Tam, and sits
+   * between it and 2.5 because the sizes run Çeyrek < Yarım < Tam < Ata < 2.5 < 5.
+   * The order is asserted rather than the membership alone, because schema v2
+   * shifts five positions to open the gap and a migration that shifted them
+   * wrongly would still hold the right set.
+   */
+  it('holds exactly the eleven types, in the owner’s order', () => {
     const types = s3.readLedger(db).types
     expect(types.map((t) => t.code)).toEqual([
       'gram',
       'ceyrek',
       'yarim',
       'tam',
+      'ata',
       'iki_bucuk',
       'besli',
       'usd',
@@ -89,6 +100,12 @@ describe('the seeded closed list (§8.2)', () => {
       'gumus',
       'ziynet'
     ])
+  })
+
+  it('gives every type a distinct position, so the shift opened exactly one gap', () => {
+    const positions = s3.readLedger(db).types.map((t) => t.position)
+    expect(new Set(positions).size).toBe(positions.length)
+    expect(positions).toEqual([...positions].sort((a, b) => a - b))
   })
 
   /**
@@ -105,6 +122,7 @@ describe('the seeded closed list (§8.2)', () => {
     expect(byCode.get('ceyrek')).toBe('piece')
     expect(byCode.get('yarim')).toBe('piece')
     expect(byCode.get('tam')).toBe('piece')
+    expect(byCode.get('ata')).toBe('piece')
     expect(byCode.get('iki_bucuk')).toBe('piece')
     expect(byCode.get('besli')).toBe('piece')
     expect(byCode.get('usd')).toBe('minor')
@@ -345,7 +363,7 @@ describe('quantities and prices are refused rather than guessed at', () => {
 describe('editing a row', () => {
   it('changes only the fields named', () => {
     const seq = add('2026-01-15', null, 'gram', 'acquire', 10_000, 500_000)
-    s3.updateTransaction(db, { seq, quantity: 20_000 })
+    s3.updateTransaction(db, { seq, denomination: 20_000 })
 
     const row = s3.readLedger(db).transactions.find((t) => t.seq === seq)
     expect(row?.quantity).toBe(20_000)
@@ -360,7 +378,8 @@ describe('editing a row', () => {
       dateProvisional: false,
       typeCode: 'gram',
       direction: 'acquire',
-      quantity: 10_000,
+      denomination: 10_000,
+      count: 1,
       unitPrice: 500_000,
       source: 'Kuyumcu',
       personId: null,
@@ -381,7 +400,7 @@ describe('editing a row', () => {
   })
 
   it('refuses an edit to a row that is not there', () => {
-    expect(() => s3.updateTransaction(db, { seq: 9999, quantity: 1_000 })).toThrow()
+    expect(() => s3.updateTransaction(db, { seq: 9999, denomination: 1_000 })).toThrow()
   })
 
   it('turns an acquisition into a disposal without touching its number', () => {

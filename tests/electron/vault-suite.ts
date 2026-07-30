@@ -15,6 +15,7 @@ import { databasePath, envelopePath, vaultDirectory } from '../../src/main/vault
 import { readEnvelope } from '../../src/main/vault/envelope.js'
 import { parseRecoveryKey } from '../../src/main/vault/recovery-key.js'
 import { getSetting, setSetting } from '../../src/main/vault/db/settings.js'
+import { SCHEMA_VERSION } from '../../src/main/vault/db/schema.js'
 
 const PASSWORD = 'kuyumcu-defteri-2026'
 const NEW_PASSWORD = 'ziynet-ve-ceyrek-9981'
@@ -80,6 +81,7 @@ describe('first run', () => {
       'ceyrek',
       'yarim',
       'tam',
+      'ata',
       'iki_bucuk',
       'besli',
       'usd',
@@ -89,6 +91,18 @@ describe('first run', () => {
     ])
     const ortak = db.prepare("SELECT name, is_builtin FROM persons WHERE name = 'Ortak'").get()
     expect(ortak).toEqual({ name: 'Ortak', is_builtin: 1 })
+  })
+
+  /**
+   * A fresh vault runs V1 and then V2, so the schema version it lands on is the
+   * proof the runner applied more than the initial migration. This is the first
+   * Realisation in which that code path has ever executed.
+   */
+  it('creates a vault at the current schema version, having run every migration', async () => {
+    await createVault()
+    const db = vault.database()!
+    expect(db.pragma('user_version', { simple: true })).toBe(SCHEMA_VERSION)
+    expect(SCHEMA_VERSION > 1).toBe(true)
   })
 
   it('keeps security settings, and leaves appearance to config.json', async () => {

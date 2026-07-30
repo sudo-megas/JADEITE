@@ -124,8 +124,21 @@ function asTransactionDraft(value: unknown): TransactionDraft {
   const direction = raw['direction']
   if (direction !== 'acquire' && direction !== 'dispose') throw new Section3Error('INTERNAL')
 
-  const quantity = raw['quantity']
-  if (typeof quantity !== 'number' || !Number.isSafeInteger(quantity) || quantity <= 0) {
+  // Denomination and count, not quantity: quantity is a generated column and no
+  // caller is permitted to assert it. The product's bound is checked in the vault
+  // layer, which is the side that knows `MAX_QUANTITY`; here the job is only to
+  // prove two safe positive integers arrived.
+  const denomination = raw['denomination']
+  if (
+    typeof denomination !== 'number' ||
+    !Number.isSafeInteger(denomination) ||
+    denomination <= 0
+  ) {
+    throw new Section3Error('INVALID_QUANTITY')
+  }
+
+  const count = raw['count']
+  if (typeof count !== 'number' || !Number.isSafeInteger(count) || count <= 0) {
     throw new Section3Error('INVALID_QUANTITY')
   }
 
@@ -155,7 +168,8 @@ function asTransactionDraft(value: unknown): TransactionDraft {
     dateProvisional: raw['dateProvisional'] === true,
     typeCode: typeCode as TransactionDraft['typeCode'],
     direction,
-    quantity,
+    denomination,
+    count,
     unitPrice,
     source: typeof source === 'string' ? source : null,
     note: typeof note === 'string' ? note : null,
@@ -202,12 +216,26 @@ function asTransactionPatch(value: unknown): TransactionPatch {
     patch.direction = direction
   }
 
-  if (raw['quantity'] !== undefined) {
-    const quantity = raw['quantity']
-    if (typeof quantity !== 'number' || !Number.isSafeInteger(quantity) || quantity <= 0) {
+  // Either factor may arrive alone — the grid edits one cell at a time — and the
+  // vault validates the resulting pair against the row's other half.
+  if (raw['denomination'] !== undefined) {
+    const denomination = raw['denomination']
+    if (
+      typeof denomination !== 'number' ||
+      !Number.isSafeInteger(denomination) ||
+      denomination <= 0
+    ) {
       throw new Section3Error('INVALID_QUANTITY')
     }
-    patch.quantity = quantity
+    patch.denomination = denomination
+  }
+
+  if (raw['count'] !== undefined) {
+    const count = raw['count']
+    if (typeof count !== 'number' || !Number.isSafeInteger(count) || count <= 0) {
+      throw new Section3Error('INVALID_QUANTITY')
+    }
+    patch.count = count
   }
 
   if (raw['unitPrice'] !== undefined) {
