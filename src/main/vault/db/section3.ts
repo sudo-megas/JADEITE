@@ -20,7 +20,6 @@ import { MAX_QUANTITY, MAX_UNIT_PRICE } from '../../../shared/section3/units.js'
 import type {
   Direction,
   LedgerData,
-  LivePrice,
   ManualPrice,
   Person,
   PersonDraft,
@@ -38,6 +37,7 @@ import {
   MAX_SOURCE_LENGTH
 } from '../../../shared/section3/types.js'
 import { VaultDataError } from './errors.js'
+import { readLastFetch, readLivePrices } from './prices.js'
 
 /** Thrown inside a transaction and turned into a Result by the IPC layer. */
 export class Section3Error extends VaultDataError {
@@ -308,29 +308,26 @@ export function readLedger(db: DatabaseType): LedgerData {
   )
 
   /**
-   * The newest snapshot per type.
+   * The newest snapshot per type, and when the provider was last asked.
    *
-   * SQLite takes the bare columns from the row that produced the `MAX`, which is
-   * documented behaviour and exactly what is wanted here. Nothing writes this
-   * table until Realisation VII, so today this is always empty — it is read now
-   * so that 3c's live column exists and needs no new shape later.
+   * These were an inline `MAX(fetched_at) … GROUP BY type_code` until
+   * Realisation VII gave the table a `provider` column and made that query
+   * wrong: it groups *across* providers, so a vault that has heard from two
+   * would answer with gram from one and çeyrek from the other — a live column
+   * no provider ever quoted, presented as a single moment's view. Adding
+   * `provider` to the grouping does not repair it either; that returns ten rows
+   * per provider. The decision belongs with the rest of the price reading, in
+   * `prices.ts`, which settles the provider in force first and then takes the
+   * latest row per type within it.
    */
-  const livePrices = (
-    db
-      .prepare(
-        `SELECT type_code, value, MAX(fetched_at) AS fetched_at
-           FROM s3_prices_live GROUP BY type_code`
-      )
-      .all() as { type_code: string; value: number; fetched_at: string }[]
-  ).map(
-    (row): LivePrice => ({
-      typeCode: row.type_code as TypeCode,
-      value: row.value,
-      fetchedAt: row.fetched_at
-    })
-  )
-
-  return { persons, types, transactions, manualPrices, livePrices }
+  return {
+    persons,
+    types,
+    transactions,
+    manualPrices,
+    livePrices: readLivePrices(db),
+    lastFetch: readLastFetch(db)
+  }
 }
 
 // --- Persons ---------------------------------------------------------------

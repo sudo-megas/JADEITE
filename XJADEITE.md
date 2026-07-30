@@ -3,7 +3,7 @@
 **Project:** JADEITE — the secure personal wealth & possessions tracker
 **Copyright:** sudo-megas · **Licence:** GPL-3.0 · Free and Open-Source Software
 **Status:** Specification v3 · amended 30 July 2026 (supersedes v2) · Companion document: `REALISATION.md`
-**Amendments:** 2026-07-29 — §4.1, §5.1, §7.3, §16.6, §17, §19 (configuration split into two files; the Section 2 freeze made explicit and reversible; point revisions), settled during Realisations II and IV. · 2026-07-30 — §1, §15, §16.2, §18, §19, §20 (the migration importer is retired before construction; the ladder ends at Realisation XI; nothing ships that only this owner could use; the `.jbk` importer's remit is backup, restore, copy and merge).
+**Amendments:** 2026-07-29 — §4.1, §5.1, §7.3, §16.6, §17, §19 (configuration split into two files; the Section 2 freeze made explicit and reversible; point revisions), settled during Realisations II and IV. · 2026-07-30 (Realisation VII) — §3.3, §5.3, §8.2, §8.3, §14.1, §14.3, §16.2, §19 (two allowlisted hosts and where the session governs them; ziynet struck from the closed list; the socket's decimal format; identification is impossible; the price ceiling). · 2026-07-30 — §1, §15, §16.2, §18, §19, §20 (the migration importer is retired before construction; the ladder ends at Realisation XI; nothing ships that only this owner could use; the `.jbk` importer's remit is backup, restore, copy and merge).
 **Provenance:** Every decision in this document was settled explicitly between the owner and the architect during pre-realisation review. The forensic findings below were extracted from `JADEITorigin.xlsx` (the retiring workbook), `Altın_Eğrisi.pptx` (the retiring chart deck) and one year-banding screenshot. Those artefacts are the owner's private reference material; **the build never reads them** (§18).
 
 ---
@@ -60,7 +60,11 @@ No spreadsheet, presentation, or document-parsing library appears anywhere in th
 
 ### 3.3 Electron hardening posture (non-negotiable)
 
-`contextIsolation: true`, `nodeIntegration: false`, sandboxed renderers, strict CSP, no remote content of any kind, preload exposes a minimal typed IPC surface only. Network egress is limited to the single allowlisted price-provider host (§14); everything else is blocked at the session level. No telemetry, no crash reporting, no update checks.
+`contextIsolation: true`, `nodeIntegration: false`, sandboxed renderers, strict CSP, no remote content of any kind, preload exposes a minimal typed IPC surface only. Network egress is limited to the **two** allowlisted price-provider hosts of §14.1 — the socket lives on a different machine from the history endpoint — and nothing else. No telemetry, no crash reporting, no update checks.
+
+**Amendment of 30 July 2026 — where "blocked at the session level" is true, and where it is not.** This clause read "everything else is blocked at the session level", and Realisation VII measured that claim rather than repeating it. Electron's `webRequest` filter intercepts **Chromium's** network stack: a renderer's request and a main-process `net.request` both pass through it, and cancelling either one works. Node's own stack does not go near it — a global `fetch` is invisible to the filter and cannot be cancelled by it, and Node's `WebSocket` is the same stack. The price socket is therefore governed by a single in-process chokepoint that every outbound URL must pass, while the renderer and the history request are governed by the session as this clause always claimed. Both remain true statements; only one of them was ever true of everything.
+
+The renderer's own policy did not move. `connect-src 'none'` stands in both of its homes, because the provider runs in the main process and the renderer never acquired a reason to reach the network. And the predicate that widened is **not** the one governing navigation: `will-navigate` still permits nothing but this application's own files, since a permitted top-level navigation to a provider host would hand a remote origin the preload bridge.
 
 ### 3.4 Cold start (hard requirement)
 
@@ -154,7 +158,7 @@ Default OS user locations. Data is encrypted at rest exactly per the v1 manifest
 
 ### 5.3 Schema sketch (informative, finalised in Realisation I)
 
-`settings` · `years` · `s1_categories(year, name, kind[income|expense], position)` · `s1_entries(year, month, category, amount, is_refund, note)` · `s2_banks(year, name, credit_limit, position, is_counter, counter_party)` · `s2_cells(year, month, bank, amount)` · `persons` · `valuable_types` (closed seed list, §8.2) · `s3_transactions(seq_auto, date, date_provisional, type, direction[acquire|dispose], quantity, unit_price, source, person, note)` · `s3_prices_manual(type, value, updated_at)` · `s3_prices_live(type, value, fetched_at)` · `s4_lines(label, value, position)` · `backup_log`.
+`settings` · `years` · `s1_categories(year, name, kind[income|expense], position)` · `s1_entries(year, month, category, amount, is_refund, note)` · `s2_banks(year, name, credit_limit, position, is_counter, counter_party)` · `s2_cells(year, month, bank, amount)` · `persons` · `valuable_types` (closed seed list, §8.2) · `s3_transactions(seq_auto, date, date_provisional, type, direction[acquire|dispose], denomination, piece_count, quantity*, unit_price, source, person, note)` · `s3_prices_manual(type, value, updated_at)` · `s3_prices_live(type, value, fetched_at, provider)` · `s3_price_fetch(provider, attempted_at, outcome, succeeded_at)` · `s4_lines(label, value, position)` · `backup_log`.
 
 Derived values (totals, holdings, remaining limits, gains) are **computed, never stored**.
 
@@ -227,7 +231,13 @@ Owner-defined persons (free creation, rename, colour dot). Every transaction bel
 
 ### 8.2 Valuable types — closed list (owner's ruling: "only these")
 
-Built-in gold set: **Gram**, **Çeyrek**, **Yarım**, **Tam**, **Ata (Cumhuriyet)**, **2.5 (Gremse / İki Buçuklu)**, **5 (Ata5 / Beşli)** · plus **USD**, **EUR**, **Gümüş (silver, gram)**, **Ziynet (22 ayar, gram)**. No user-defined custom types.
+Built-in gold set: **Gram**, **Çeyrek**, **Yarım**, **Tam**, **Ata (Cumhuriyet)**, **2.5 (Gremse / İki Buçuklu)**, **5 (Ata5 / Beşli)** · plus **USD**, **EUR**, **Gümüş (silver, gram)**. Ten types. No user-defined custom types.
+
+**Amendment of 30 July 2026 — Ziynet is the family, not a member of it.** The list carried an eleventh type, *Ziynet (22 ayar, gram)*, and the owner's ruling is that the word names the parent category: çeyrek, yarım, tam, ata, 2,5 and 5 are all **ziynet altını**. Standing it in the closed list *beside* those six named a category as though it were a product. The owner's gram gold is 24 ayar — which is what `KULCEALTIN` quotes, and §14.3's evidence agrees, none of their twenty-four dated purchase prices falling inside `AYAR22`'s band against sixteen inside `KULCEALTIN`'s — and the 22-ayar things they hold are the coins, each of which already has a row. So the type described nothing they own.
+
+**The capability it carried is genuinely gone, and that is recorded rather than glossed.** There is now no type in which *weighable* 22-ayar gold — bilezik, burma, anything sold by the gram rather than struck — can be entered. The rejected alternative was renaming the row to *22 Ayar Bilezik*, which would have kept that home at no migration cost; the owner ruled for the shorter list with the trade-off stated. Reopening a closed list costs an amendment here and a Realisation of its own, so a later rung wanting bilezik back should disagree with this paragraph deliberately rather than rediscover it.
+
+The migration that removes it is **conditional** on no ledger row depending on the type. `foreign_keys` is ON before migrations run and three tables reference `valuable_types(code)` with no `ON DELETE`, so an unconditional delete against a vault holding one ziynet row would abort, roll back, and re-fail on every subsequent open — locking the owner out behind the only interface that could have cleared it. History is not tidied away to shorten a list (§16.1).
 
 **Amendment of 30 July 2026 — Tam and Ata are two products, not one.** The list previously read "Tam (Cumhuriyet)", which conflated them. The owner's real source quotes both, and they are distinct: measured against the çeyrek price on 28 March 2026, Tam is 3,722× and Ata is 3,833× — about 3% apart, because *Cumhuriyet altını is the Ata*, not the Tam. The owner's own retiring workbook priced its coins at ₺10.280, which is a **Tam** price (real quotes that day: Tam 10.270/10.572, Ata 10.542/10.799), so the holding being retired is Tam and Ata was simply absent from the list. Both now exist, and the closed list is six gold coins rather than five.
 
@@ -243,7 +253,7 @@ Columns: **No** (auto-numbered — the source's hand-typed duplicates 14,14,17,1
 
 **Amendment of 30 July 2026 — a weighable row records its denomination and its count, not only the total.** The ledger previously stored one quantity, which made `1 × 10 g` and `2 × 5 g` the same row. They are not the same thing, in the owner's words: *"'2 x 5gr' let me know that there are physically 2 chunks of gold, that is pretty much matters."* A total destroys information that no later computation can recover — how many physical pieces are in the drawer — so the two fields are stored and the total is derived, in the same spirit as every other computed figure in this application.
 
-This applies to the **weighable** types only (`mg` units: Gram, Gümüş, Ziynet). Coins are counted in pieces, so their denomination is the type itself and `Count` is the whole story; the denomination column is inert for them rather than absent, so one grid serves both.
+This applies to the **weighable** types only (`mg` units: Gram and Gümüş). Coins are counted in pieces, so their denomination is the type itself and `Count` is the whole story; the denomination column is inert for them rather than absent, so one grid serves both.
 
 Holdings (§8.4) may therefore report a composition — *30 g held as 2 × 10 g + 2 × 5 g* — and not merely a weight. Cost basis is unaffected: lots are still consumed oldest-first **by weight**, because a disposal of 7 g out of a 10 g bar is a real event and a bar is not indivisible in the market.
 
@@ -361,6 +371,8 @@ Recorded because it was established by real requests, and because a provider wri
 
 **History is a plain JSON endpoint.** `POST https://www.haremaltin.com/ajax/cur/history`, form body `kod` · `dil_kodu` · `tarih1` · `tarih2`, requiring the header `X-Requested-With: XMLHttpRequest` (without it the request 404s) and a session cookie from the chart page. It returns daily closes as `{alis, satis, kayit_tarihi}` — dot-decimal strings, four places — reaching back to 2012 for gold. No key, no token, no authentication.
 
+**Amendment of 30 July 2026 — "four places" is true here and false of the socket.** The history endpoint does send four decimals. The socket does not send a consistent number of any: a single `price_changed` frame carried `CEYREK_ESKI` as `"10124"` with no decimal point at all, `GUMUSTRY` as `"94.017"` with three, and `USDTRY` as `"47.3600"` with four. A parser written to the sentence above would have read a çeyrek as ₺1,01 and stored it without complaint — and would have passed every fixture-based test, because the fixtures were written from the same sentence. Recorded because it is the one silent failure of this source that reconnaissance missed, and because it is the argument for capturing a real frame into the fixtures rather than authoring one to the documentation.
+
 **The widely-circulated recipe is dead.** `/tmp/altin.json` and its siblings are still named in the source's own JavaScript, every call site preceded by `PASIF: AJAX SİSTEMİ DEVRE DIŞI` and an early return. They 404. Anyone reviving this module from a web search will find that recipe first; it has not worked since before this was written.
 
 ### 14.2 Two silent failures the provider must defend against
@@ -376,15 +388,16 @@ Established against 24 of the owner's own dated purchase prices, each tested for
 
 | §8.2 type | Source code | Basis |
 |---|---|---|
-| Gram | `KULCEALTIN` (GRAM ALTIN) | **16 of 24** owner prices inside band, against 7 for `ALTIN` (HAS ALTIN) and 0 for `AYAR22`. The tempting label match and the tighter spread both pointed at HAS ALTIN on two anchor points; twenty-four points settled it the other way. |
+| Gram | `KULCEALTIN` (GRAM ALTIN) | **16 of 24** owner prices inside band, against 7 for `ALTIN` (HAS ALTIN) and **0 for `AYAR22`**. That last figure is why `AYAR22` still appears in this table with no row of its own: it is the negative control. `AYAR22` quotes 22-ayar gold per gram, and not one of the owner's twenty-four dated purchase prices falls inside its band — which is consistent with their statement that the gram gold is 24 ayar and the 22-ayar holdings are the coins. A price-band match is not a measurement of fineness; the owner's ruling establishes that and this agrees with it. The tempting label match and the tighter spread both pointed at HAS ALTIN on two anchor points; twenty-four points settled it the other way. |
 | Çeyrek · Yarım · Tam · Ata · 2.5 · 5 | `CEYREK_ESKI` · `YARIM_ESKI` · `TEK_ESKI` · `ATA_ESKI` · `GREMESE_ESKI` · `ATA5_ESKI` | ESKİ per §8.5. All six ESKİ codes were called and **all six return real series** — presence in the source's catalogue is not evidence of that, since `/tmp/altin.json` is also catalogued and 404s. Sizes verified in ascending order. |
 | USD · EUR | `USDTRY` · `EURTRY` | TRY per unit. |
 | Gümüş | `GUMUSTRY` | TRY per gram — confirmed against `GUMUSUSD`, which is quoted per kilogram. |
-| Ziynet | `AYAR22` | Quoted per gram, and ziynet is 22 ayar. The source has **no** ZIYNET instrument; this is the nearest true equivalent rather than a match. |
 
 The owner's recorded purchase prices sit **at or slightly above satış**, which is an ordinary retail premium, so **satış** is the figure to display and a small positive spread against it is not an error.
 
-**Nothing on the source prohibits this.** `robots.txt` permits everything but `/uye/` and sets no crawl delay; there is no terms-of-use document, no copyright assertion and no anti-automation clause. The etiquette is therefore entirely self-imposed, which for a single-user desktop app doing a handful of manual refreshes a day means: identify politely, cache, and back off on error.
+**Nothing on the source prohibits this.** `robots.txt` permits everything but `/uye/` and sets no crawl delay; there is no terms-of-use document, no copyright assertion and no anti-automation clause. The etiquette is therefore entirely self-imposed, which for a single-user desktop app doing a handful of manual refreshes a day means: cache, ask rarely, and back off on error.
+
+**Amendment of 30 July 2026 — the app cannot identify itself, and pretending otherwise would be worse than not trying.** This clause asked it to "identify politely". The history endpoint answers 404 with HTML to any request without a browser User-Agent, so a header naming JADEITE does not announce the application — it breaks the request. What remains of politeness is therefore entirely a matter of volume: a floor of one minute between attempts, exponential backoff to a half-hour ceiling while the source is failing, one connection of about a second and a half per refresh, and request parameters that are fixed rather than derived from the ledger — because asking only for the types the owner holds, over the owner's own date range, would make every request a small disclosure of the portfolio (§16.1).
 
 ---
 
@@ -402,7 +415,7 @@ The owner's recorded purchase prices sit **at or slightly above satış**, which
 ## 16. Prohibitions (hard, permanent)
 
 1. **No outgoing data** in any legible form: no PDF/CSV/XLSX export, no printing pipeline, no share targets, no clipboard bulk-export features. The encrypted `.jbk` backup (§15) is the sole exception.
-2. **No foreign-format ingestion.** JADEITE cannot read `.xlsx`, `.ods`, `.pptx`, `.csv`, `.json`, or any other external data file. No import wizard, no column mapper, no parser. The only artefact the app ingests is its own sealed `.jbk` (§15). Data enters exclusively through the owner's keyboard.
+2. **No foreign-format ingestion.** JADEITE cannot read `.xlsx`, `.ods`, `.pptx`, `.csv`, `.json`, or any other external data file. No import wizard, no column mapper, no parser. The only artefact the app ingests is its own sealed `.jbk` (§15). Data enters through the owner's keyboard and, from Realisation VII, through the one sanctioned provider of §14 — whose responses are prices and nothing else, are validated before they are believed (§14.2), and are stored beside the owner's own figures rather than over them (§8.5). That is a second door, it is named here so it cannot be treated as a precedent, and it opens onto two hosts and no others.
 3. **No telemetry, analytics, crash reporting, or update phoning** of any kind.
 4. **No cloud** anything.
 5. **No OS-locale detection** (§13).
@@ -498,7 +511,9 @@ Roughly 47 month-rows, ~38 gold events, and one debt year. Not a build task, not
 | Section 1 | Year-workspaces (Niri-style), per-year column sets with inheritance |
 | Section 2 | Forward-looking tracker; read-only archive on rollover, **frozen by an explicit and reversible act** (§7.3, amended) |
 | Section 2 totals | `TOTAL DEBT = Σ banks − Σ counters`; **`TOTAL REMAINING LIMIT` is the total of the Remaining Limit row** — counter columns have no limit and no cell in it |
-| Section 3 scope | Gold set + USD + EUR + silver + ziynet — **closed list**; **six** gold coins, Tam and Ata being different products (§8.2, amended) |
+| Section 3 scope | Gold set + USD + EUR + silver — **closed list of ten**; **six** gold coins, Tam and Ata being different products; **ziynet struck** as the family's name rather than a member of it, and with it the only home for weighable 22-ayar gold (§8.2, amended twice) |
+| Egress enforcement | **Two** allowlisted hosts. Session-level for the renderer and for Chromium-stack main traffic; a single in-process chokepoint for Node-stack traffic, which `webRequest` cannot see. The navigation predicate is **not** the request predicate — widening one must never widen the other (§3.3, amended) |
+| Price ceiling | `MAX_UNIT_PRICE` is ₺500.000 per unit. The former ₺100.000 was reasoned about per gram and silently refused a beşli price, which is quoted per piece at about ₺207.000 — a defect that shipped in Realisation V and was found by pointing a provider at the closed list |
 | Weighable quantities | **Denomination × count, stored; total derived** — `2 × 5 g` is two physical chunks and not the same record as `1 × 10 g` (§8.3, amended) |
 | Coin pricing | **ESKİ quotes** — owner's ruling. The gap averages 0,5% and shows no annual step, so the owner's "struck this year" reading is recorded as theirs, not as measurement; mint-year storage is the deferred correction (§8.5, amended) |
 | Live provider | Websocket for current prices, `ajax/cur/history` for history; **the returned date range must be validated** — a stale cache silently truncates it behind HTTP 200 (§14.1–14.2) |

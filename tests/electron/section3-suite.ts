@@ -97,8 +97,7 @@ describe('the seeded closed list (§8.2)', () => {
       'besli',
       'usd',
       'eur',
-      'gumus',
-      'ziynet'
+      'gumus'
     ])
   })
 
@@ -118,7 +117,6 @@ describe('the seeded closed list (§8.2)', () => {
 
     expect(byCode.get('gram')).toBe('mg')
     expect(byCode.get('gumus')).toBe('mg')
-    expect(byCode.get('ziynet')).toBe('mg')
     expect(byCode.get('ceyrek')).toBe('piece')
     expect(byCode.get('yarim')).toBe('piece')
     expect(byCode.get('tam')).toBe('piece')

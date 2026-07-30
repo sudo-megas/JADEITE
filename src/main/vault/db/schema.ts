@@ -233,9 +233,110 @@ UPDATE valuable_types SET position = position + 1 WHERE position >= 5;
 INSERT INTO valuable_types (code, unit, position) VALUES ('ata', 'piece', 5);
 `
 
+/**
+ * Schema v3 — the live provider of Realisation VII.
+ *
+ * Three changes, and the first is the one that needed care.
+ *
+ * **1. Ziynet leaves the closed list** (§8.2, amended 30 July 2026). The owner's
+ * ruling: *ziynet* is the Turkish parent name for the ornamental-gold family —
+ * çeyrek, yarım, tam, ata, 2,5 and 5 are all ziynet altını — so standing it in
+ * the list *beside* those six named a category as though it were a product. The
+ * owner's gram gold is 24 ayar and the 22-ayar holdings are the coins, which
+ * leaves the row describing nothing they hold.
+ *
+ * **The delete is conditional, and that is not timidity.** `foreign_keys` is ON
+ * before `migrate` runs (`connection.ts`), and three tables reference
+ * `valuable_types(code)` with no `ON DELETE` clause. An unconditional delete
+ * against a vault holding one ziynet row raises a constraint failure; the
+ * migration's own transaction rolls back; `openDatabase` rethrows — and it
+ * rethrows again on **every subsequent open**, because nothing has changed.
+ * The owner would be locked out of their vault by a tidying-up, with no route
+ * back in, since the only UI that could clear the row is behind the lock.
+ *
+ * So the two price tables are cleared first — a typed price is re-typable and
+ * the type is being retired anyway — and the type row goes only when no
+ * transaction points at it. A ledger row is history: §16.1 does not permit
+ * destroying it to shorten a list. In every vault that exists today the row
+ * goes and the list becomes ten; in one that already recorded ziynet history the
+ * type survives, the vault opens, and the owner reassigns those rows at leisure.
+ *
+ * The rejected alternative was renaming the row to *22 Ayar Bilezik*, which
+ * needs no delete at all and keeps a home for weighable 22-ayar gold. The owner
+ * ruled for the shorter list with that trade-off stated. **The capability is
+ * genuinely gone**: there is now no type in which bilezik or burma can be
+ * recorded by weight, and reopening a closed list costs a specification
+ * amendment and a Realisation of its own (§8.2, REALISATION.md). Recorded here
+ * so a later rung can disagree deliberately rather than rediscover it.
+ *
+ * Positions need no dance. v2 shifted everything from 5 upward, leaving ziynet
+ * last at 11, so removing it leaves 1…10 contiguous — unlike v2, which had to
+ * open a gap. Said explicitly because the absence of a shift here is a fact
+ * about v2's arithmetic, not an oversight.
+ *
+ * **2. A live price records which provider produced it.** §14 requires the
+ * provider to be swappable, and a snapshot whose origin is unknown cannot be
+ * audited afterwards — nor deduplicated per provider, which the writer needs.
+ * `DEFAULT 'haremaltin'` makes the backfill exact: every row that could already
+ * exist came from the only provider there was. In practice there are none,
+ * since nothing has ever written this table.
+ *
+ * The index moves with it. The read that matters is *the latest value for this
+ * type from this provider*, so `(type_code, provider, fetched_at)` is the
+ * covering order; leaving the v1 index in place would have quietly made the
+ * dedup check a scan.
+ *
+ * **3. A fetch is recorded even when nothing changed.** Snapshots are appended
+ * only when the value differs from the last one for that type and provider —
+ * which keeps `s3_prices_live` a genuine price history rather than a log of
+ * polling, and removes any need for a pruner. But it also means a successful
+ * refresh that confirms an unchanged price writes nothing at all, and 3c would
+ * then have no way to say *when it last looked*: the newest `fetched_at` in the
+ * price table is the last time a price **moved**, which on a quiet afternoon is
+ * days ago. A refresh that worked would be indistinguishable from one that
+ * failed.
+ *
+ * `s3_price_fetch` is therefore a single row — `CHECK (id = 1)` — carrying the
+ * last attempt, its outcome, and the last time an attempt succeeded. One row
+ * rather than one per attempt because nothing reads a fetch history, and rule 7
+ * refuses a table built for a reader that does not exist. Three columns rather
+ * than one because the interface wants the last success while the rate limiter
+ * wants the last attempt, and after a failure those are different moments.
+ */
+const V3 = `
+-- A typed price is re-typable; clear the children before the parent so the
+-- delete below can never raise a foreign-key failure.
+DELETE FROM s3_prices_live   WHERE type_code = 'ziynet';
+DELETE FROM s3_prices_manual WHERE type_code = 'ziynet';
+
+-- The type goes only if no ledger row depends on it. History is not tidied away.
+DELETE FROM valuable_types
+ WHERE code = 'ziynet'
+   AND NOT EXISTS (SELECT 1 FROM s3_transactions WHERE type_code = 'ziynet');
+
+-- Which provider said so (§14). The only provider that could have written an
+-- existing row is the one this default names.
+ALTER TABLE s3_prices_live
+  ADD COLUMN provider TEXT NOT NULL DEFAULT 'haremaltin';
+
+DROP INDEX idx_s3_prices_live_type;
+CREATE INDEX idx_s3_prices_live_type
+  ON s3_prices_live (type_code, provider, fetched_at);
+
+-- When the app last looked, as distinct from when a price last moved.
+CREATE TABLE s3_price_fetch (
+  id           INTEGER PRIMARY KEY CHECK (id = 1),
+  provider     TEXT    NOT NULL,
+  attempted_at TEXT    NOT NULL,
+  outcome      TEXT    NOT NULL,
+  succeeded_at TEXT
+);
+`
+
 export const MIGRATIONS: readonly Migration[] = Object.freeze([
   { version: 1, name: 'initial', sql: V1 },
-  { version: 2, name: 'denomination-and-count', sql: V2 }
+  { version: 2, name: 'denomination-and-count', sql: V2 },
+  { version: 3, name: 'live-provider', sql: V3 }
 ])
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version

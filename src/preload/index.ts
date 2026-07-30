@@ -43,6 +43,7 @@ import type {
   LedgerData,
   PersonDraft,
   PersonUsage,
+  RefreshOutcome,
   Section3ErrorCode,
   TransactionDraft,
   TransactionPatch,
@@ -129,7 +130,8 @@ const section3: Section3Api = {
   setManualPrice: (typeCode: TypeCode, value: number): S3<null> =>
     ipcRenderer.invoke(IPC.s3SetManualPrice, typeCode, value),
   clearManualPrice: (typeCode: TypeCode): S3<null> =>
-    ipcRenderer.invoke(IPC.s3ClearManualPrice, typeCode)
+    ipcRenderer.invoke(IPC.s3ClearManualPrice, typeCode),
+  refreshPrices: (): S3<RefreshOutcome> => ipcRenderer.invoke(IPC.s3RefreshPrices)
 }
 
 type S4<T> = Promise<Result<T, Section4ErrorCode>>

@@ -110,7 +110,14 @@ function ledger(
   prices: ManualPrice[] = [],
   persons: Person[] = [ORTAK, KISI_A, KISI_B]
 ): LedgerData {
-  return { persons, types: TYPES, transactions, manualPrices: prices, livePrices: [] }
+  return {
+    persons,
+    types: TYPES,
+    transactions,
+    manualPrices: prices,
+    livePrices: [],
+    lastFetch: null
+  }
 }
 
 function price(typeCode: TypeCode, value: number): ManualPrice {

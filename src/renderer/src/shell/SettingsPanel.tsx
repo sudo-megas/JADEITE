@@ -5,12 +5,20 @@
  * Language changes only when the owner changes it here (§13). The formatting
  * sample is live so the effect of the choice is visible before it matters to
  * real money.
+ *
+ * One control here is not like the others: the price-refresh interval writes
+ * into the *vault*, and it is the first thing in this application that ever
+ * has. Everything else on this panel either paints (palette, language) or
+ * merely reports (auto-lock, frame timings). It is nonetheless kept on the same
+ * page rather than given one of its own — the question "may this program call
+ * out on its own, and how often" is a setting the owner should meet while
+ * reading the others, not one they have to go looking for.
  */
 
 import type { ReactElement } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { useAppStore } from '../store/app-store.js'
+import { PRICE_REFRESH_CHOICES, useAppStore } from '../store/app-store.js'
 import { PALETTES } from '@shared/theme/palettes/index.js'
 import { LANGUAGES } from '../i18n/index.js'
 import { formatCount, formatDate, formatGrams, formatMoney, formatNumber } from '../i18n/format.js'
@@ -21,8 +29,10 @@ export function SettingsPanel(): ReactElement {
   const paletteId = useAppStore((s) => s.paletteId)
   const language = useAppStore((s) => s.language)
   const autoLockMinutes = useAppStore((s) => s.autoLockMinutes)
+  const priceRefreshMinutes = useAppStore((s) => s.priceRefreshMinutes)
   const setPalette = useAppStore((s) => s.setPalette)
   const setLanguage = useAppStore((s) => s.setLanguage)
+  const setPriceRefreshMinutes = useAppStore((s) => s.setPriceRefreshMinutes)
 
   return (
     <section className="settings" data-testid="settings-panel">
@@ -108,6 +118,36 @@ export function SettingsPanel(): ReactElement {
         <span data-testid="auto-lock">
           {autoLockMinutes} {t('settings.autoLockUnit')}
         </span>
+      </div>
+
+      {/*
+        §14's "manual refresh is primary; optional auto-refresh interval", and
+        the lede says which of those two it is. The segmented control is the
+        language switch's, reached for on purpose: the choice is one of a few
+        named alternatives, and this panel already teaches that shape.
+
+        A vault holding an interval this control does not offer leaves every
+        button unpressed. That is deliberate — see `loadVaultSettings` — and it
+        is the state a single click leaves for good.
+      */}
+      <h2 className="settings-heading">{t('settings.prices')}</h2>
+      <p className="lede">{t('settings.priceRefreshHint')}</p>
+      <div className="segmented" data-testid="price-refresh">
+        {PRICE_REFRESH_CHOICES.map((minutes) => (
+          <button
+            key={minutes}
+            type="button"
+            className="segmented-item"
+            data-selected={minutes === priceRefreshMinutes ? 'true' : undefined}
+            aria-pressed={minutes === priceRefreshMinutes}
+            data-testid={`price-refresh-${minutes}`}
+            onClick={() => void setPriceRefreshMinutes(minutes)}
+          >
+            {minutes === 0
+              ? t('settings.priceRefreshOff')
+              : t('settings.priceRefreshEvery', { minutes })}
+          </button>
+        ))}
       </div>
 
       <h2 className="settings-heading">{t('settings.performance')}</h2>

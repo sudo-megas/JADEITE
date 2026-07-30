@@ -22,6 +22,7 @@ import { create } from 'zustand'
 
 import type {
   LedgerData,
+  LivePriceErrorCode,
   Person,
   PersonDraft,
   Section3ErrorCode,
@@ -45,6 +46,18 @@ interface Section3State {
    */
   commitToken: number
 
+  /** A fetch is in flight. The button is disabled and says so. */
+  refreshing: boolean
+  /**
+   * Why the last fetch produced nothing, or null.
+   *
+   * Separate from `error`, which is for the vault refusing something the owner
+   * did. An unreachable price source is not a fault in the application and must
+   * not be shown as one (§14): the manual prices on screen carry on being the
+   * authority, and this is a line beside them rather than an alarm over them.
+   */
+  liveError: LivePriceErrorCode | null
+
   load(): Promise<void>
   setView(view: Section3View): void
 
@@ -61,6 +74,7 @@ interface Section3State {
 
   setManualPrice(typeCode: TypeCode, value: number): Promise<void>
   clearManualPrice(typeCode: TypeCode): Promise<void>
+  refreshPrices(): Promise<void>
 
   dismissError(): void
   reset(): void
@@ -81,12 +95,21 @@ type Actions =
   | 'deleteTransaction'
   | 'setManualPrice'
   | 'clearManualPrice'
+  | 'refreshPrices'
   | 'dismissError'
   | 'reset'
 
 /** The state of a store that has never seen an open vault. */
 function emptyState(): Omit<Section3State, Actions> {
-  return { data: null, loading: false, error: null, view: 'ledger', commitToken: 0 }
+  return {
+    data: null,
+    loading: false,
+    error: null,
+    view: 'ledger',
+    commitToken: 0,
+    refreshing: false,
+    liveError: null
+  }
 }
 
 export const useSection3Store = create<Section3State>((set, get) => ({
@@ -165,6 +188,46 @@ export const useSection3Store = create<Section3State>((set, get) => ({
 
   async clearManualPrice(typeCode) {
     await run(set, () => api().clearManualPrice(typeCode))
+  },
+
+  /**
+   * Ask the provider once (§14), then re-read like every other write.
+   *
+   * Three things this deliberately does not do. It does not set `loading`,
+   * because that blanks the section and the owner is looking at prices they
+   * already have while this happens. It does not treat `skipped` as a failure —
+   * the limiter refusing a too-soon request is politeness working, and the
+   * timestamp already on screen stays correct. And it does not care that
+   * `written` is often zero: a snapshot is stored only when a figure moves, so
+   * a good refresh on a quiet day writes nothing at all, and reporting that as
+   * failure would make a working provider look broken.
+   */
+  async refreshPrices() {
+    if (get().refreshing) return
+    set({ refreshing: true, liveError: null })
+
+    try {
+      const result = await api().refreshPrices()
+      if (!result.ok) {
+        // The vault refused — locked, most likely. That is an application
+        // state, not a provider state, so it goes to `error`.
+        set({ error: result.error })
+        return
+      }
+
+      const { status } = result.value
+      set({ liveError: status === 'ok' || status === 'skipped' ? null : status })
+
+      // The vault is the authority on what was actually stored, exactly as it
+      // is for every other write in this store.
+      const reread = await api().ledger()
+      if (reread.ok) set({ data: reread.value })
+      else set({ error: reread.error })
+    } catch {
+      set({ error: 'INTERNAL' })
+    } finally {
+      set({ refreshing: false })
+    }
   },
 
   dismissError() {

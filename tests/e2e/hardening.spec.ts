@@ -106,6 +106,12 @@ test('the bridge exposes the contract and nothing more', async () => {
   // ledger is a lifetime rather than a workspace. And there is one read rather
   // than three, because holdings derive from the transactions and the prices
   // together and must not be assembled from two separate crossings.
+  // `refreshPrices` joins at Realisation VII and is the only method in the whole
+  // bridge that reaches outside the machine. It hangs here rather than opening a
+  // top-level `prices` namespace: a live price is a fact about a valuable, and
+  // the enumeration above is a list of what Section 3 may be asked, not of where
+  // the answers come from. It takes no argument, so there is nothing the
+  // renderer can say about what gets requested.
   expect(surface.section3).toEqual([
     'addPerson',
     'addTransaction',
@@ -114,6 +120,7 @@ test('the bridge exposes the contract and nothing more', async () => {
     'deleteTransaction',
     'ledger',
     'personUsage',
+    'refreshPrices',
     'renamePerson',
     'reorderPersons',
     'setManualPrice',

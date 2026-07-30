@@ -69,7 +69,8 @@ function ledger(transactions: Transaction[], manualPrices: ManualPrice[] = []): 
     types: TYPES,
     transactions,
     manualPrices,
-    livePrices: []
+    livePrices: [],
+    lastFetch: null
   }
 }
 

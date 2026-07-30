@@ -296,12 +296,15 @@ export const tr = {
       besli: '5 (Beşli)',
       usd: 'Dolar',
       eur: 'Euro',
-      gumus: 'Gümüş',
-      ziynet: 'Ziynet'
+      gumus: 'Gümüş'
     },
 
     costBasis: 'Maliyet',
     marketValue: 'Piyasa Değeri',
+    liveValue: 'Canlı Değer',
+    liveValueHint:
+      'Sağlayıcının fiyatıyla hesaplanmıştır. Piyasa değeri girdiğiniz fiyattan hesaplanır; bu sütun onun yerine geçmez.',
+    liveSource: 'kaynak: {{provider}}',
     unrealised: 'Gerçekleşmemiş K/Z',
     grandTotal: 'GENEL TOPLAM',
     personTotal: '{{name}} toplamı',
@@ -314,13 +317,42 @@ export const tr = {
     missingPrices: 'Fiyatı girilmemiş türler piyasa değerine katılmadı: {{types}}',
 
     pricesLede:
-      'Girdiğiniz fiyat esastır. Canlı sağlayıcı Realisation VII ile gelir ve bu değerin yerine geçmez, yanında durur.',
+      'Girdiğiniz fiyat esastır. Canlı sağlayıcı onun yerine geçmez, yanında durur; ikisi belirgin biçimde ayrılırsa satır bunu söyler.',
     manualPrice: 'Girilen Fiyat',
     updatedAt: 'Güncellendi',
     livePrice: 'Canlı Fiyat',
     noProvider: 'Sağlayıcı yok',
+    notQuoted: 'Kaynak vermiyor',
     clearPrice: 'Temizle',
     priceOf: '{{type}} fiyatı',
+
+    refreshLive: 'Canlı fiyatları yenile',
+    checkingLive: 'Sağlayıcıya bakılıyor…',
+    lastChecked: 'Son bakış: {{when}}',
+    neverChecked: 'Sağlayıcıya henüz bakılmadı.',
+    lastGood: 'Elde tutulan son geçerli fiyat: {{when}}',
+    liveSkipped: 'Sağlayıcıya az önce soruldu; {{seconds}} sn sonra yeniden deneyebilirsiniz.',
+
+    drift: {
+      header: 'Sapma',
+      none: 'Canlı fiyat yok',
+      unpriced: 'Girilen fiyat yok',
+      aligned: 'Uyumlu',
+      alignedTitle:
+        'Canlı fiyat ile girdiğiniz fiyat arasındaki fark {{threshold}} sınırının altında.',
+      drifting: 'Sapma var',
+      above: 'Canlı fiyat, girdiğiniz fiyatın {{percent}} üzerinde.',
+      below: 'Canlı fiyat, girdiğiniz fiyatın {{percent}} altında.'
+    },
+
+    liveErrors: {
+      OFFLINE: 'Bağlantı yok; sağlayıcıya ulaşılamadı.',
+      TIMEOUT: 'Sağlayıcı zamanında yanıt vermedi.',
+      MALFORMED: 'Sağlayıcının yanıtı okunamadı.',
+      STALE_RANGE: 'Sağlayıcı istenen tarihe kadar getirmedi; gelen veri saklanmadı.',
+      NO_DATA: 'Sağlayıcı bu aralık için veri döndürmedi.',
+      UNKNOWN: 'Canlı fiyatlar alınamadı.'
+    },
 
     persons: 'Kişiler',
     personName: 'Kişi adı',
@@ -423,6 +455,11 @@ export const tr = {
     security: 'Güvenlik',
     autoLock: 'Otomatik kilit',
     autoLockUnit: 'dakika',
+    prices: 'Canlı fiyatlar',
+    priceRefreshHint:
+      'Fiyatları elle yenilemek esastır. Açarsanız uygulama, kasa açıkken bu aralıkla sağlayıcıya kendiliğinden sorar; kapalıyken hiçbir şeye bağlanmaz.',
+    priceRefreshOff: 'Kapalı',
+    priceRefreshEvery: '{{minutes}} dakikada bir',
     paletteModeLight: 'açık',
     paletteModeDark: 'koyu',
     performance: 'Performans',

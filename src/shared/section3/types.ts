@@ -38,12 +38,11 @@ export type TypeCode =
   | 'usd'
   | 'eur'
   | 'gumus'
-  | 'ziynet'
 
 /**
  * How a type's quantity is counted (§5.2).
  *
- *   mg     — weighable, stored as integer milligrams. Gram, gümüş, ziynet.
+ *   mg     — weighable, stored as integer milligrams. Gram and gümüş.
  *   piece  — countable, stored as whole coins. Çeyrek through beşli.
  *   minor  — foreign currency, stored as integer cents. USD, EUR.
  *
@@ -210,13 +209,73 @@ export interface ManualPrice {
  * A timestamped snapshot from the live provider (§14), shown *beside* the manual
  * value and never over it.
  *
- * Nothing writes this table until Realisation VII. It is read from here so that
- * 3c's live column exists, renders empty, and needs no new shape later.
+ * `fetchedAt` is when this *value* was first seen, not when the app last looked.
+ * Snapshots are appended only when the figure differs from the previous one, so
+ * on a quiet afternoon this timestamp is hours old while the provider has been
+ * asked a dozen times and agreed each time. What the interface needs for "last
+ * refreshed" is `FetchRecord` below; conflating the two would have the app
+ * report a working provider as stale.
  */
 export interface LivePrice {
   typeCode: TypeCode
   value: number
   fetchedAt: string
+  /** Which provider said so, so a snapshot can name its origin (§14). */
+  provider: string
+}
+
+/**
+ * When the app last asked, as distinct from when a price last moved.
+ *
+ * One record, overwritten. `succeededAt` survives a later failure, so an offline
+ * spell shows the last good figure with an honest age rather than blanking.
+ */
+export interface FetchRecord {
+  provider: string
+  attemptedAt: string
+  /** `'ok'`, or one of §14's failure codes. */
+  outcome: string
+  succeededAt: string | null
+}
+
+/**
+ * Why a fetch produced nothing usable (§14.2).
+ *
+ * Declared here rather than beside the provider interface because the renderer
+ * has to localise these — `t(`section3.liveErrors.${code}`)` — and the renderer
+ * may not import anything from `src/main`. The provider module takes its
+ * `PriceErrorCode` from this one, so there is a single list.
+ */
+export type LivePriceErrorCode =
+  /** The transport never connected. Airplane mode, no route, DNS refused. */
+  | 'OFFLINE'
+  /** Connected, but no usable frame arrived in time. */
+  | 'TIMEOUT'
+  /** A body arrived and could not be understood as prices. */
+  | 'MALFORMED'
+  /** §14.2 item 1 — the returned range stops short of the range requested. */
+  | 'STALE_RANGE'
+  /** §14.2 item 2 — HTTP 200, `error:false`, and no `data` key at all. */
+  | 'NO_DATA'
+
+/**
+ * What one press of the refresh button did.
+ *
+ * `skipped` is not a failure and not a success: the limiter refused because the
+ * source was asked too recently (§14's polite rate limiting), and the interface
+ * should carry on showing the timestamp it already had rather than an error.
+ *
+ * `written` is **often zero on a perfectly good refresh**, because a snapshot is
+ * only stored when the figure has moved. That is exactly why `FetchRecord`
+ * exists: the interface reports the fetch, not the write, or a working provider
+ * on a quiet afternoon would read as broken.
+ */
+export interface RefreshOutcome {
+  status: 'ok' | 'skipped' | LivePriceErrorCode
+  provider: string
+  written: number
+  /** Present only when `skipped`, so the interface can say how long to wait. */
+  retryAfterSeconds?: number
 }
 
 /**
@@ -231,8 +290,10 @@ export interface LedgerData {
   types: readonly ValuableType[]
   transactions: readonly Transaction[]
   manualPrices: readonly ManualPrice[]
-  /** Latest snapshot per type. Empty until Realisation VII. */
+  /** Latest snapshot per type, from the provider in force. */
   livePrices: readonly LivePrice[]
+  /** When the provider was last asked, or null if it never has been. */
+  lastFetch: FetchRecord | null
 }
 
 /** Coarse failure reasons for Section 3, in the style of `VaultErrorCode`. */

@@ -86,8 +86,7 @@ describe('first run', () => {
       'besli',
       'usd',
       'eur',
-      'gumus',
-      'ziynet'
+      'gumus'
     ])
     const ortak = db.prepare("SELECT name, is_builtin FROM persons WHERE name = 'Ortak'").get()
     expect(ortak).toEqual({ name: 'Ortak', is_builtin: 1 })

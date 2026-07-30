@@ -26,6 +26,7 @@ import type {
   LedgerData,
   PersonDraft,
   PersonUsage,
+  RefreshOutcome,
   Section3ErrorCode,
   TransactionDraft,
   TransactionPatch,
@@ -93,6 +94,13 @@ export const IPC = {
   s3DeleteTransaction: 's3:delete-transaction',
   s3SetManualPrice: 's3:set-manual-price',
   s3ClearManualPrice: 's3:clear-manual-price',
+  /**
+   * Ask the provider once (§14). Manual refresh is primary; this is the button.
+   * It hangs off Section 3 rather than opening a new top-level namespace,
+   * because a live price is a fact about a valuable and belongs where the rest
+   * of them are.
+   */
+  s3RefreshPrices: 's3:refresh-prices',
 
   // Section 4 — Calculation Zone (§9).
   s4Lines: 's4:lines',
@@ -165,6 +173,19 @@ export const MIN_PASSWORD_LENGTH = 8
  */
 export const SETTING_KEYS = {
   autoLockMinutes: 'auto_lock_minutes',
+  /**
+   * Minutes between automatic price refreshes; 0 is off (§14).
+   *
+   * In the vault rather than in `config.json`, unlike the palette: it is the
+   * only setting whose value causes the machine to open a network connection,
+   * and §4.1 puts anything that governs access or egress behind the key.
+   *
+   * No `DEFAULT_SETTINGS` entry, deliberately. `getSetting` answers null for a
+   * key with no default and both readers treat null as off, so seeding a row
+   * saying "off" would write a fact into every fresh vault that its absence
+   * already states.
+   */
+  priceRefreshMinutes: 'price_refresh_minutes',
   /**
    * The year the palette's accent sequence counts from (§12.3).
    *
@@ -322,6 +343,17 @@ export interface Section3Api {
 
   setManualPrice(typeCode: TypeCode, value: number): Promise<Result<null, Section3ErrorCode>>
   clearManualPrice(typeCode: TypeCode): Promise<Result<null, Section3ErrorCode>>
+
+  /**
+   * Ask the live provider once, and say what happened (§14).
+   *
+   * This resolves `ok` even when the provider failed: an unreachable source is
+   * an ordinary state of the world, not an error in the application, and §14
+   * requires that it be "quiet and non-blocking". The `RefreshOutcome` carries
+   * the failure so 3c can show a line about it while every manual price on the
+   * screen carries on being the authority.
+   */
+  refreshPrices(): Promise<Result<RefreshOutcome, Section3ErrorCode>>
 }
 
 /**

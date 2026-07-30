@@ -210,14 +210,38 @@ describe('the value conventions of §5.2 are enforced by the schema', () => {
  * pure SQL and knows nothing about SQLCipher; opening a keyed vault here would
  * test the cipher a second time and the migration no better.
  */
-describe('migrating a v1 vault to v2 (§8.3, amended)', () => {
+describe('migrating a v1 vault forward (§8.3, amended)', () => {
+  /**
+   * Apply the migrations up to and including `version`, and stop.
+   *
+   * A fixture that pinned `MIGRATIONS[0]` and then called `migrate` would drift
+   * the moment another migration was appended — which is exactly what happened
+   * to the Ata-ordering test below when v3 arrived and quietly began removing a
+   * type the test was asserting the presence of. A test about what v2 did has to
+   * be able to stop at v2.
+   */
+  function seededThrough(name: string, version: number): ReturnType<typeof Database> {
+    const db = new Database(join(dir, name))
+    db.pragma('foreign_keys = ON')
+    for (const migration of MIGRATIONS) {
+      if (migration.version > version) break
+      db.exec(migration.sql)
+    }
+    db.pragma(`user_version = ${version}`)
+    return db
+  }
+
   /** A vault as Realisation I left it: schema v1, and rows with one quantity. */
   function v1Database(): ReturnType<typeof Database> {
-    const db = new Database(join(dir, 'v1.db'))
-    db.pragma('foreign_keys = ON')
-    db.exec(MIGRATIONS[0]!.sql)
-    db.pragma('user_version = 1')
-    return db
+    return seededThrough('v1.db', 1)
+  }
+
+  /**
+   * A vault as point revision v0.6c left it — the only upgrade any real vault
+   * will actually perform, since v0.6c is what is released.
+   */
+  function v2Database(name = 'v2.db'): ReturnType<typeof Database> {
+    return seededThrough(name, 2)
   }
 
   /**
@@ -340,20 +364,26 @@ describe('migrating a v1 vault to v2 (§8.3, amended)', () => {
     db.close()
   })
 
-  it('opens Ata a place without disturbing the order of the rest', () => {
-    const db = v1Database()
-    const before = (
+  /** The closed list in position order, which is the order 3a's picker shows. */
+  function codes(db: ReturnType<typeof Database>): string[] {
+    return (
       db.prepare('SELECT code FROM valuable_types ORDER BY position').all() as { code: string }[]
     ).map((r) => r.code)
+  }
+
+  it('opens Ata a place without disturbing the order of the rest', () => {
+    const v1 = v1Database()
+    const before = codes(v1)
     // `toContain` in this harness reads strings, not arrays, so membership is
     // asserted through `includes` rather than silently passing.
     expect(before.includes('ata')).toBe(false)
+    v1.close()
 
-    migrate(db)
-
-    const after = (
-      db.prepare('SELECT code FROM valuable_types ORDER BY position').all() as { code: string }[]
-    ).map((r) => r.code)
+    // Stopping at v2 on purpose: this is an assertion about what v2 did, and v3
+    // removes a member. Running the whole chain here would have made the test
+    // fail for a reason it is not about.
+    const v2 = v2Database('ata-order.db')
+    const after = codes(v2)
     expect(after).toEqual([
       'gram',
       'ceyrek',
@@ -370,6 +400,111 @@ describe('migrating a v1 vault to v2 (§8.3, amended)', () => {
     // Removing Ata again must give back exactly the v1 order — proof the shift
     // moved positions rather than reshuffling them.
     expect(after.filter((code) => code !== 'ata')).toEqual(before)
+    v2.close()
+  })
+
+  /**
+   * The v2 → v3 upgrade — §8.2's amendment, and the one every released vault
+   * will actually perform, since v0.6c is what shipped.
+   *
+   * The danger here is not the SQL. It is that `foreign_keys` is ON before
+   * `migrate` runs and three tables reference `valuable_types(code)` with no
+   * `ON DELETE`, so an unconditional delete against a vault holding a single
+   * ziynet row aborts the migration, rolls back, and rethrows on **every**
+   * subsequent open. Both branches below exist because that failure would lock
+   * the owner out of their own vault with no route back in.
+   */
+  it('removes ziynet and reaches v3, leaving the closed list at ten', () => {
+    const db = v2Database()
+    expect(codes(db).includes('ziynet')).toBe(true)
+
+    expect(migrate(db)).toBe(SCHEMA_VERSION)
+
+    const after = codes(db)
+    expect(after).toEqual([
+      'gram',
+      'ceyrek',
+      'yarim',
+      'tam',
+      'ata',
+      'iki_bucuk',
+      'besli',
+      'usd',
+      'eur',
+      'gumus'
+    ])
+    // v2 left ziynet last, so removing it closes no gap and opens none.
+    const positions = (
+      db.prepare('SELECT position FROM valuable_types ORDER BY position').all() as {
+        position: number
+      }[]
+    ).map((r) => r.position)
+    expect(positions).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+    db.close()
+  })
+
+  it('clears a typed ziynet price rather than aborting on the foreign key', () => {
+    const db = v2Database()
+    db.prepare(
+      "INSERT INTO s3_prices_manual (type_code, value, updated_at) VALUES ('ziynet', 500000, '2026-07-30T00:00:00.000Z')"
+    ).run()
+
+    expect(migrate(db)).toBe(SCHEMA_VERSION)
+
+    expect(codes(db).includes('ziynet')).toBe(false)
+    const left = db
+      .prepare("SELECT COUNT(*) AS n FROM s3_prices_manual WHERE type_code = 'ziynet'")
+      .get() as { n: number }
+    expect(left.n).toBe(0)
+    db.close()
+  })
+
+  it('keeps ziynet, and the vault openable, when a ledger row still depends on it', () => {
+    const db = v2Database()
+    db.prepare("INSERT INTO persons (name, position) VALUES ('Kişi A', 1)").run()
+    db.prepare(
+      `INSERT INTO s3_transactions
+         (date, type_code, direction, denomination, piece_count, unit_price, person_id)
+       VALUES ('2026-02-01', 'ziynet', 'acquire', 5000, 1, 600000, 2)`
+    ).run()
+
+    // The migration must complete. A throw here is the defect this test exists
+    // for: it would leave a vault that never opens again.
+    expect(migrate(db)).toBe(SCHEMA_VERSION)
+
+    // History is not tidied away (§16.1) — the row and its type both survive.
+    expect(codes(db).includes('ziynet')).toBe(true)
+    const rows = db
+      .prepare("SELECT quantity FROM s3_transactions WHERE type_code = 'ziynet'")
+      .all() as { quantity: number }[]
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.quantity).toBe(5000)
+    db.close()
+  })
+
+  it('gives a live price a provider, and a fetch somewhere to be recorded', () => {
+    const db = v2Database()
+    migrate(db)
+
+    db.prepare(
+      "INSERT INTO s3_prices_live (type_code, value, fetched_at) VALUES ('gram', 669100, '2026-07-30T10:00:00.000Z')"
+    ).run()
+    const live = db.prepare('SELECT provider FROM s3_prices_live').get() as { provider: string }
+    expect(live.provider).toBe('haremaltin')
+
+    db.prepare(
+      `INSERT INTO s3_price_fetch (id, provider, attempted_at, outcome, succeeded_at)
+       VALUES (1, 'haremaltin', '2026-07-30T10:00:00.000Z', 'ok', '2026-07-30T10:00:00.000Z')`
+    ).run()
+    // One row, always. A second attempt updates rather than accumulating.
+    expect(() =>
+      db
+        .prepare(
+          `INSERT INTO s3_price_fetch (id, provider, attempted_at, outcome)
+           VALUES (2, 'haremaltin', '2026-07-30T10:15:00.000Z', 'ok')`
+        )
+        .run()
+    ).toThrow()
     db.close()
   })
 

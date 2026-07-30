@@ -19,6 +19,7 @@ import type {
   LedgerData,
   PersonDraft,
   PersonUsage,
+  RefreshOutcome,
   Section3ErrorCode,
   TransactionDraft,
   TransactionPatch
@@ -28,6 +29,7 @@ import {
   MAX_PERSON_NAME_LENGTH,
   MAX_SOURCE_LENGTH
 } from '../../shared/section3/types.js'
+import { refreshPrices } from '../prices/service.js'
 import * as s3 from '../vault/db/section3.js'
 import { Section3Error } from '../vault/db/section3.js'
 import { VaultDataError } from '../vault/db/errors.js'
@@ -72,6 +74,31 @@ function withVault<T>(fn: (db: DatabaseType) => T): S3Result<T> {
   if (!db) return { ok: false, error: 'LOCKED' }
   try {
     return { ok: true, value: fn(db) }
+  } catch (error) {
+    if (error instanceof VaultDataError) return { ok: false, error: asCode(error.code) }
+    return { ok: false, error: 'INTERNAL' }
+  }
+}
+
+/**
+ * The same guard, for the one handler that waits on something.
+ *
+ * Every other channel in this application is a synchronous database call —
+ * `better-sqlite3` has no other kind — so `withVault` above has never needed to
+ * await. Fetching a price is the first thing JADEITE does that takes real time,
+ * and it takes it *outside* the vault: the handle is checked here, the network
+ * happens, and the write is a synchronous call at the end of it.
+ *
+ * The vault can lock during that gap. It is not re-checked here on purpose,
+ * because the service is the thing that knows what to do about it — it abandons
+ * the socket and swallows the failed write rather than reporting a lock as a
+ * provider fault to someone who has already walked away.
+ */
+async function withVaultAsync<T>(fn: (db: DatabaseType) => Promise<T>): Promise<S3Result<T>> {
+  const db = vault.database()
+  if (!db) return { ok: false, error: 'LOCKED' }
+  try {
+    return { ok: true, value: await fn(db) }
   } catch (error) {
     if (error instanceof VaultDataError) return { ok: false, error: asCode(error.code) }
     return { ok: false, error: 'INTERNAL' }
@@ -355,5 +382,17 @@ export function registerSection3Handlers(): void {
       s3.clearManualPrice(db, typeCode)
       return null
     })
+  )
+
+  /**
+   * The only channel in the application that reaches outside the machine.
+   *
+   * It takes no argument — there is nothing for the renderer to say about a
+   * refresh, and giving it a parameter would be giving it a way to influence
+   * what gets requested. The provider in force, the types asked for and the
+   * range are all decided in main from the allowlist and the closed list.
+   */
+  ipcMain.handle(IPC.s3RefreshPrices, (): Promise<S3Result<RefreshOutcome>> =>
+    withVaultAsync((db) => refreshPrices(db))
   )
 }

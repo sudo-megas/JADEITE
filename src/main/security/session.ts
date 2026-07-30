@@ -1,12 +1,23 @@
 /**
  * Electron hardening — XJADEITE §3.3.
  *
- * Realisation I has no network at all. The single allowlisted price-provider
- * host of §14 arrives at Realisation VII and will be added here, in one place,
- * as the only edit that has ever been permitted to widen this.
+ * Realisation I had no network at all, and this file promised that §14's
+ * provider host would one day "be added here, in one place". Realisation VII
+ * found that promise to be a trap and did not keep it.
+ *
+ * `isPermitted` has two callers with two different meanings: `onBeforeRequest`
+ * asks *may this request go out?*, and `will-navigate` asks *may the renderer
+ * become this page?* Widening the one function answers both — and the second
+ * answer would hand a remote origin the preload bridge, and with it the whole
+ * vault API. So the widening lives in a second predicate, `isPermittedRequest`,
+ * which `onBeforeRequest` alone consults; `isPermitted` is untouched and still
+ * governs navigation. Nothing outside this application's own files may ever be
+ * navigated to.
  */
 
 import { app, session, shell, type Session } from 'electron'
+
+import { isPermittedProviderHref } from '../prices/hosts.js'
 
 /** Set by electron-vite while developing; absent in a packaged build. */
 const devRendererUrl = process.env['ELECTRON_RENDERER_URL']
@@ -44,6 +55,30 @@ function isPermitted(rawUrl: string): boolean {
   return false
 }
 
+/**
+ * May this *request* proceed? Distinct from `isPermitted`, which answers a
+ * different question above and must not learn about the provider.
+ *
+ * The provider host is allowed only when the request did not come from a
+ * renderer. `webContentsId` is optional on the listener's details and a probe at
+ * the start of this Realisation confirmed the discrimination is real: a
+ * main-process `net.request` arrives with it `undefined`, and cancelling such a
+ * request does stop it (`net::ERR_BLOCKED_BY_CLIENT`). So the price provider —
+ * which runs in main — reaches its two hosts, and a renderer that somehow
+ * attempted the same URL is refused here as well as by `connect-src 'none'`.
+ *
+ * Two mechanisms rather than one, deliberately: the CSP blocks the renderer
+ * before a request is ever issued, which means an egress test written against
+ * the renderer cannot tell a correct gate from an inverted one. This gate is
+ * therefore proved directly, by `tests/electron/egress-suite.ts` calling it with
+ * synthetic details, and the renderer assertions are labelled as what they are —
+ * proof of the CSP.
+ */
+export function isPermittedRequest(rawUrl: string, webContentsId: number | undefined): boolean {
+  if (isPermitted(rawUrl)) return true
+  return webContentsId === undefined && isPermittedProviderHref(rawUrl)
+}
+
 function contentSecurityPolicy(): string {
   const base = [
     "default-src 'self'",
@@ -74,7 +109,12 @@ function contentSecurityPolicy(): string {
     "script-src 'self'",
     // React inlines component styles; no third-party stylesheet is ever loaded.
     "style-src 'self' 'unsafe-inline'",
-    // Realisation I makes no network requests whatsoever.
+    // Still 'none' at Realisation VII, and that is the point: the price provider
+    // runs in the main process, so the renderer gained no reason to reach the
+    // network and this policy did not have to move for it. Widening it would
+    // have granted the entire renderer egress to serve one module in another
+    // process. The build-time <meta> copy in electron.vite.config.ts says the
+    // same thing and is likewise untouched.
     "connect-src 'none'"
   ].join('; ')
 }
@@ -86,7 +126,7 @@ function contentSecurityPolicy(): string {
  */
 export function hardenSession(target: Session = session.defaultSession): void {
   target.webRequest.onBeforeRequest((details, callback) => {
-    if (isPermitted(details.url)) {
+    if (isPermittedRequest(details.url, details.webContentsId)) {
       callback({ cancel: false })
       return
     }

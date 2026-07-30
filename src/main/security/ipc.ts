@@ -11,6 +11,7 @@ import { ipcMain, type BrowserWindow } from 'electron'
 
 import { IPC, type AppConfig, type Result, type VaultStatus } from '../../shared/ipc-contract.js'
 import * as vault from '../vault/vault.js'
+import { cancelInFlight } from '../prices/service.js'
 import { getSetting, setSetting } from '../vault/db/settings.js'
 import { readAppConfig, updateAppConfig } from '../config/app-config.js'
 import { registerSection1Handlers } from './section1-ipc.js'
@@ -119,6 +120,11 @@ export function registerIpcHandlers(): void {
 /** Tell the renderer the vault locked itself, so it can drop to the lock screen. */
 export function forwardLockEvents(getWindow: () => BrowserWindow | null): () => void {
   return vault.onLock((reason) => {
+    // A price fetch in flight has nowhere to put its answer once the key is
+    // gone, and a socket left open past the lock is exactly the kind of thing
+    // §3.3 exists to prevent. Cut it first, then tell the renderer.
+    cancelInFlight()
+
     const win = getWindow()
     if (win && !win.isDestroyed()) {
       win.webContents.send(IPC.vaultLockedEvent, reason)

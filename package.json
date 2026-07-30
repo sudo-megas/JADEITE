@@ -1,7 +1,7 @@
 {
   "name": "jadeite",
   "productName": "JADEITE",
-  "version": "0.6.2",
+  "version": "0.7.0",
   "description": "Secure personal wealth and possessions tracker",
   "author": "sudo-megas",
   "license": "GPL-3.0-only",
@@ -14,7 +14,7 @@
   "scripts": {
     "dev": "electron-vite dev",
     "build": "npm run audit && electron-vite build",
-    "audit": "node scripts/audit-colours.mjs && node scripts/audit-locale.mjs",
+    "audit": "node scripts/audit-colours.mjs && node scripts/audit-locale.mjs && node scripts/audit-egress.mjs",
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json && tsc --noEmit -p tsconfig.e2e.json",
     "test": "npm run audit && vitest run && npm run test:vault",

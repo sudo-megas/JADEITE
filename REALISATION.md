@@ -180,7 +180,11 @@ The source's real shape is now known rather than assumed — §14.1 records it, 
 - Manual refresh button (primary); optional auto-refresh interval setting; timestamped snapshots into `s3_prices_live`.
 - **Coins fetched at their ESKİ codes** (§8.5); Gram from `KULCEALTIN`; **satış** is the displayed figure.
 - Side-by-side rendering in 3c and holdings; drift indicator when live and manual diverge notably.
-- Egress allowlist enforced at session level: provider host **only**; a test proves other hosts are blocked. Note the socket lives on a **different host** from the history endpoint — the allowlist needs both, and nothing else.
+- Egress allowlist: the **two** provider hosts of §14.1 and nothing else — the socket lives on a
+  different machine from the history endpoint. Enforced at session level for the renderer and for
+  Chromium-stack main traffic, and by an in-process chokepoint for the socket, which rides Node's
+  stack where `webRequest` cannot see it (§3.3, amended). The predicate that widens must be the
+  **request** predicate and not the **navigation** one. A test proves each path separately.
 - Graceful offline/broken-provider behaviour: quiet, non-blocking, manual authority intact.
 
 **Acceptance**
@@ -189,8 +193,11 @@ The source's real shape is now known rather than assumed — §14.1 records it, 
 - [ ] Provider swap demonstrated with a mock second provider behind the same interface.
 - [ ] **A response whose returned date range falls short of the range requested is rejected as a failed fetch**, not stored (§14.2 item 1). Proven with a recorded stale response.
 - [ ] **A response with no `data` key is handled as absent data, not as zero** (§14.2 item 2).
-- [ ] Ziynet, which the source does not quote, shows no live value and does not read as ₺0.
-- [ ] Tag `v0.7`.
+- [ ] **A type the provider's response omits shows no live value and does not read as ₺0.** This
+      box named Ziynet until §8.2's amendment struck the type; its subject is gone and its
+      guarantee is not, so it is re-pointed rather than retired.
+- [ ] `package.json` reads `0.7.0` (§17).
+- [ ] Tag `v0.7`, and `gh release create`.
 
 ---
 
@@ -206,7 +213,8 @@ The source's real shape is now known rather than assumed — §14.1 records it, 
 **Acceptance**
 - [ ] Every Overview number equals its section source (automated cross-check).
 - [ ] Renders beautifully in all ten palettes, both densities (1440p rig, 1080p laptop).
-- [ ] Tag `v0.8`.
+- [ ] `package.json` reads `0.8.0` (§17).
+- [ ] Tag `v0.8`, and `gh release create`.
 
 ---
 

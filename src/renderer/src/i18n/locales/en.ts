@@ -292,12 +292,15 @@ export const en = {
       besli: '5 (Beşli)',
       usd: 'Dollar',
       eur: 'Euro',
-      gumus: 'Silver',
-      ziynet: 'Ziynet'
+      gumus: 'Silver'
     },
 
     costBasis: 'Cost basis',
     marketValue: 'Market value',
+    liveValue: 'Live value',
+    liveValueHint:
+      'Computed at the provider’s figure. Market value is computed from the price you typed, and this column never stands in for it.',
+    liveSource: 'via {{provider}}',
     unrealised: 'Unrealised G/L',
     grandTotal: 'GRAND TOTAL',
     personTotal: '{{name}} total',
@@ -310,13 +313,41 @@ export const en = {
     missingPrices: 'Types with no price typed are left out of market value: {{types}}',
 
     pricesLede:
-      'The price you type is the authority. The live provider arrives with Realisation VII and will sit beside this figure, never over it.',
+      'The price you type is the authority. The live provider sits beside that figure and never over it, and the row says so when the two part company.',
     manualPrice: 'Your price',
     updatedAt: 'Updated',
     livePrice: 'Live price',
     noProvider: 'No provider yet',
+    notQuoted: 'Not quoted',
     clearPrice: 'Clear',
     priceOf: 'Price of {{type}}',
+
+    refreshLive: 'Refresh live prices',
+    checkingLive: 'Asking the provider…',
+    lastChecked: 'Last checked {{when}}',
+    neverChecked: 'The provider has not been asked yet.',
+    lastGood: 'Last good figure held from {{when}}',
+    liveSkipped: 'The provider was asked a moment ago; try again in {{seconds}}s.',
+
+    drift: {
+      header: 'Drift',
+      none: 'No live figure',
+      unpriced: 'No price typed',
+      aligned: 'In line',
+      alignedTitle: 'The live figure is within {{threshold}} of the price you typed.',
+      drifting: 'Drifting',
+      above: 'The live figure is {{percent}} above the price you typed.',
+      below: 'The live figure is {{percent}} below the price you typed.'
+    },
+
+    liveErrors: {
+      OFFLINE: 'No connection; the provider could not be reached.',
+      TIMEOUT: 'The provider did not answer in time.',
+      MALFORMED: 'The provider’s answer could not be read.',
+      STALE_RANGE: 'The provider stopped short of the dates asked for; nothing was stored.',
+      NO_DATA: 'The provider returned no data for that range.',
+      UNKNOWN: 'The live prices could not be fetched.'
+    },
 
     persons: 'People',
     personName: 'Person’s name',
@@ -419,6 +450,11 @@ export const en = {
     security: 'Security',
     autoLock: 'Auto-lock',
     autoLockUnit: 'minutes',
+    prices: 'Live prices',
+    priceRefreshHint:
+      'Refreshing prices by hand is the primary way. Switched on, the app asks the provider on its own at this interval while the vault is open; switched off, it connects to nothing.',
+    priceRefreshOff: 'Off',
+    priceRefreshEvery: 'Every {{minutes}} min',
     paletteModeLight: 'light',
     paletteModeDark: 'dark',
     performance: 'Performance',

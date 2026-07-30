@@ -1819,13 +1819,47 @@ button {
   font-size: 12px;
 }
 
+/* What the holding would be worth at the provider's figure (§14). Quieter than
+   the market value beside it, and by a smaller step than `.s3-unpriced` takes:
+   this is a real number the owner may want to read, not a stand-in for a missing
+   one. Beside, never over — and the type scale is where that is said. */
+.s3-holding-live {
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* One colour channel, and it says only that the two figures have parted company
+   — the same rule and the same token as `.s3-drift` in 3c. --success and
+   --danger are two columns along in `.s3-gain`, where the sign lives; a live
+   value above the owner's own is not good news, it is out-of-date news. */
+.s3-holding-live[data-drift='drifting'] {
+  color: var(--warning);
+}
+
+/* Which provider this row's figure came from — its own snapshot's, never the
+   last fetch record's. Under the figure like `.s3-made` under the quantity,
+   because it qualifies that number rather than adding a second one. */
+.s3-holding-source {
+  display: block;
+  color: var(--text-subtle);
+  font-size: 11px;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
 /* --- 3c, prices ----------------------------------------------------------- */
 
+/* Six columns where five stood a Realisation ago. §8.3's amendment cost the
+   ledger two columns and pushed the append row's commit button off the edge at
+   1080p — found by photographing, not by testing — so the arithmetic is done
+   here before the photograph rather than after it. The cap grows by about what
+   the drift column takes and no more; the columns themselves are sized to what
+   they hold, below. */
 .s3-prices {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-width: 780px;
+  max-width: 860px;
 }
 
 .s3-unit-hint {
@@ -1839,6 +1873,70 @@ button {
   color: var(--text-muted);
   font-size: 12px;
   white-space: nowrap;
+}
+
+/* Somewhere to scroll if a window ever gets narrower than the six columns
+   need. Widening the block above is the ordinary answer and this is the
+   fallback, in that order: ten prices read side by side are worth more whole
+   than they are inside a scroller. */
+.s3-prices-scroll {
+  overflow-x: auto;
+}
+
+.s3-live-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+/* When the app last *looked* — beside the control that changes it, and never
+   inside that control's own label. A button whose accessible name changes
+   while it is pressed is a button announced twice and found once. */
+.s3-live-status {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* The figure still on screen after a failed fetch, and how old it is. */
+.s3-live-held {
+  margin: 0;
+  color: var(--text-subtle);
+  font-size: 12px;
+}
+
+/* Sized to what it holds — "▼ 12,3%" — and not to a lira figure, which is the
+   lesson of the ledger's denomination and count columns above. The min-width
+   is what stops the column collapsing to the width of an em dash on the rows
+   that have nothing to say, and jumping sideways as prices arrive. */
+.s3-drift {
+  min-width: 5.25em;
+  white-space: nowrap;
+}
+
+/* One colour channel, saying only whether the two figures have parted company.
+   Direction is the arrow's job and magnitude is the figure's. --success and
+   --danger are deliberately not reached for: they belong to the sign in
+   .s3-gain, and drift upward is not a gain — the owner's price sitting low is
+   not good news, it is out-of-date news. */
+.s3-drift[data-drift='drifting'] {
+  color: var(--warning);
+}
+
+.s3-drift[data-drift='aligned'] {
+  color: var(--text-muted);
+}
+
+.s3-drift[data-drift='none'],
+.s3-drift[data-drift='unpriced'] {
+  color: var(--text-subtle);
+}
+
+/* The typed price is the only cell in 3c that is typed into, so it gets room
+   to be read — but not the 8em the ledger's figures take, which the sixth
+   column now needs more. */
+.s3-prices-table .s3-figure .s3-cell-input {
+  min-width: 7em;
 }
 
 /* --- People --------------------------------------------------------------- */

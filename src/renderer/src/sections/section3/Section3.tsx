@@ -137,9 +137,13 @@ export function Section3(): ReactElement {
               types={data.types}
               manual={data.manualPrices}
               live={data.livePrices}
+              lastFetch={data.lastFetch}
+              refreshing={store.refreshing}
+              liveError={store.liveError}
               language={language}
               onSet={(typeCode, value) => void store.setManualPrice(typeCode, value)}
               onClear={(typeCode) => void store.clearManualPrice(typeCode)}
+              onRefresh={() => void store.refreshPrices()}
             />
           ) : null}
 

@@ -29,6 +29,13 @@ async function main(): Promise<void> {
   resetHooks()
   await import('./section3-suite.js')
   resetHooks()
+  await import('./prices-suite.js')
+  // Load-bearing: the egress suite declares no hooks of its own, so without a
+  // reset here every one of its tests would inherit prices-suite's beforeEach
+  // and open a SQLCipher vault it never uses.
+  resetHooks()
+  await import('./egress-suite.js')
+  resetHooks()
   await import('./section4-suite.js')
 
   const failures = await run('JADEITE — Electron-hosted suites')

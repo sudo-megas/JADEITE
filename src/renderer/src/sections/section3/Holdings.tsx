@@ -10,15 +10,66 @@
  * as unrealised gain or loss — §8.6's "exactly should". In the state that prompted
  * it, the two source documents showed ₺188.000 and ₺195.150 and never explained
  * the ₺7.150 between them. This page is the explanation.
+ *
+ * ---
+ *
+ * **The live column (§14, §8.5).** A seventh column arrived with Realisation VII
+ * and it changed nothing that was already here. Market value and unrealised gain
+ * are computed from the price the owner typed, exactly as before; the provider's
+ * figure sits *beside* that number and never over it, which is the whole of
+ * §8.5's ruling and the reason the column is seventh rather than instead.
+ *
+ * Four decisions are worth more than the markup.
+ *
+ * **It shows a value, not a price.** 3c is where the two *unit prices* sit side
+ * by side; a unit price repeated here would be comparable to nothing on the row.
+ * What 3b can say that 3c cannot is what the holding itself would be worth at the
+ * source's figure, so that is the column — the same quantity, the other price.
+ * The arithmetic is the engine's own `transactionValue` rather than a second
+ * multiplication written here, so the two money columns cannot come to disagree
+ * about a rounding.
+ *
+ * **The live figures are read from the store rather than passed in.** Threading
+ * them through `Section3.tsx` was the first draft and was rejected: that file is
+ * being edited by another hand this rung, and a column that reads "Sağlayıcı yok"
+ * until somebody else adds a prop is a feature that ships broken. `AltinEgrisi`
+ * already subscribes to this store directly for the same reason. Reading
+ * `lastFetch` from the same place is what lets this page tell the two absences
+ * apart exactly as 3c does, instead of guessing from whether any live row exists
+ * at all — a fetch that answered and quoted nothing is precisely the case that
+ * guess would get wrong.
+ *
+ * **The provider is named per row, from the row's own snapshot.** Never from
+ * `lastFetch.provider`: after a provider swap whose first fetch failed, the fetch
+ * record names the new provider while every stored price still belongs to the
+ * old one, and a label taken from the record would credit the mock with
+ * haremaltin's prices.
+ *
+ * **The totals leave the live cell empty.** A live grand total would sum only the
+ * holdings the source happens to quote, and printing it beside a market value
+ * summed over the holdings the *owner* has priced puts two different baskets
+ * under one heading. `pricedCostBasis` exists in the engine because §8.6's
+ * comparison has to be like-for-like; honouring that here would need a matching
+ * manual subtotal beside it, which is an eighth column §8.6 does not ask for.
  */
 
 import type { ReactElement } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { driftState } from '@shared/section3/drift'
 import type { Holding, HoldingsView } from '@shared/section3/engine'
-import type { Person, QuantityUnit, TypeCode, ValuableType } from '@shared/section3/types'
+import type {
+  LivePrice,
+  ManualPrice,
+  Person,
+  QuantityUnit,
+  TypeCode,
+  ValuableType
+} from '@shared/section3/types'
+import { transactionValue } from '@shared/section3/units'
 import type { Palette } from '@shared/theme/types'
 import type { AppLanguage } from '../../i18n/format.js'
+import { useSection3Store } from '../../store/section3-store.js'
 import { formatQuantity, formatTry, personAccent } from './format.js'
 
 interface Props {
@@ -28,11 +79,37 @@ interface Props {
   palette: Palette
 }
 
+const NO_LIVE_PRICES: readonly LivePrice[] = Object.freeze([])
+const NO_MANUAL_PRICES: readonly ManualPrice[] = Object.freeze([])
+
 export function Holdings({ view, types, language, palette }: Props): ReactElement {
   const { t } = useTranslation()
+  const livePrices = useSection3Store((s) => s.data?.livePrices) ?? NO_LIVE_PRICES
+  const manualPrices = useSection3Store((s) => s.data?.manualPrices) ?? NO_MANUAL_PRICES
+  const lastFetch = useSection3Store((s) => s.data?.lastFetch) ?? null
+
   const unitOf: ReadonlyMap<TypeCode, QuantityUnit> = new Map(
     types.map((type) => [type.code, type.unit])
   )
+  const liveByCode: ReadonlyMap<TypeCode, LivePrice> = new Map(
+    livePrices.map((price) => [price.typeCode, price])
+  )
+  /**
+   * The typed prices, for the drift comparison alone — never for a figure on
+   * this page. Every money column here still comes from the engine, which was
+   * handed the same prices and did the arithmetic once (§8.5).
+   */
+  const manualByCode: ReadonlyMap<TypeCode, number> = new Map(
+    manualPrices.map((price) => [price.typeCode, price.value])
+  )
+
+  /**
+   * Whether the provider has ever answered — the same test `Prices.tsx` makes,
+   * for the same reason. An attempt proves nothing: an offline one would
+   * otherwise have every row claim the source declines to quote it, when in
+   * truth the source was never reached.
+   */
+  const everAnswered = lastFetch !== null && lastFetch.succeededAt !== null
 
   if (view.byPerson.length === 0) {
     return (
@@ -83,6 +160,9 @@ export function Holdings({ view, types, language, palette }: Props): ReactElemen
               {t('section3.marketValue')}
             </th>
             <th scope="col" className="s3-figure">
+              {t('section3.liveValue')}
+            </th>
+            <th scope="col" className="s3-figure">
               {t('section3.unrealised')}
             </th>
           </tr>
@@ -98,6 +178,9 @@ export function Holdings({ view, types, language, palette }: Props): ReactElemen
               marketValue={entry.marketValue}
               unrealised={entry.unrealised}
               unitOf={unitOf}
+              liveByCode={liveByCode}
+              manualByCode={manualByCode}
+              everAnswered={everAnswered}
               language={language}
               palette={palette}
             />
@@ -116,6 +199,8 @@ export function Holdings({ view, types, language, palette }: Props): ReactElemen
             <td className="s3-figure" data-testid="s3-grand-market">
               {formatTry(view.marketValue, language)}
             </td>
+            {/* Deliberately empty — see the note on totals at the head of this file. */}
+            <td className="s3-figure" />
             <td className="s3-figure" data-testid="s3-grand-unrealised">
               <Gain value={view.unrealised} language={language} />
             </td>
@@ -133,6 +218,9 @@ function PersonBlock({
   marketValue,
   unrealised,
   unitOf,
+  liveByCode,
+  manualByCode,
+  everAnswered,
   language,
   palette
 }: {
@@ -142,6 +230,9 @@ function PersonBlock({
   marketValue: number
   unrealised: number
   unitOf: ReadonlyMap<TypeCode, QuantityUnit>
+  liveByCode: ReadonlyMap<TypeCode, LivePrice>
+  manualByCode: ReadonlyMap<TypeCode, number>
+  everAnswered: boolean
   language: AppLanguage
   palette: Palette
 }): ReactElement {
@@ -201,6 +292,15 @@ function PersonBlock({
             )}
           </td>
 
+          <LiveValue
+            holding={holding}
+            unit={unitOf.get(holding.typeCode) ?? holding.unit}
+            live={liveByCode.get(holding.typeCode)}
+            manual={manualByCode.get(holding.typeCode) ?? null}
+            everAnswered={everAnswered}
+            language={language}
+          />
+
           <td className="s3-figure">
             {holding.unrealised === null ? null : (
               <Gain value={holding.unrealised} language={language} />
@@ -220,6 +320,8 @@ function PersonBlock({
         <td className="s3-figure" data-testid={`s3-person-market-${person.id}`}>
           {formatTry(marketValue, language)}
         </td>
+        {/* Empty for the same reason as the grand total's. */}
+        <td className="s3-figure" />
         <td className="s3-figure" data-testid={`s3-person-unrealised-${person.id}`}>
           <Gain value={unrealised} language={language} />
         </td>
@@ -228,12 +330,6 @@ function PersonBlock({
   )
 }
 
-/**
- * A gain or a loss, signed and coloured by the palette.
- *
- * The sign is written explicitly for a gain, because "+₺7.150" answers the
- * question and "₺7.150" in a column of money does not.
- */
 /**
  * What the holding is physically made of — *2 × 10 g + 2 × 5 g* (§8.3, amended).
  *
@@ -283,6 +379,110 @@ function Made({
   )
 }
 
+/**
+ * What the holding would be worth at the provider's figure — §14, beside and
+ * never over.
+ *
+ * **Absence renders as words.** Two different sets of them, `Prices.tsx`'s own:
+ * `noProvider` when nothing has ever been fetched, `notQuoted` when a fetch
+ * succeeded and this type was not in it. Inventing a third phrasing here would
+ * mean the same fact was described two ways on two pages; ₺0,00 would be worse
+ * still, and is the thing §8.5 exists to forbid.
+ *
+ * **The drift cue is one colour and no figure.** `driftState` decides it, and it
+ * is asked about the two *unit prices* — never about the two totals on this row.
+ * A ratio would rank them the same either way, but that function documents its
+ * exactness against `MAX_UNIT_PRICE`, which bounds a price per unit and says
+ * nothing about a holding's total; feeding it a total would leave 3b relying on
+ * an argument written for something else. Asking the same question of the same
+ * two numbers 3c asks it of also means the two pages cannot reach different
+ * verdicts about one type.
+ *
+ * The cell says *these two have parted company* and stops there. How far apart
+ * they are, in per cent and with an arrow, is 3c's column; repeating it against
+ * every person holding the same type would print one fact five times.
+ *
+ * That colour is `--warning`, not `--success`/`--danger`. Those belong to the
+ * sign in `.s3-gain` two columns along, and a live figure above the owner's is
+ * not good news — it is out-of-date news. One channel, one claim.
+ *
+ * **An oversold row still shows its cue**, because the prices being compared are
+ * the type's and have nothing to do with how much of it is held. The row already
+ * carries `--warning` in its own background and in the `!` flag, which is the
+ * one place this page permits a third: the flag speaks about the *ledger* and
+ * this cell speaks about the *price*, and a row can honestly have both wrong.
+ */
+function LiveValue({
+  holding,
+  unit,
+  live,
+  manual,
+  everAnswered,
+  language
+}: {
+  holding: Holding
+  unit: QuantityUnit
+  live: LivePrice | undefined
+  /** The owner's typed price for this type, per unit, or null (§8.5). */
+  manual: number | null
+  everAnswered: boolean
+  language: AppLanguage
+}): ReactElement {
+  const { t } = useTranslation()
+
+  // The engine's own arithmetic, not a second copy of it: `Math.sign` carries a
+  // negative holding through so an oversold row reads negative here exactly as
+  // it does in the market-value column beside it.
+  const value =
+    live === undefined
+      ? null
+      : Math.sign(holding.quantity) *
+        transactionValue(Math.abs(holding.quantity), live.value, unit)
+
+  const state = driftState(manual, live?.value ?? null)
+
+  return (
+    <td
+      className="s3-figure s3-holding-live"
+      // All four states are carried, as 3c carries them, so the attribute means
+      // the same thing on both pages. Only one of them takes a colour here.
+      data-drift={state}
+      data-testid={`s3-holding-live-${holding.personId}-${holding.typeCode}`}
+    >
+      {value === null || live === undefined ? (
+        <span className="s3-unpriced">
+          {t(everAnswered ? 'section3.notQuoted' : 'section3.noProvider')}
+        </span>
+      ) : (
+        <>
+          {/* The hint sits on the figure, not on the cell: there is no
+              computation to explain in a cell that holds none. */}
+          <span title={t('section3.liveValueHint')}>{formatTry(value, language)}</span>
+          {/*
+            The provider named per row, out of the row's own snapshot. See the
+            note at the head of this file for why never out of `lastFetch`.
+          */}
+          <span
+            className="s3-holding-source"
+            data-testid={`s3-holding-source-${holding.personId}-${holding.typeCode}`}
+          >
+            {t('section3.liveSource', { provider: live.provider })}
+          </span>
+          {state === 'drifting' ? (
+            <span className="s3-sr-only">{t('section3.drift.drifting')}</span>
+          ) : null}
+        </>
+      )}
+    </td>
+  )
+}
+
+/**
+ * A gain or a loss, signed and coloured by the palette.
+ *
+ * The sign is written explicitly for a gain, because "+₺7.150" answers the
+ * question and "₺7.150" in a column of money does not.
+ */
 function Gain({ value, language }: { value: number; language: AppLanguage }): ReactElement {
   const sign = value > 0 ? 'gain' : value < 0 ? 'loss' : 'flat'
   return (
