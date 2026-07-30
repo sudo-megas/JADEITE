@@ -197,10 +197,10 @@ test('the six destinations exist and the keyboard map reaches them', async () =>
     'altinEgrisi'
   ].entries()) {
     await session.page.keyboard.press(`Control+${index + 1}`)
-    // Everything but the Overview is furnished by Realisation VI; that one
-    // arrives with Realisation VIII and still says so.
-    const furnished = id !== 'overview'
-    await expect(session.page.getByTestId(furnished ? id : `stub-${id}`)).toBeVisible()
+    // Every destination is furnished as of Realisation VIII — Overview was the
+    // last stub, and `SectionStub` now has no caller but the unreachable branch
+    // that would catch a destination added without a view.
+    await expect(session.page.getByTestId(id)).toBeVisible()
   }
 
   await session.page.keyboard.press('Control+Comma')

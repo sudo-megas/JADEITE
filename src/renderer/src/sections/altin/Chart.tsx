@@ -53,6 +53,15 @@ interface Props {
   scale?: 'linear' | 'log'
   /** Days between the first and last point, for the date-axis check of §11. */
   spanDays?: number
+  /**
+   * The wrapper's class, defaulting to Altın Eğrisi's own.
+   *
+   * Hard-coded until Realisation VIII, when Overview became a second caller and
+   * would otherwise have inherited a stylesheet written for a different page.
+   * Defaulted rather than required so §11's three charts are untouched by the
+   * change that made room for the dashboard's.
+   */
+  className?: string
 }
 
 export function Chart({
@@ -62,7 +71,8 @@ export function Chart({
   label,
   testId,
   scale,
-  spanDays
+  spanDays,
+  className = 'altin-chart'
 }: Props): ReactElement {
   const host = useRef<HTMLDivElement>(null)
   const chart = useRef<echarts.ECharts | null>(null)
@@ -96,7 +106,7 @@ export function Chart({
   return (
     <div
       ref={host}
-      className="altin-chart"
+      className={className}
       style={{ height: `${height}px` }}
       role="img"
       aria-label={label}

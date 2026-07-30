@@ -445,6 +445,47 @@ export const tr = {
     provisional: 'Tarihi henüz doğrulanmamış {{count}} kayıt var; eğri o noktada yanıltabilir.'
   },
 
+  overview: {
+    lede: 'Her şey tek ekranda. Buradaki hiçbir rakam burada hesaplanmaz — hepsi ait olduğu bölümden gelir; üzerine tıklayınca oraya gidersiniz.',
+    loading: 'Yıllar okunuyor…',
+    empty: 'Henüz yıl yok. Gelir & Gider bölümünden bir yıl açın.',
+    partial: 'Şu yıllar okunamadı ve hiçbir toplama katılmadı: {{years}}',
+
+    years: 'Yıllar',
+    yearNet: 'Net sonuç',
+    yearOther: 'Ayrıca {{types}} sütunları var',
+    yearNoTry: 'Bu yılda TL sütunu yok',
+    yearEmpty: 'Bu yılda henüz sütun yok',
+    yearUnreadable: 'Bu yıl okunamadı',
+    openYear: '{{year}} yılını aç',
+
+    tiles: {
+      debt: 'Güncel borç',
+      debtOf: '{{year}} yılının toplamı',
+      remaining: 'Kalan limit',
+      market: 'Varlık piyasa değeri',
+      unrealised: 'Gerçekleşmemiş K/Z'
+    },
+
+    notes: {
+      noDebtYear: 'Ödemeler bölümünde yıl yok',
+      noBanks: 'Bu yılda kart sütunu yok',
+      noHoldings: 'Elde varlık yok',
+      noPricedHoldings: 'Hiçbir varlığın fiyatı girilmemiş',
+      unpriced: '{{count}} tür fiyatsız — piyasa değerine katılmadı',
+      gridUnreadable: 'Ödemeler tablosu okunamadı'
+    },
+
+    charts: {
+      netByMonth: 'Aylara göre net',
+      netByMonthLede: 'Yalnızca TL sütunu olan yıllar.',
+      yoy: 'Yıldan yıla',
+      value: 'Varlık değeri, zaman içinde',
+      valueLede: 'Defterin kendi satırlarındaki fiyatlarla hesaplanır ve son işlemde biter — bu yüzden yukarıdaki, bugünün fiyatıyla hesaplanan kutucuktan farklıdır.',
+      excluded: 'Dışarıda kalan yıllar: {{years}}'
+    }
+  },
+
   settings: {
     title: 'Ayarlar',
     appearance: 'Görünüm',

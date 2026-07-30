@@ -56,6 +56,7 @@
 import type { ReactElement } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { sortedTypeCodes, typeCodesAttribute } from '@shared/section3/codes'
 import { driftState } from '@shared/section3/drift'
 import type { Holding, HoldingsView } from '@shared/section3/engine'
 import type {
@@ -138,9 +139,24 @@ export function Holdings({ view, types, language, palette }: Props): ReactElemen
       ) : null}
 
       {view.missingPrices.length > 0 ? (
-        <p className="s3-note" role="status" data-testid="s3-missing-prices">
+        /*
+          The owner reads the names; a test reads the codes. Overview's market
+          tile carries the same attribute from the same field, and Realisation
+          VIII's cross-check compares the two — which is a real check only if
+          both sides name the same types in the same order. Comparing the
+          rendered names instead would assert the translation catalogue as much
+          as the data, and would break the day someone improves a wording.
+        */
+        <p
+          className="s3-note"
+          role="status"
+          data-testid="s3-missing-prices"
+          data-unpriced-types={typeCodesAttribute(view.missingPrices)}
+        >
           {t('section3.missingPrices', {
-            types: view.missingPrices.map((code) => t(`section3.types.${code}`)).join(', ')
+            types: sortedTypeCodes(view.missingPrices)
+              .map((code) => t(`section3.types.${code}`))
+              .join(', ')
           })}
         </p>
       ) : null}

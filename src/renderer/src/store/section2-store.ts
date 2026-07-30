@@ -29,6 +29,8 @@ interface Section2State {
   /** The year the accent sequence counts from (§12.3). */
   anchorYear: number
   activeYear: number | null
+  /** A year asked for from outside before this section mounted — see navigate.ts. */
+  pendingYear: number | null
   grid: YearGrid | null
   loading: boolean
   error: Section2ErrorCode | null
@@ -38,6 +40,8 @@ interface Section2State {
 
   load(): Promise<void>
   selectYear(year: number): Promise<void>
+  /** Ask for a year synchronously, before this section exists. */
+  focusYear(year: number): void
   createYear(year: number): Promise<void>
   addBank(draft: BankDraft): Promise<void>
   renameBank(id: number, name: string): Promise<void>
@@ -58,6 +62,7 @@ function emptyState(): Omit<
   Section2State,
   | 'load'
   | 'selectYear'
+  | 'focusYear'
   | 'createYear'
   | 'addBank'
   | 'renameBank'
@@ -74,6 +79,7 @@ function emptyState(): Omit<
     years: [],
     anchorYear: new Date().getFullYear(),
     activeYear: null,
+    pendingYear: null,
     grid: null,
     loading: false,
     error: null,
@@ -94,13 +100,16 @@ export const useSection2Store = create<Section2State>((set, get) => ({
     }
 
     const { years, anchorYear } = index.value
-    const current = get().activeYear
-    // Keep the year already open across a reload; otherwise open the newest,
-    // which is the one a person almost always wants.
-    const target = current !== null && years.includes(current) ? current : years[years.length - 1]
+    const { activeYear: current, pendingYear } = get()
+    // A year asked for from outside wins: it is the most recent statement of
+    // intent and was made before this section could hold one. Then the year
+    // already open, then the newest.
+    const asked = pendingYear !== null && years.includes(pendingYear) ? pendingYear : null
+    const target =
+      asked ?? (current !== null && years.includes(current) ? current : years[years.length - 1])
 
     if (target === undefined) {
-      set({ years, anchorYear, activeYear: null, grid: null, loading: false })
+      set({ years, anchorYear, activeYear: null, pendingYear: null, grid: null, loading: false })
       return
     }
 
@@ -109,7 +118,7 @@ export const useSection2Store = create<Section2State>((set, get) => ({
       set({ years, anchorYear, loading: false, error: grid.error })
       return
     }
-    set({ years, anchorYear, activeYear: target, grid: grid.value, loading: false })
+    set({ years, anchorYear, activeYear: target, pendingYear: null, grid: grid.value, loading: false })
   },
 
   /**
@@ -119,6 +128,10 @@ export const useSection2Store = create<Section2State>((set, get) => ({
    * interactive until the incoming one is ready, so the transition never plays
    * over an empty pane waiting to be filled.
    */
+  focusYear(year) {
+    set({ pendingYear: year })
+  },
+
   async selectYear(year) {
     const { activeYear } = get()
     if (year === activeYear) return
@@ -132,6 +145,7 @@ export const useSection2Store = create<Section2State>((set, get) => ({
 
     set((state) => ({
       activeYear: year,
+      pendingYear: null,
       grid: grid.value,
       direction: activeYear === null ? 'none' : year > activeYear ? 'forward' : 'backward',
       switchToken: state.switchToken + 1

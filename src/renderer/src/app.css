@@ -2377,3 +2377,226 @@ input.s3-person-name:focus {
 .s3-ledger .s3-figure .s3-cell-input.s3-count-input {
   min-width: 3.75em;
 }
+
+/* --- Overview (§10) -------------------------------------------------------
+
+   Fluid throughout, and not as a preference. The window opens at 1280 × 820
+   with a 232 px rail (main/index.ts, tokens.css) and nothing maximises it, so a
+   dashboard laid out against 1920 would be a dashboard laid out against a size
+   this application never opens. Every row below is `auto-fit` with a `minmax`
+   floor, which wraps rather than overflowing — and `app.css`'s own record of
+   §8.3's amendment pushing a button off the edge at 1080p is why that matters
+   more here than anywhere: this page has more figures on it than any other. */
+
+.overview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+.overview-error,
+.overview-partial {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: var(--surface-sunken);
+  border-left: 3px solid var(--danger);
+  color: var(--text);
+  font-size: 13px;
+}
+
+/* A partial read is a caution, not a failure: the page still adds up, it just
+   adds up over less than everything, and the banner says which years. */
+.overview-partial {
+  border-left-color: var(--warning);
+}
+
+.ov-heading {
+  margin: 8px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+/* --- the four grand tiles --- */
+
+.ov-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: var(--gap);
+}
+
+.ov-tile {
+  position: relative;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+}
+
+.ov-tile-label {
+  margin: 0 0 6px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+.ov-tile-figure {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  /* Never truncated. A grand total with its last digits cut off is worse than
+     no grand total, and this is the exact defect a 1080p photograph found once
+     already — so it shrinks the type rather than clipping the number. */
+  overflow-wrap: anywhere;
+}
+
+/* An em dash where a figure would be. It is deliberately quiet: the note
+   underneath is what carries the meaning, and a loud dash reads as an error. */
+.ov-tile-figure[data-empty='true'] {
+  color: var(--text-subtle);
+}
+
+/* Gain, loss, flat — the same three states §8.6 uses in .s3-gain, so the two
+   pages cannot come to mean different things by the same colour. */
+.ov-tile-figure[data-sign='gain'] {
+  color: var(--success);
+}
+.ov-tile-figure[data-sign='loss'] {
+  color: var(--danger);
+}
+.ov-tile-figure[data-sign='flat'] {
+  color: var(--text-muted);
+}
+
+.ov-tile-note {
+  margin: 6px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-subtle);
+}
+
+.ov-open {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 2px 7px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-subtle);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.ov-open:hover,
+.ov-open:focus-visible {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+/* --- the year cards --- */
+
+.ov-years {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--gap);
+}
+
+/* The accent, muted before it reaches a pixel (§12.3).
+
+   A card fills with `wash` and edges with `line` and never reaches `mark` — the
+   elegance constraint says an accent never lands at full strength on a large
+   area, and twelve cards at 88% would be a paint chart rather than a dashboard.
+   The variables are set per card by `yearAccentVariables`, which is the one
+   adaptation §12.3's mechanism needed: the sections set them once for the year
+   they are showing, and this page shows every year at once. */
+.ov-year {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  text-align: left;
+  border: 1px solid var(--year-accent-line);
+  border-left-width: 3px;
+  border-radius: var(--radius);
+  background: var(--year-accent-wash);
+  cursor: pointer;
+  color: var(--text);
+}
+
+.ov-year:hover,
+.ov-year:focus-visible {
+  border-color: var(--year-accent-mark);
+}
+
+.ov-year-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.ov-year-net {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+/* Only negative takes a colour, matching Section 1's own net (app.css .s1-net):
+   the grid and the card must not disagree about what a red figure means. */
+.ov-year-net[data-negative='true'] {
+  color: var(--danger);
+}
+
+.ov-year-net[data-empty='true'] {
+  color: var(--text-subtle);
+}
+
+.ov-year-other {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--text-subtle);
+}
+
+.ov-year-open {
+  align-self: flex-end;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--text-subtle);
+}
+
+/* --- the trend charts --- */
+
+.ov-charts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+.ov-chart-block {
+  padding: 12px 14px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+}
+
+/* Not `.altin-chart`: that class belongs to §11's view, and Chart.tsx gained a
+   `className` prop at this Realisation precisely so the two pages could differ
+   without either inheriting the other's layout. */
+.ov-chart {
+  width: 100%;
+}
+
+.ov-chart-note {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: var(--text-subtle);
+}

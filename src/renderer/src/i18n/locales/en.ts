@@ -440,6 +440,47 @@ export const en = {
     provisional: '{{count}} row(s) still carry an unconfirmed date, so the curve may mislead there.'
   },
 
+  overview: {
+    lede: 'Everything on one screen. Not one figure here is computed here — each comes from the section that owns it, and clicking it takes you there.',
+    loading: 'Reading the years…',
+    empty: 'No years yet. Open one from Income & Expenses.',
+    partial: 'These years could not be read and joined no total: {{years}}',
+
+    years: 'Years',
+    yearNet: 'Net result',
+    yearOther: 'Also holds {{types}} columns',
+    yearNoTry: 'No TRY column this year',
+    yearEmpty: 'No columns this year yet',
+    yearUnreadable: 'This year could not be read',
+    openYear: 'Open {{year}}',
+
+    tiles: {
+      debt: 'Current debt',
+      debtOf: 'the total for {{year}}',
+      remaining: 'Remaining limit',
+      market: 'Valuables market value',
+      unrealised: 'Unrealised G/L'
+    },
+
+    notes: {
+      noDebtYear: 'No year in Payments',
+      noBanks: 'No card columns this year',
+      noHoldings: 'Nothing held',
+      noPricedHoldings: 'No holding has a price typed',
+      unpriced: '{{count}} types unpriced — left out of market value',
+      gridUnreadable: 'The Payments grid could not be read'
+    },
+
+    charts: {
+      netByMonth: 'Net by month',
+      netByMonthLede: 'Only years that have a TRY column.',
+      yoy: 'Year over year',
+      value: 'Valuables value over time',
+      valueLede: 'Computed at the prices the ledger’s own rows recorded, and ending at the last transaction — which is why it differs from the tile above, computed at today’s price.',
+      excluded: 'Years left out: {{years}}'
+    }
+  },
+
   settings: {
     title: 'Settings',
     appearance: 'Appearance',

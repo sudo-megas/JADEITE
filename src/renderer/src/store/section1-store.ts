@@ -47,6 +47,17 @@ interface Section1State {
   years: number[]
   anchorYear: number
   activeYear: number | null
+  /**
+   * A year asked for from outside before this section had mounted (§10).
+   *
+   * `selectYear` writes nothing synchronously — its first statement is an
+   * `await` — so a caller that selects a year and then navigates loses the race
+   * against the section's own `load()`, which reads `activeYear`, still finds
+   * the old one, and settles on the newest year instead. Overview's cards deep
+   * link exactly that way. This is set synchronously by `focusYear` and consumed
+   * by `load`, so the intent survives the gap.
+   */
+  pendingYear: number | null
   workspace: YearWorkspace | null
 
   loading: boolean
@@ -61,6 +72,8 @@ interface Section1State {
 
   load(): Promise<void>
   selectYear(year: number): Promise<void>
+  /** Ask for a year synchronously, before this section exists. */
+  focusYear(year: number): void
   createYear(year: number): Promise<void>
   deleteYear(year: number): Promise<void>
 
@@ -101,6 +114,7 @@ function emptyState(): Omit<
   Section1State,
   | 'load'
   | 'selectYear'
+  | 'focusYear'
   | 'createYear'
   | 'deleteYear'
   | 'addCategory'
@@ -121,6 +135,7 @@ function emptyState(): Omit<
     years: [],
     anchorYear: new Date().getFullYear(),
     activeYear: null,
+    pendingYear: null,
     workspace: null,
     loading: false,
     error: null,
@@ -143,13 +158,17 @@ export const useSection1Store = create<Section1State>((set, get) => ({
     }
 
     const { years, anchorYear } = index.value
-    const current = get().activeYear
-    // Keep the year already open across a reload; otherwise open the newest,
-    // which is the one a person almost always wants.
-    const target = current !== null && years.includes(current) ? current : years[years.length - 1]
+    const { activeYear: current, pendingYear } = get()
+    // A year asked for from outside wins over both: it is the most recent
+    // statement of intent, and it was made before this section could hold one.
+    // Then the year already open, kept across a reload; then the newest, which
+    // is what a person almost always wants.
+    const asked = pendingYear !== null && years.includes(pendingYear) ? pendingYear : null
+    const target =
+      asked ?? (current !== null && years.includes(current) ? current : years[years.length - 1])
 
     if (target === undefined) {
-      set({ years, anchorYear, activeYear: null, workspace: null, loading: false })
+      set({ years, anchorYear, activeYear: null, pendingYear: null, workspace: null, loading: false })
       return
     }
 
@@ -162,6 +181,7 @@ export const useSection1Store = create<Section1State>((set, get) => ({
       years,
       anchorYear,
       activeYear: target,
+      pendingYear: null,
       workspace: workspace.value,
       loading: false
     })
@@ -174,6 +194,10 @@ export const useSection1Store = create<Section1State>((set, get) => ({
    * interactive until the incoming one is ready, so the transition never plays
    * over an empty pane waiting to be filled.
    */
+  focusYear(year) {
+    set({ pendingYear: year })
+  },
+
   async selectYear(year) {
     const { activeYear } = get()
     if (year === activeYear) return
@@ -187,6 +211,7 @@ export const useSection1Store = create<Section1State>((set, get) => ({
 
     set((state) => ({
       activeYear: year,
+      pendingYear: null,
       workspace: workspace.value,
       direction: activeYear === null ? 'none' : year > activeYear ? 'forward' : 'backward',
       switchToken: state.switchToken + 1,

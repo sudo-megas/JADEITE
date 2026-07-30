@@ -38,10 +38,11 @@ import { buildSeries, spansOrdersOfMagnitude, type Series } from '@shared/altin/
 import type { QuantityUnit, TypeCode } from '@shared/section3/types'
 import { paletteById } from '@shared/theme/palettes'
 import type { Palette } from '@shared/theme/types'
-import { formatCount, formatDate, formatGrams, formatMoney } from '../../i18n/format.js'
+import { formatCount, formatGrams, formatMoney } from '../../i18n/format.js'
 import type { AppLanguage } from '../../i18n/format.js'
 import { useAppStore } from '../../store/app-store.js'
 import { useSection3Store } from '../../store/section3-store.js'
+import { base, dateAxis, valueAxis, valueSeriesOption } from '../charts/options.js'
 import { Chart } from './Chart.js'
 
 const MS_PER_DAY = 86_400_000
@@ -229,77 +230,6 @@ function spanDays(dates: readonly string[]): number {
 type Translate = (key: string, options?: Record<string, unknown>) => string
 
 /**
- * Everything every chart shares.
- *
- * Colours come from the palette, so all three are palette-native in all ten and no
- * component names a colour (§12.2). The grid is generous on the left because a
- * lira figure in the hundreds of thousands is wide.
- */
-function base(palette: Palette): Record<string, unknown> {
-  const tokens = palette.tokens
-  return {
-    backgroundColor: 'transparent',
-    animationDuration: 220,
-    textStyle: { color: tokens.textMuted, fontFamily: 'inherit', fontSize: 11 },
-    grid: { top: 28, right: 18, bottom: 44, left: 74, containLabel: false },
-    tooltip: {
-      trigger: 'axis',
-      backgroundColor: tokens.surfaceOverlay,
-      borderColor: tokens.borderStrong,
-      textStyle: { color: tokens.text, fontSize: 12 }
-    },
-    // Zoom, as §11 asks: a wheel over the plot and a brush beneath it.
-    dataZoom: [
-      { type: 'inside', throttle: 40 },
-      {
-        type: 'slider',
-        height: 16,
-        bottom: 8,
-        borderColor: tokens.border,
-        fillerColor: tokens.selection,
-        handleStyle: { color: tokens.accent },
-        textStyle: { color: tokens.textSubtle }
-      }
-    ]
-  }
-}
-
-/** A true date axis (§11), never a category one. */
-function dateAxis(palette: Palette, language: AppLanguage): Record<string, unknown> {
-  const tokens = palette.tokens
-  return {
-    type: 'time',
-    axisLine: { lineStyle: { color: tokens.border } },
-    axisTick: { lineStyle: { color: tokens.border } },
-    axisLabel: {
-      color: tokens.textSubtle,
-      hideOverlap: true,
-      // The app language formats the date, never the machine (§13).
-      formatter: (value: number): string =>
-        formatDate(new Date(value).toISOString().slice(0, 10), language)
-    },
-    splitLine: { show: false }
-  }
-}
-
-function valueAxis(
-  palette: Palette,
-  logScale: boolean,
-  formatter: (value: number) => string,
-  min?: number
-): Record<string, unknown> {
-  const tokens = palette.tokens
-  return {
-    type: logScale ? 'log' : 'value',
-    logBase: 10,
-    ...(min === undefined ? {} : { min }),
-    axisLine: { show: false },
-    axisLabel: { color: tokens.textSubtle, formatter },
-    splitLine: { lineStyle: { color: tokens.border, type: 'dotted' } }
-  }
-}
-
-/**
  * Where a logarithmic bar axis should start.
  *
  * A bar is drawn from the axis floor, and a logarithmic axis has no zero to use
@@ -308,7 +238,7 @@ function valueAxis(
  * decade below the smallest value gives each bar visible height and wastes no
  * space, which is the whole reason the toggle exists.
  */
-function logFloor(values: readonly number[]): number | undefined {
+export function logFloor(values: readonly number[]): number | undefined {
   let smallest = Infinity
   for (const value of values) if (value > 0 && value < smallest) smallest = value
   if (smallest === Infinity) return undefined
@@ -414,24 +344,9 @@ function valueOption(
   palette: Palette,
   language: AppLanguage
 ): EChartsCoreOption {
-  return {
-    ...base(palette),
-    xAxis: dateAxis(palette, language),
-    yAxis: valueAxis(palette, false, (value) => formatMoney(value, 'TRY', language)),
-    series: [
-      {
-        type: 'line',
-        step: 'end',
-        showSymbol: false,
-        color: palette.tokens.accent,
-        areaStyle: { opacity: 0.12 },
-        data: series.marketValue.map((point) => [
-          Date.parse(`${point.date}T00:00:00Z`),
-          point.value
-        ])
-      }
-    ]
-  } as EChartsCoreOption
+  return valueSeriesOption(series.marketValue, palette, language, (value) =>
+    formatMoney(value, 'TRY', language)
+  ) as EChartsCoreOption
 }
 
 // --- The filters ------------------------------------------------------------
