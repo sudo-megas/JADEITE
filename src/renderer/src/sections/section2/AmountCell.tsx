@@ -6,10 +6,6 @@
  * the machine's, and be refused rather than guessed at. What differs is what
  * clearing means, and that belongs to the caller — a month with nothing due is
  * an absent row, while a card always has a limit even when it is zero.
- *
- * A frozen year (§7.3) renders `readOnly` rather than `disabled`: the figures
- * must stay selectable and reachable by a screen reader. An archive is
- * something to read, not something to grey out.
  */
 
 import { useEffect, useRef, useState, type ReactElement } from 'react'
@@ -26,7 +22,6 @@ interface Props {
   /** The accessible name — column and row, for a cell in a wide grid. */
   label: string
   testId: string
-  readOnly: boolean
   onCommit: (amount: number | null) => void
 }
 
@@ -35,7 +30,6 @@ export function AmountCell({
   language,
   label,
   testId,
-  readOnly,
   onCommit
 }: Props): ReactElement {
   const { t } = useTranslation()
@@ -51,7 +45,6 @@ export function AmountCell({
   }, [value, language, editing])
 
   function beginEditing(): void {
-    if (readOnly) return
     setDraft(amountToInput(value, language))
     setEditing(true)
     setProblem(null)
@@ -94,7 +87,6 @@ export function AmountCell({
         inputMode="decimal"
         aria-label={label}
         aria-invalid={problem !== null}
-        readOnly={readOnly}
         value={editing ? draft : display}
         data-testid={testId}
         onFocus={beginEditing}

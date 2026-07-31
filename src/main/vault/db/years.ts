@@ -1,15 +1,17 @@
 /**
- * The year lifecycle — the parent every section's grid hangs from.
+ * The year lifecycle — the parent Section 1's grid hangs from.
  *
- * `years` is the parent table of `s1_categories`, `s1_entries`, `s2_banks` and
- * `s2_cells` (schema.ts), so creating, counting and deleting a year is not one
- * section's business. This module lived inside db/section1.ts until Realisation
- * IV, which was true only while one section existed.
+ * `years` is the parent table of `s1_categories` and `s1_entries` (schema.ts).
+ * It parented `s2_banks` and `s2_cells` too until point revision v0.8b took the
+ * year out of Section 2 (§7.1, §7.3 as amended), which is why this module still
+ * sits beside the sections rather than inside db/section1.ts: it was moved out
+ * in Realisation IV when a second section started using it, and moving it back
+ * now would churn every import for a fact that could change again.
  *
- * Keeping it here settles a question that would otherwise be answered twice:
- * which year a new one inherits from. Both grids are seeded inside a single
- * transaction from a single donor query, so the two halves of a workspace can
- * never disagree about their own ancestor.
+ * What did change is the answer to "what does creating a year do". It seeds one
+ * grid from one donor, not two. Section 2 has one standing set of columns and
+ * takes no part in a year at all — adding 2027 in Section 1 leaves Ödemeler
+ * exactly as it was, which is the whole of the owner's ruling.
  *
  * No arithmetic lives here. Totals are computed by the section engines and
  * stored nowhere (§5.3).
@@ -70,16 +72,10 @@ export function accentAnchorYear(db: DatabaseType): number {
  * borrowing forwards would furnish a historical workspace with categories the
  * owner had not invented yet. Definitions are copied; amounts never are.
  *
- * Both grids are seeded from the same donor, in the same transaction. Section
- * 2's rollover (§7.3) is exactly this: "the new year begins with the bank set
- * carried over and amounts cleared" — the carry-over is the `INSERT … SELECT`
- * below, and the cleared amounts are the `s2_cells` rows that are deliberately
- * not copied.
- *
- * The donor's `s2_archived` is left alone. Freezing a year is a decision the
- * owner makes in Section 2, not a side effect of adding next year's workspace
- * in Section 1 — otherwise adding 2027 in October would silently take away the
- * ability to correct November.
+ * Section 1's grid is the only one seeded. This used to carry Section 2's bank
+ * columns across in the same transaction — the rollover §7.3 asked for — and
+ * point revision v0.8b removed both the rollover and the year it hung from.
+ * Ödemeler now holds one standing set of columns that no year creation touches.
  */
 export function createYear(db: DatabaseType, year: number): void {
   if (!isValidYear(year)) fail('INVALID_YEAR')
@@ -102,13 +98,6 @@ export function createYear(db: DatabaseType, year: number): void {
            SELECT ?, name, kind, value_type, position
              FROM s1_categories WHERE year = ?
             ORDER BY kind, position`
-      ).run(year, donor.year)
-
-      db.prepare(
-        `INSERT INTO s2_banks (year, name, credit_limit, position, is_counter, counter_party)
-           SELECT ?, name, credit_limit, position, is_counter, counter_party
-             FROM s2_banks WHERE year = ?
-            ORDER BY is_counter, position`
       ).run(year, donor.year)
     }
 
@@ -141,10 +130,13 @@ export function ensureAnyYear(db: DatabaseType): number {
 /**
  * What deleting a year would destroy, asked for before the offer is made.
  *
- * All four tables are counted, because the delete cascades to all four. A
- * dialogue that named only columns and cells would be describing half of what
- * the button does — which is precisely the kind of quiet half-truth this
- * application exists to stop telling.
+ * Both tables the delete cascades to are counted, so the dialogue names the
+ * whole of what the button does rather than half of it — precisely the kind of
+ * quiet half-truth this application exists to stop telling.
+ *
+ * It counted Section 2's banks and cells as well until point revision v0.8b,
+ * which is no longer a half-truth but a falsehood: deleting a year cannot reach
+ * Ödemeler, because Ödemeler has no year.
  */
 export function yearUsage(db: DatabaseType, year: number): YearUsage {
   if (!isValidYear(year)) fail('INVALID_YEAR')
@@ -154,19 +146,16 @@ export function yearUsage(db: DatabaseType, year: number): YearUsage {
 
   return {
     categoryCount: count('SELECT COUNT(*) AS n FROM s1_categories WHERE year = ?'),
-    entryCount: count('SELECT COUNT(*) AS n FROM s1_entries WHERE year = ?'),
-    bankCount: count('SELECT COUNT(*) AS n FROM s2_banks WHERE year = ?'),
-    cellCount: count('SELECT COUNT(*) AS n FROM s2_cells WHERE year = ?')
+    entryCount: count('SELECT COUNT(*) AS n FROM s1_entries WHERE year = ?')
   }
 }
 
 /**
  * Delete a year and everything in it.
  *
- * "Everything" is broader than any one section: `years` is the parent of
- * `s2_banks` and `s2_cells` as well as Section 1's tables (schema.ts), so this
- * removes that year's Payments grid too. `yearUsage` above counts all four so
- * the confirmation can say so.
+ * "Everything" means that year's categories and entries, which the cascade from
+ * `years` takes with it (schema.ts). It reached Section 2's grid too until point
+ * revision v0.8b; it no longer can, and `yearUsage` above no longer claims it.
  *
  * The last remaining year is refused. The switcher has to have somewhere to be,
  * and a vault with no years would meet the owner with a modal instead of a grid.

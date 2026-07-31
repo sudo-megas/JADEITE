@@ -27,8 +27,8 @@ import { describe, expect, it } from 'vitest'
 
 import { computeWorkspace } from '@shared/section1/engine'
 import type { Category, Entry, YearWorkspace } from '@shared/section1/types'
-import { computeGrid, type Today } from '@shared/section2/engine'
-import type { Bank, Cell, YearGrid } from '@shared/section2/types'
+import { computeGrid } from '@shared/section2/engine'
+import type { Bank, Cell, PaymentsGrid } from '@shared/section2/types'
 import { computeHoldings } from '@shared/section3/engine'
 import type {
   LedgerData,
@@ -46,7 +46,6 @@ import {
   marketTile,
   netByMonthSeries,
   remainingTile,
-  selectDebtYear,
   sortedTypeCodes,
   typeCodesAttribute,
   unrealisedTile,
@@ -137,14 +136,13 @@ const W2023 = workspace(2023, [], [])
 
 // --- Section 2 fixtures -----------------------------------------------------
 
-function bank(id: number, year: number, creditLimit: number, position: number): Bank {
-  return { id, year, name: `b${id}`, creditLimit, position, isCounter: false, counterParty: null }
+function bank(id: number, creditLimit: number, position: number): Bank {
+  return { id, name: `b${id}`, creditLimit, position, isCounter: false, counterParty: null }
 }
 
-function counter(id: number, year: number, position: number): Bank {
+function counter(id: number, position: number): Bank {
   return {
     id,
-    year,
     name: `k${id}`,
     creditLimit: 0,
     position,
@@ -157,12 +155,12 @@ function cell(bankId: number, month: number, amount: number): Cell {
   return { bankId, month, amount }
 }
 
-function grid(year: number, banks: Bank[], cells: Cell[]): YearGrid {
-  return { year, archived: false, accentOverride: null, banks, cells }
+function grid(banks: Bank[], cells: Cell[]): PaymentsGrid {
+  return { banks, cells }
 }
 
 /**
- * 2025 — one card and one counter column, chosen so the three readings differ.
+ * One card and one counter column, chosen so the three readings differ.
  *
  * Card: limit ₺100.000,00, charged ₺10.000,00 in Ocak and ₺20.000,00 in Şubat.
  * Counter: ₺20.000,00 in Ocak, which comes *off* the debt and carries no limit.
@@ -174,17 +172,16 @@ function grid(year: number, banks: Bank[], cells: Cell[]): YearGrid {
  *   limit − grand total debt        = ₺90.000,00
  *   Σ (limit − debt) over *every* column = ₺50.000,00
  */
-const G2025 = grid(
-  2025,
-  [bank(1, 2025, 10_000_000, 0), counter(2, 2025, 0)],
+const PAYMENTS = grid(
+  [bank(1, 10_000_000, 0), counter(2, 0)],
   [cell(1, 1, 1_000_000), cell(1, 2, 2_000_000), cell(2, 1, 2_000_000)]
 )
 
-/** 2024 — a counter column and nothing else. No card, therefore no headroom. */
-const G2024 = grid(2024, [counter(3, 2024, 0)], [cell(3, 1, 500_000)])
+/** A counter column and nothing else. No card, therefore no headroom. */
+const COUNTERS_ONLY = grid([counter(3, 0)], [cell(3, 1, 500_000)])
 
-/** 2023 — a grid with no columns whatsoever. */
-const G2023 = grid(2023, [], [])
+/** A grid with no columns whatsoever. */
+const NO_COLUMNS = grid([], [])
 
 // --- The five-year vault ----------------------------------------------------
 
@@ -193,14 +190,15 @@ const G2023 = grid(2023, [], [])
  * returned and nothing promises ascending.
  */
 const YEARS: readonly OverviewYear[] = [
-  { year: 2026, workspace: W2026, grid: null },
-  { year: 2023, workspace: W2023, grid: G2023 },
-  { year: 2025, workspace: W2025, grid: G2025 },
-  { year: 2022, workspace: null, grid: null },
-  { year: 2024, workspace: W2024, grid: G2024 }
+  { year: 2026, workspace: W2026 },
+  { year: 2023, workspace: W2023 },
+  { year: 2025, workspace: W2025 },
+  { year: 2022, workspace: null },
+  { year: 2024, workspace: W2024 }
 ]
 
-const TODAY: Today = { year: 2025, month: 7 }
+/** Fixed, so a test never depends on the month it is run in. */
+const MONTH = 7
 
 // --- Section 3 fixtures -----------------------------------------------------
 
@@ -388,61 +386,38 @@ describe('yoySeries', () => {
   })
 })
 
-// --- Which year is "current" ------------------------------------------------
-
-describe('selectDebtYear', () => {
-  it('takes the year of the Today it was given', () => {
-    expect(selectDebtYear(YEARS, { year: 2025, month: 1 })).toBe(2025)
-    expect(selectDebtYear(YEARS, { year: 2024, month: 12 })).toBe(2024)
-  })
-
-  it('falls back to the latest year that has begun', () => {
-    expect(selectDebtYear(YEARS, { year: 2030, month: 6 })).toBe(2026)
-  })
-
-  it('takes the earliest year when every year on record is still to come', () => {
-    const future: readonly OverviewYear[] = [
-      { year: 2029, workspace: null, grid: null },
-      { year: 2028, workspace: null, grid: null }
-    ]
-    expect(selectDebtYear(future, { year: 2026, month: 7 })).toBe(2028)
-  })
-
-  it('answers null only when there are no years at all', () => {
-    expect(selectDebtYear([], TODAY)).toBe(null)
-  })
-
-  it('moves with Today rather than with any clock of its own', () => {
-    expect(selectDebtYear(YEARS, { year: 2023, month: 3 })).toBe(2023)
-    expect(selectDebtYear(YEARS, { year: 2026, month: 3 })).toBe(2026)
-  })
-})
-
 // --- Current debt -----------------------------------------------------------
 
+/*
+ * There is no `selectDebtYear` any more, and no test for one.
+ *
+ * Section 2 held a grid per year until point revision v0.8b, so a grand tile had
+ * to choose which of them it spoke for — the latest year that had begun, failing
+ * that the earliest on record, with every tile state labelled by its year. §7.1
+ * as amended leaves one standing grid of the twelve months the owner is living
+ * in, so the tile is about now by construction. The `no-years` state went with
+ * the choice: a vault with no years still has a Payments grid.
+ */
+
 describe('debtTile', () => {
-  it('is the selected year GRAND TOTAL DEBT, counters already netted off', () => {
-    expect(debtTile(YEARS, TODAY)).toEqual({ kind: 'figure', year: 2025, debt: 1_000_000 })
+  it('is GRAND TOTAL DEBT, counters already netted off', () => {
+    expect(debtTile(PAYMENTS, MONTH)).toEqual({ kind: 'figure', debt: 1_000_000 })
   })
 
   it('reports a negative grand total rather than clamping it', () => {
-    expect(debtTile(YEARS, { year: 2024, month: 4 })).toEqual({
-      kind: 'figure',
-      year: 2024,
-      debt: -500_000
-    })
+    expect(debtTile(COUNTERS_ONLY, MONTH)).toEqual({ kind: 'figure', debt: -500_000 })
   })
 
-  it('does not print zero for a year that has no columns', () => {
-    expect(debtTile(YEARS, { year: 2023, month: 9 })).toEqual({ kind: 'no-columns', year: 2023 })
+  it('does not print zero for a grid that has no columns', () => {
+    expect(debtTile(NO_COLUMNS, MONTH)).toEqual({ kind: 'no-columns' })
   })
 
-  it('names the year it could not read instead of showing an older one', () => {
-    expect(debtTile(YEARS, { year: 2026, month: 2 })).toEqual({ kind: 'unreadable', year: 2026 })
+  it('says so rather than showing a figure when the grid could not be read', () => {
+    expect(debtTile(null, MONTH)).toEqual({ kind: 'unreadable' })
   })
 
-  it('has a state for a vault with no years', () => {
-    expect(debtTile([], TODAY)).toEqual({ kind: 'no-years' })
+  it('is the same figure in any month, the total being all twelve', () => {
+    expect(debtTile(PAYMENTS, 1)).toEqual(debtTile(PAYMENTS, 12))
   })
 })
 
@@ -450,10 +425,9 @@ describe('debtTile', () => {
 
 describe('remainingTile', () => {
   it('reads TOTAL REMAINING LIMIT and never recomputes it', () => {
-    const tile = remainingTile(YEARS, TODAY)
+    const tile = remainingTile(PAYMENTS, MONTH)
     expect(tile).toEqual({
       kind: 'figure',
-      year: 2025,
       remaining: 7_000_000,
       creditLimit: 10_000_000
     })
@@ -462,7 +436,7 @@ describe('remainingTile', () => {
     // column carries debt and no limit, so subtracting the grand total from the
     // credit limit credits headroom to a card that was never charged, and
     // subtracting per column charges the counter's own limit of nothing.
-    const computed = computeGrid(G2025, TODAY)
+    const computed = computeGrid(PAYMENTS, MONTH)
     expect(computed.totalCreditLimit - computed.grandTotalDebt).toBe(9_000_000)
     const perColumn = computed.columns.reduce(
       (total, column) => total + (column.bank.creditLimit - column.debt),
@@ -475,25 +449,13 @@ describe('remainingTile', () => {
     expect(tile.remaining).not.toBe(5_000_000)
   })
 
-  it('refuses to say "no headroom left" about a year that has no cards', () => {
-    expect(remainingTile(YEARS, { year: 2024, month: 4 })).toEqual({
-      kind: 'no-limits',
-      year: 2024,
-      counters: 1
-    })
-    expect(remainingTile(YEARS, { year: 2023, month: 4 })).toEqual({
-      kind: 'no-limits',
-      year: 2023,
-      counters: 0
-    })
+  it('refuses to say "no headroom left" about a grid that has no cards', () => {
+    expect(remainingTile(COUNTERS_ONLY, MONTH)).toEqual({ kind: 'no-limits', counters: 1 })
+    expect(remainingTile(NO_COLUMNS, MONTH)).toEqual({ kind: 'no-limits', counters: 0 })
   })
 
-  it('carries the same unreadable and no-years states as the debt tile', () => {
-    expect(remainingTile(YEARS, { year: 2026, month: 2 })).toEqual({
-      kind: 'unreadable',
-      year: 2026
-    })
-    expect(remainingTile([], TODAY)).toEqual({ kind: 'no-years' })
+  it('carries the same unreadable state as the debt tile', () => {
+    expect(remainingTile(null, MONTH)).toEqual({ kind: 'unreadable' })
   })
 })
 
@@ -626,28 +588,37 @@ describe('valueLine', () => {
 
 describe('incompleteReads', () => {
   it('names the failures per section, oldest year first', () => {
-    expect(incompleteReads(YEARS, PRICED)).toEqual({
+    expect(incompleteReads(YEARS, PAYMENTS, PRICED)).toEqual({
       workspaceYears: [2022],
-      gridYears: [2022, 2026],
+      payments: false,
+      ledger: false,
+      any: true
+    })
+  })
+
+  it('reports a Payments grid that did not read as one failure, not a list', () => {
+    expect(incompleteReads([], null, PRICED)).toEqual({
+      workspaceYears: [],
+      payments: true,
       ledger: false,
       any: true
     })
   })
 
   it('reports a ledger that did not read', () => {
-    expect(incompleteReads([], null)).toEqual({
+    expect(incompleteReads([], PAYMENTS, null)).toEqual({
       workspaceYears: [],
-      gridYears: [],
+      payments: false,
       ledger: true,
       any: true
     })
   })
 
   it('is quiet when everything read', () => {
-    const whole: readonly OverviewYear[] = [{ year: 2025, workspace: W2025, grid: G2025 }]
-    expect(incompleteReads(whole, PRICED)).toEqual({
+    const whole: readonly OverviewYear[] = [{ year: 2025, workspace: W2025 }]
+    expect(incompleteReads(whole, PAYMENTS, PRICED)).toEqual({
       workspaceYears: [],
-      gridYears: [],
+      payments: false,
       ledger: false,
       any: false
     })

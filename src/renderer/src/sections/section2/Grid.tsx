@@ -60,7 +60,6 @@ interface GridMeta {
   language: AppLanguage
   months: string[]
   computed: ComputedGrid
-  readOnly: boolean
   handlers: GridHandlers
 }
 
@@ -81,13 +80,12 @@ function MonthNameCell(context: CellContext<MonthLine, unknown>): ReactElement {
 }
 
 function BankHeaderCell(context: HeaderContext<MonthLine, unknown>): ReactElement {
-  const { readOnly, handlers } = metaOf(context)
+  const { handlers } = metaOf(context)
   const meta = columnMetaOf(context.column.columnDef)
   if (meta.kind !== 'bank') return <span />
   return (
     <BankHeader
       bank={meta.bank}
-      readOnly={readOnly}
       onRename={handlers.onRename}
       onMove={handlers.onMove}
       onDelete={handlers.onDelete}
@@ -96,7 +94,7 @@ function BankHeaderCell(context: HeaderContext<MonthLine, unknown>): ReactElemen
 }
 
 function BankAmountCell(context: CellContext<MonthLine, unknown>): ReactElement {
-  const { language, months, readOnly, handlers } = metaOf(context)
+  const { language, months, handlers } = metaOf(context)
   const meta = columnMetaOf(context.column.columnDef)
   if (meta.kind !== 'bank') return <span />
 
@@ -110,7 +108,6 @@ function BankAmountCell(context: CellContext<MonthLine, unknown>): ReactElement 
       language={language}
       label={`${monthName} · ${meta.bank.name}`}
       testId={`s2-cell-${meta.bank.name}-${monthName}`}
-      readOnly={readOnly}
       onCommit={(amount) => handlers.onCommitCell(line.month, meta.bank.id, amount)}
     />
   )
@@ -187,7 +184,6 @@ interface Props {
 export function Grid({ computed, language, handlers }: Props): ReactElement {
   const { t } = useTranslation()
   const months = useMemo(() => monthNames(language), [language])
-  const readOnly = computed.archived
 
   const banks = computed.banks.map((column) => column.bank)
   const counters = computed.counters.map((column) => column.bank)
@@ -256,7 +252,7 @@ export function Grid({ computed, language, handlers }: Props): ReactElement {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shape, t])
 
-  const meta: GridMeta = { language, months, computed, readOnly, handlers }
+  const meta: GridMeta = { language, months, computed, handlers }
 
   const table = useReactTable({
     data: computed.months as MonthLine[],
@@ -284,8 +280,7 @@ export function Grid({ computed, language, handlers }: Props): ReactElement {
           className="s2-party-input"
           type="text"
           aria-label={t('section2.counterPartyOf', { name: bank.name })}
-          readOnly={readOnly}
-          defaultValue={bank.counterParty ?? ''}
+              defaultValue={bank.counterParty ?? ''}
           key={`${bank.id}:${bank.counterParty ?? ''}`}
           data-testid={`s2-party-${bank.name}`}
           onBlur={(e) => {
@@ -306,8 +301,7 @@ export function Grid({ computed, language, handlers }: Props): ReactElement {
         language={language}
         label={t('section2.creditLimitOf', { name: bank.name })}
         testId={`s2-limit-${bank.name}`}
-        readOnly={readOnly}
-        // A card always has a limit; clearing the field means zero, not absence.
+          // A card always has a limit; clearing the field means zero, not absence.
         onCommit={(amount) => handlers.onSetLimit(bank.id, amount ?? 0)}
       />
     )

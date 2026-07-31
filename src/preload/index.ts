@@ -36,8 +36,8 @@ import type {
   BankDraft,
   BankUsage,
   CellPatch,
-  Section2ErrorCode,
-  YearGrid
+  PaymentsGrid,
+  Section2ErrorCode
 } from '../shared/section2/types.js'
 import type {
   LedgerData,
@@ -49,10 +49,11 @@ import type {
   TransactionPatch,
   TypeCode
 } from '../shared/section3/types.js'
+// Aliased for the same reason the contract aliases it: Section 2 owns the
+// unqualified `CellPatch` in this file, and both sections genuinely have one.
 import type {
-  Line,
-  LineDraft,
-  LinePatch,
+  Cell,
+  CellPatch as Section4CellPatch,
   Section4ErrorCode
 } from '../shared/section4/types.js'
 
@@ -88,24 +89,19 @@ type S2<T> = Promise<Result<T, Section2ErrorCode>>
 
 /** Section 2 is a plain pass-through too, and for the same reason. */
 const section2: Section2Api = {
-  years: (): S2<YearIndex> => ipcRenderer.invoke(IPC.s2Years),
-  createYear: (year: number): S2<YearIndex> => ipcRenderer.invoke(IPC.s2CreateYear, year),
-  grid: (year: number): S2<YearGrid> => ipcRenderer.invoke(IPC.s2Grid, year),
-  addBank: (year: number, draft: BankDraft): S2<number> =>
-    ipcRenderer.invoke(IPC.s2AddBank, year, draft),
+  grid: (): S2<PaymentsGrid> => ipcRenderer.invoke(IPC.s2Grid),
+  addBank: (draft: BankDraft): S2<number> => ipcRenderer.invoke(IPC.s2AddBank, draft),
   renameBank: (id: number, name: string): S2<null> =>
     ipcRenderer.invoke(IPC.s2RenameBank, id, name),
   setCreditLimit: (id: number, limit: number): S2<null> =>
     ipcRenderer.invoke(IPC.s2SetCreditLimit, id, limit),
   setCounterParty: (id: number, party: string | null): S2<null> =>
     ipcRenderer.invoke(IPC.s2SetCounterParty, id, party),
-  reorderBanks: (year: number, isCounter: boolean, orderedIds: number[]): S2<null> =>
-    ipcRenderer.invoke(IPC.s2ReorderBanks, year, isCounter, orderedIds),
+  reorderBanks: (isCounter: boolean, orderedIds: number[]): S2<null> =>
+    ipcRenderer.invoke(IPC.s2ReorderBanks, isCounter, orderedIds),
   bankUsage: (id: number): S2<BankUsage> => ipcRenderer.invoke(IPC.s2BankUsage, id),
   deleteBank: (id: number): S2<null> => ipcRenderer.invoke(IPC.s2DeleteBank, id),
-  setCell: (patch: CellPatch): S2<null> => ipcRenderer.invoke(IPC.s2SetCell, patch),
-  setArchived: (year: number, archived: boolean): S2<null> =>
-    ipcRenderer.invoke(IPC.s2SetArchived, year, archived)
+  setCell: (patch: CellPatch): S2<null> => ipcRenderer.invoke(IPC.s2SetCell, patch)
 }
 
 type S3<T> = Promise<Result<T, Section3ErrorCode>>
@@ -138,12 +134,9 @@ type S4<T> = Promise<Result<T, Section4ErrorCode>>
 
 /** Section 4 is a plain pass-through as well, and for the same reason. */
 const section4: Section4Api = {
-  lines: (): S4<Line[]> => ipcRenderer.invoke(IPC.s4Lines),
-  addLine: (draft: LineDraft): S4<number> => ipcRenderer.invoke(IPC.s4AddLine, draft),
-  updateLine: (patch: LinePatch): S4<null> => ipcRenderer.invoke(IPC.s4UpdateLine, patch),
-  deleteLine: (id: number): S4<null> => ipcRenderer.invoke(IPC.s4DeleteLine, id),
-  reorderLines: (orderedIds: number[]): S4<null> =>
-    ipcRenderer.invoke(IPC.s4ReorderLines, orderedIds)
+  cells: (): S4<Cell[]> => ipcRenderer.invoke(IPC.s4Cells),
+  setCell: (patch: Section4CellPatch): S4<null> => ipcRenderer.invoke(IPC.s4SetCell, patch),
+  clear: (): S4<null> => ipcRenderer.invoke(IPC.s4Clear)
 }
 
 const api: JadeiteApi = {

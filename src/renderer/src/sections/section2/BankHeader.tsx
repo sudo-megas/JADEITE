@@ -14,27 +14,15 @@ import type { Bank } from '@shared/section2/types'
 
 interface Props {
   bank: Bank
-  /** A frozen year offers no menu at all (§7.3). */
-  readOnly: boolean
   onRename: (id: number, name: string) => void
   onMove: (bank: Bank, delta: number) => void
   onDelete: (bank: Bank) => void
 }
 
-export function BankHeader({ bank, readOnly, onRename, onMove, onDelete }: Props): ReactElement {
+export function BankHeader({ bank, onRename, onMove, onDelete }: Props): ReactElement {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [draftName, setDraftName] = useState(bank.name)
-
-  if (readOnly) {
-    return (
-      <div className="s2-header">
-        <span className="s2-header-text" data-testid={`s2-header-${bank.name}`}>
-          {bank.name}
-        </span>
-      </div>
-    )
-  }
 
   return (
     <div className="s2-header">

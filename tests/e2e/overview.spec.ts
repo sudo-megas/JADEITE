@@ -260,12 +260,13 @@ async function seed(page: Page): Promise<void> {
   await page.getByTestId(`year-${NEWEST_YEAR}`).click()
   await expect(page.getByTestId(`workspace-${NEWEST_YEAR}`)).toBeVisible()
 
-  // --- Section 2: two cards and a counter, in the newest year --------------
-  // Section 2 opens on the newest year of its own accord, and keeps its own
-  // place thereafter; the columns therefore land in NEWEST_YEAR and the two
-  // older years stay empty of banks.
+  // --- Section 2: two cards and a counter -----------------------------------
+  // No year here, and nothing above to keep it away from. Point revision v0.8b
+  // left Ödemeler one standing grid of twelve months (§7.1 as amended), so the
+  // columns land in the only grid there is and the three Section 1 years above
+  // have no bearing on them at all.
   await openSection2(page)
-  await expect(page.getByTestId(`s2-workspace-${NEWEST_YEAR}`)).toBeVisible()
+  await expect(page.getByTestId('s2-workspace')).toBeVisible()
   await addS2Column(page, 'A', 'bank', '200000')
   await addS2Column(page, 'B', 'bank', '150000')
   await addS2Column(page, 'Sayaç A', 'counter', 'Sayaç A')
@@ -280,7 +281,7 @@ async function seed(page: Page): Promise<void> {
   // --- Section 3: one priced type and two unpriced ones --------------------
   await openSection3(page)
   await appendRow(page, {
-    date: `${LEDGER_YEAR}-01-15`,
+    date: `15/01/${LEDGER_YEAR}`,
     type: 'gram',
     coin: false,
     quantity: '10',
@@ -291,14 +292,14 @@ async function seed(page: Page): Promise<void> {
   // Two of them, and typed in the closed list's order, so the sorted attribute
   // asserted below is a genuine reordering.
   await appendRow(page, {
-    date: `${LEDGER_YEAR}-02-20`,
+    date: `20/02/${LEDGER_YEAR}`,
     type: 'ceyrek',
     coin: true,
     quantity: '4',
     price: '10.000,00'
   })
   await appendRow(page, {
-    date: `${LEDGER_YEAR}-03-10`,
+    date: `10/03/${LEDGER_YEAR}`,
     type: 'ata',
     coin: true,
     quantity: '1',
@@ -363,14 +364,21 @@ async function overviewFigures(page: Page): Promise<{
 /**
  * The four grand tiles, each against the section that owns it.
  *
- * The tiles are compared against the **newest** year's grid, and the year is
- * named rather than left to whatever Section 2 happens to have open.
- * `selectDebtYear` takes the latest year that has begun, which for this fixture
- * is the system year; and "current debt" can only mean that year's grand total,
- * since `computeGrid` sums all twelve months regardless of `monthState` —
+ * The two Section 2 tiles are reached by **clicking the debt tile's own deep
+ * link** rather than by navigating there, which folds §10's "deep-links into the
+ * owning section" into the cross-check instead of testing it separately: the
+ * link has to arrive at the section holding the figure the tile was showing, or
+ * the comparison two lines later fails.
+ *
+ * There is no year to name. Ödemeler held a grid per year until point revision
+ * v0.8b, so a grand tile had to choose which of them it spoke for — and this
+ * case named the year explicitly, because a tile that quietly changed its
+ * subject would pass a test that did not. §7.1 as amended leaves one standing
+ * grid, so the tile is about now by construction and there is no longer a choice
+ * for it to get wrong. "Current debt" is still the whole grid's grand total:
+ * `computeGrid` sums all twelve months regardless of `monthState`, and
  * `s2_cells` carries no paid flag, so there is no second reading to choose
- * between. A tile that quietly changed its subject would still pass a test that
- * did not say which year it was asking about.
+ * between.
  */
 test('the four grand tiles equal the figures their sections draw', async () => {
   session = await launchFresh({ JADEITE_PRICE_PROVIDER: 'offline-mock' })
@@ -417,10 +425,14 @@ test('the four grand tiles equal the figures their sections draw', async () => {
   const sign = await page.getByTestId('ov-tile-unrealised-figure').getAttribute('data-sign')
   expect(sign, 'a priced holding that is up should read as a gain').toBe('gain')
 
-  await openSection2(page)
-  await page.getByTestId(`s2-year-${NEWEST_YEAR}`).click()
-  await expect(page.getByTestId(`s2-workspace-${NEWEST_YEAR}`)).toBeVisible()
+  await page.getByTestId('ov-tile-debt-open').click()
+  await expect(page.getByTestId('section2')).toBeVisible()
+  await expect(page.getByTestId('s2-workspace')).toBeVisible()
   await expect(page.getByTestId('s2-grand-total-debt')).toHaveText(figures.debt)
+  // Both figures, on the one screen that owns them. Discriminating property 1
+  // exists for this second line: over a fixture with no counter holding money,
+  // the Remaining Limit row and the naive Σ limits − Σ debt agree, and the
+  // comparison stops being able to tell a wrong tile from a right one.
   await expect(page.getByTestId('s2-total-remaining-limit')).toHaveText(figures.remaining)
 
   await openHoldings(page)

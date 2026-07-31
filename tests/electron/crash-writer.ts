@@ -24,16 +24,16 @@ export async function crashWriter(): Promise<never> {
     process.exit(2)
   }
 
-  const insert = db.prepare('INSERT INTO s4_lines (label, value, position) VALUES (?, ?, ?)')
+  const insert = db.prepare('INSERT INTO s4_cells (slot, value) VALUES (?, ?)')
   const commitBatch = db.transaction(() => {
-    for (let i = 0; i < rows; i++) insert.run(`line-${i}`, i * 100, i)
+    for (let i = 0; i < rows; i++) insert.run(i, i * 100)
   })
   commitBatch()
 
   // Open a transaction and never commit it, so there is genuinely in-flight
   // work to roll back. A bare insert would autocommit and prove nothing.
   db.exec('BEGIN')
-  insert.run('never-committed', -1, rows + 1)
+  insert.run(rows + 1, 1)
 
   // No close(), no checkpoint. Straight to a hard kill.
   process.kill(process.pid, 'SIGKILL')

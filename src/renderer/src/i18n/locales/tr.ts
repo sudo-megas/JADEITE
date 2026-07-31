@@ -95,10 +95,10 @@ export const tr = {
     accentUseSequence: 'Palet sırasını kullan',
     deleteYear: 'Yılı sil',
     deleteYearDetail:
-      '{{year}} yılı, {{columns}} sütunu ve {{count}} kaydıyla, Ödemeler tablosundaki {{banks}} sütun ve {{cells}} hücreyle birlikte kalıcı olarak silinecek.',
+      '{{year}} yılı, {{columns}} sütunu ve {{count}} kaydıyla birlikte kalıcı olarak silinecek.',
     deleteYearWarningTitle: 'Bu işlem geri alınamaz.',
     deleteYearWarningBody:
-      'Bu yıla ait her şey silinir — Ödemeler bölümünün o yıla ait tablosu da dahil. Diğer yıllar etkilenmez.',
+      'Bu yıla ait her şey silinir. Diğer yıllar ve Ödemeler bölümü etkilenmez.',
     deleteYearConfirm: 'Yılı kalıcı olarak sil',
     lastYearKept: 'Tek kalan yıl silinemez.',
 
@@ -182,12 +182,7 @@ export const tr = {
     creditLimitOf: '{{name}} kredi limiti',
     counterPartyOf: '{{name}} — kişi',
 
-    years: 'Yıllar',
-    year: 'Yıl',
-    addYear: 'Yıl ekle',
-    addYearLede: 'Yeni yıl, bir önceki yılın bankalarını devralır; tutarlar boş başlar.',
-    createYear: 'Yılı oluştur',
-    noBanks: 'Bu yılda henüz sütun yok. Aşağıdan bir banka veya kart ekleyin.',
+    noBanks: 'Henüz sütun yok. Aşağıdan bir banka veya kart ekleyin.',
 
     newBankName: 'Banka / kart adı',
     bankKind: 'Sütun türü',
@@ -207,18 +202,8 @@ export const tr = {
     deleteColumn: 'Sütunu sil',
     deleteColumnDetail: '{{name}} sütununda {{count}} kayıt var ({{total}}).',
     deleteColumnWarningTitle: '{{name}} silinsin mi?',
-    deleteColumnWarningBody: 'Yalnızca bu yılın sütunu ve hücreleri silinir; diğer yıllar olduğu gibi kalır.',
+    deleteColumnWarningBody: 'Sütun ve hücreleri silinir; diğer sütunlar olduğu gibi kalır.',
     deleteColumnConfirm: 'Sütunu sil',
-
-    archive: {
-      frozen: '{{year}} donduruldu — yalnızca okunur.',
-      frozenHint: 'Bir düzeltme gerekirse yeniden açabilirsiniz; hiçbir şey kaybolmaz.',
-      freeze: 'Yılı dondur',
-      freezeTitle: '{{year}} dondurulsun mu?',
-      freezeDetail: 'Bu yılın ızgarası salt okunur olur. Hiçbir şey silinmez ve istediğiniz an yeniden açabilirsiniz.',
-      freezeConfirm: 'Dondur',
-      reopen: 'Yeniden aç'
-    },
 
     parse: {
       NOT_A_NUMBER: 'Bu bir sayı değil.',
@@ -230,15 +215,12 @@ export const tr = {
 
     errors: {
       LOCKED: 'Kasa kilitli.',
-      NO_SUCH_YEAR: 'Yıl bulunamadı.',
-      YEAR_EXISTS: 'Bu yıl zaten var.',
-      ARCHIVED: 'Bu yıl dondurulmuş. Değişiklik için yeniden açın.',
       NO_SUCH_BANK: 'Sütun bulunamadı.',
       DUPLICATE_NAME: 'Bu adda bir sütun zaten var.',
       INVALID_NAME: 'Sütun adı geçersiz.',
       INVALID_AMOUNT: 'Tutar geçersiz.',
       INVALID_LIMIT: 'Kredi limiti geçersiz.',
-      INVALID_YEAR: 'Yıl geçersiz.',
+      INVALID_MONTH: 'Ay geçersiz.',
       INTERNAL: 'Beklenmeyen bir hata oluştu.'
     }
   },
@@ -253,7 +235,7 @@ export const tr = {
 
     no: 'No',
     date: 'Tarih',
-    datePlaceholder: 'YYYY-AA-GG',
+    datePlaceholder: 'GG/AA/YYYY',
     provisional: 'Tarih incelemede',
     type: 'Tür',
     direction: 'İşlem',
@@ -377,7 +359,7 @@ export const tr = {
       TOO_LARGE: 'Bu sayı çok büyük.',
       ZERO: 'Miktar sıfır olamaz.',
       REQUIRED: 'Bu alan boş bırakılamaz.',
-      INVALID_DATE: 'Tarih YYYY-AA-GG biçiminde ve gerçek bir gün olmalı.'
+      INVALID_DATE: 'Tarih GG/AA/YYYY biçiminde ve gerçek bir gün olmalı.'
     },
 
     errors: {
@@ -401,15 +383,9 @@ export const tr = {
     median: 'ORTANCA',
     counted: '{{count}} değer',
     none: '—',
-    label: 'Etiket',
-    value: 'Değer',
-    newLabel: 'Yeni etiket',
-    newValue: 'Değer',
-    addLine: 'Satır ekle',
-    moveUp: 'Yukarı taşı',
-    moveDown: 'Aşağı taşı',
-    deleteLine: 'Satırı sil',
-    deleteConfirm: 'Sil',
+    box: '{{number}}. kutu',
+    clearAll: 'Tümünü temizle',
+    clearConfirm: 'Temizle',
 
     parse: {
       NOT_A_NUMBER: 'Bu bir sayı değil.',
@@ -421,8 +397,7 @@ export const tr = {
 
     errors: {
       LOCKED: 'Kasa kilitli.',
-      NO_SUCH_LINE: 'Satır bulunamadı.',
-      INVALID_LABEL: 'Etiket geçersiz.',
+      INVALID_SLOT: 'Kutu numarası geçersiz.',
       INVALID_VALUE: 'Değer geçersiz.',
       INTERNAL: 'Beklenmeyen bir hata oluştu.'
     }
@@ -450,6 +425,7 @@ export const tr = {
     loading: 'Yıllar okunuyor…',
     empty: 'Henüz yıl yok. Gelir & Gider bölümünden bir yıl açın.',
     partial: 'Şu yıllar okunamadı ve hiçbir toplama katılmadı: {{years}}',
+    partialSections: 'Bazı bölümler okunamadı ve hiçbir toplama katılmadı.',
 
     years: 'Yıllar',
     yearNet: 'Net sonuç',
@@ -461,14 +437,13 @@ export const tr = {
 
     tiles: {
       debt: 'Güncel borç',
-      debtOf: '{{year}} yılının toplamı',
+      debtNow: 'on iki ayın toplamı',
       remaining: 'Kalan limit',
       market: 'Varlık piyasa değeri',
       unrealised: 'Gerçekleşmemiş K/Z'
     },
 
     notes: {
-      noDebtYear: 'Ödemeler bölümünde yıl yok',
       noBanks: 'Bu yılda kart sütunu yok',
       noHoldings: 'Elde varlık yok',
       noPricedHoldings: 'Hiçbir varlığın fiyatı girilmemiş',

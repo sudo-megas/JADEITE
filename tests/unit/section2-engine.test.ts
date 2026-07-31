@@ -20,17 +20,15 @@ import {
   computeGrid,
   monthState,
   orderedBanks,
-  signedDebt,
-  type Today
+  signedDebt
 } from '@shared/section2/engine'
-import type { Bank, Cell, YearGrid } from '@shared/section2/types'
+import type { Bank, Cell, PaymentsGrid } from '@shared/section2/types'
 
 let nextId = 1
 
-function bank(name: string, creditLimit: number, position: number, year = 2026): Bank {
+function bank(name: string, creditLimit: number, position: number): Bank {
   return {
     id: nextId++,
-    year,
     name,
     creditLimit,
     position,
@@ -39,20 +37,20 @@ function bank(name: string, creditLimit: number, position: number, year = 2026):
   }
 }
 
-function counter(name: string, party: string, position: number, year = 2026): Bank {
-  return { id: nextId++, year, name, creditLimit: 0, position, isCounter: true, counterParty: party }
+function counter(name: string, party: string, position: number): Bank {
+  return { id: nextId++, name, creditLimit: 0, position, isCounter: true, counterParty: party }
 }
 
 function cell(bankId: number, month: number, amount: number): Cell {
   return { bankId, month, amount }
 }
 
-function grid(banks: Bank[], cells: Cell[], year = 2026, archived = false): YearGrid {
-  return { year, archived, accentOverride: null, banks, cells }
+function grid(banks: Bank[], cells: Cell[]): PaymentsGrid {
+  return { banks, cells }
 }
 
 /** Fixed, so a test never depends on the day it is run. */
-const TODAY: Today = { year: 2026, month: 7 }
+const TODAY = 7
 
 // --- The acceptance fixture ------------------------------------------------
 
@@ -65,7 +63,7 @@ const TODAY: Today = { year: 2026, month: 7 }
  * (XJADEITE §18.2 finding 1), so every figure below depends on a cell the
  * workbook cannot see.
  */
-function inspectedState(): YearGrid {
+function inspectedState(): PaymentsGrid {
   const a = bank('A', 20_000_000, 0)
   const b = bank('B', 15_000_000, 1)
   const c = bank('C', 12_500_000, 2)
@@ -196,9 +194,11 @@ describe('the December formula cannot be written down (§18.2 #1)', () => {
     for (const column of base.banks) {
       for (let month = 1; month <= 12; month += 1) {
         const before = computeGrid(base, TODAY)
-        const existing = base.cells.find((c) => c.bankId === column.id && c.month === month)
+        const existing = base.cells.find(
+          (candidate) => candidate.bankId === column.id && candidate.month === month
+        )
         const raised = base.cells
-          .filter((c) => !(c.bankId === column.id && c.month === month))
+          .filter((candidate) => !(candidate.bankId === column.id && candidate.month === month))
           .concat(cell(column.id, month, (existing?.amount ?? 0) + delta))
         const after = computeGrid(grid([...base.banks], raised), TODAY)
 
@@ -302,20 +302,29 @@ describe('empty is empty, and a departed column stays departed', () => {
 
 describe('paid and pending are read from the calendar (§7.2)', () => {
   it('settles what is past, marks what is now, and leaves the rest pending', () => {
-    expect(monthState(2026, 6, TODAY)).toBe('settled')
-    expect(monthState(2026, 7, TODAY)).toBe('current')
-    expect(monthState(2026, 8, TODAY)).toBe('pending')
+    expect(monthState(6, TODAY)).toBe('settled')
+    expect(monthState(7, TODAY)).toBe('current')
+    expect(monthState(8, TODAY)).toBe('pending')
   })
 
-  it('reads a past year as wholly settled and a future one as wholly pending', () => {
-    for (let month = 1; month <= 12; month += 1) {
-      expect(monthState(2025, month, TODAY)).toBe('settled')
-      expect(monthState(2027, month, TODAY)).toBe('pending')
-    }
+  it('straddles the present, every month of the one standing grid', () => {
+    const states = Array.from({ length: 12 }, (_, index) => monthState(index + 1, TODAY))
+    expect(states.filter((state) => state === 'settled')).toHaveLength(6)
+    expect(states.filter((state) => state === 'current')).toHaveLength(1)
+    expect(states.filter((state) => state === 'pending')).toHaveLength(5)
   })
 
-  it('takes today from its caller, so the arithmetic never reads a clock', () => {
-    const computed = computeGrid(inspectedState(), { year: 2026, month: 1 })
+  it('reads every month as pending in January and settled in December', () => {
+    expect(Array.from({ length: 11 }, (_, i) => monthState(i + 2, 1))).toEqual(
+      Array(11).fill('pending')
+    )
+    expect(Array.from({ length: 11 }, (_, i) => monthState(i + 1, 12))).toEqual(
+      Array(11).fill('settled')
+    )
+  })
+
+  it('takes the month from its caller, so the arithmetic never reads a clock', () => {
+    const computed = computeGrid(inspectedState(), 1)
     expect(computed.months[0]!.state).toBe('current')
     expect(computed.months[11]!.state).toBe('pending')
   })

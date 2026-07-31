@@ -146,18 +146,37 @@ function formatPercent(fraction: number, language: AppLanguage, fractionDigits: 
  * would be three hours early in Turkey, plausibly and silently. The check
  * against `NaN` is what remains: a malformed stamp shows itself rather than
  * rendering as "Invalid Date".
+ *
+ * The date half is re-joined with `/` the way `formatDate` re-joins its own
+ * (§13, amended). ICU's Turkish default separates a date with full stops, and
+ * leaving this line alone would have put two shapes of date on one screen — the
+ * stamp in dots beside the price rows in slashes. Only the date's own
+ * separators move: the clock keeps the colon ICU gave it, and the space between
+ * the day and the hour is left as it arrived.
  */
 function formatStamp(iso: string, language: AppLanguage): string {
   const at = new Date(iso)
   if (Number.isNaN(at.getTime())) return iso
 
-  return new Intl.DateTimeFormat(localeFor(language), {
+  const parts = new Intl.DateTimeFormat(localeFor(language), {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit'
-  }).format(at)
+  }).formatToParts(at)
+
+  const dateFields = new Set(['day', 'month', 'year'])
+  return parts
+    .map((part, index) => {
+      if (part.type !== 'literal') return part.value
+      // A literal between two date fields is the date's own separator.
+      const before = parts[index - 1]?.type
+      const after = parts[index + 1]?.type
+      const between = before !== undefined && after !== undefined
+      return between && dateFields.has(before) && dateFields.has(after) ? '/' : part.value
+    })
+    .join('')
 }
 
 export function Prices({

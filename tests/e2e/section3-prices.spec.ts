@@ -133,7 +133,7 @@ test('a refresh fills the live column and stamps when the source was last asked'
   // itself ran — and `toContainText` rather than `toHaveText`, because the line
   // is a sentence with the date inside it ("Son bakış: …") and matching the
   // whole of it would be pinning a locale string this file does not own.
-  await expect(page.getByTestId('s3-live-fetched-at')).toContainText(/\d{2}\.\d{2}\.\d{4}/)
+  await expect(page.getByTestId('s3-live-fetched-at')).toContainText(/\d{2}\/\d{2}\/\d{4}/)
 
   // A working provider says nothing at all. The failure line is the offline
   // case's business and its absence here is half of what "silently" means.
@@ -216,7 +216,7 @@ test('an unreachable provider leaves every typed figure exactly where it was', a
   // denomination and a price. The person select is left where it starts, which
   // is not an omission: `Ledger.tsx` filters the built-in out of its options and
   // offers an empty one, and the vault resolves a null person to Ortak (§8.1).
-  await page.getByTestId('s3-new-date').fill('2026-01-15')
+  await page.getByTestId('s3-new-date').fill('15/01/2026')
   await page.getByTestId('s3-new-denomination').fill('10')
   await page.getByTestId('s3-new-price').fill('5.000,00')
   await page.getByTestId('s3-new-price').press('Enter')

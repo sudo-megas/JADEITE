@@ -115,7 +115,7 @@ async function typeTheFixture(page: Page): Promise<void> {
   await addPerson(page, 'Kişi B')
 
   await appendRow(page, {
-    date: '2026-01-15',
+    date: '15/01/2026',
     person: 'Kişi A',
     type: 'gram',
     direction: 'acquire',
@@ -123,7 +123,7 @@ async function typeTheFixture(page: Page): Promise<void> {
     price: '5.000,00'
   })
   await appendRow(page, {
-    date: '2026-02-20',
+    date: '20/02/2026',
     person: 'Kişi A',
     type: 'gram',
     direction: 'acquire',
@@ -131,7 +131,7 @@ async function typeTheFixture(page: Page): Promise<void> {
     price: '5.900,00'
   })
   await appendRow(page, {
-    date: '2026-03-10',
+    date: '10/03/2026',
     person: 'Kişi B',
     type: 'gram',
     direction: 'acquire',
@@ -139,7 +139,7 @@ async function typeTheFixture(page: Page): Promise<void> {
     price: '7.000,00'
   })
   await appendRow(page, {
-    date: '2026-04-05',
+    date: '05/04/2026',
     person: 'Kişi A',
     type: 'gram',
     direction: 'dispose',
@@ -218,7 +218,7 @@ test('ledger numbering cannot duplicate, and gaps are honest', async () => {
 
   for (const day of ['15', '16', '17']) {
     await appendRow(page, {
-      date: `2026-01-${day}`,
+      date: `${day}/01/2026`,
       person: 'Kişi A',
       type: 'gram',
       direction: 'acquire',
@@ -238,7 +238,7 @@ test('ledger numbering cannot duplicate, and gaps are honest', async () => {
 
   // And the next row takes 4, not the 2 that was freed.
   await appendRow(page, {
-    date: '2026-01-18',
+    date: '18/01/2026',
     person: 'Kişi A',
     type: 'gram',
     direction: 'acquire',
@@ -255,16 +255,21 @@ test('a date the calendar does not have is refused at the cell', async () => {
 
   await openSection3(page)
 
-  await page.getByTestId('s3-new-date').fill('2026-02-31')
+  await page.getByTestId('s3-new-date').fill('31/02/2026')
   await page.getByTestId('s3-new-denomination').fill('10')
   await page.getByTestId('s3-new-price').fill('5.000,00')
   await page.getByTestId('s3-new-price').press('Enter')
 
-  // Refused, and nothing was written.
-  await expect(page.getByTestId('section3-error')).toBeVisible()
+  // Refused, and nothing was written. The refusal is now the cell's own — the
+  // renderer has a date parser as of the GG/AA/YYYY revision, so 31 February
+  // never leaves the row. It used to travel to the main process and come back
+  // as a section error; `cleanDate` still refuses it there, and that second
+  // refusal is now a floor rather than the only one.
+  await expect(page.getByTestId('s3-append-problem')).toBeVisible()
   await expect(page.locator('[data-testid^="s3-seq-"]')).toHaveCount(0)
   // What was typed is still on screen — a refusal never discards a row.
   await expect(page.getByTestId('s3-new-denomination')).toHaveValue('10')
+  await expect(page.getByTestId('s3-new-date')).toHaveValue('31/02/2026')
 })
 
 test('the provisional flag can be set and cleared per row', async () => {
@@ -275,7 +280,7 @@ test('the provisional flag can be set and cleared per row', async () => {
   await openSection3(page)
   await addPerson(page, 'Kişi A')
 
-  await page.getByTestId('s3-new-date').fill('2023-10-15')
+  await page.getByTestId('s3-new-date').fill('15/10/2023')
   await page.getByTestId('s3-new-denomination').fill('300')
   await page.getByTestId('s3-new-price').fill('1.865,00')
   await page.getByTestId('s3-new-provisional').check()
@@ -297,7 +302,7 @@ test('disposing more than was acquired is flagged, not clamped', async () => {
   await addPerson(page, 'Kişi A')
 
   await appendRow(page, {
-    date: '2026-01-15',
+    date: '15/01/2026',
     person: 'Kişi A',
     type: 'gram',
     direction: 'acquire',
@@ -305,7 +310,7 @@ test('disposing more than was acquired is flagged, not clamped', async () => {
     price: '5.000,00'
   })
   await appendRow(page, {
-    date: '2026-02-20',
+    date: '20/02/2026',
     person: 'Kişi A',
     type: 'gram',
     direction: 'dispose',
@@ -330,7 +335,7 @@ test('removing a person moves their rows to Ortak and deletes none', async () =>
   await addPerson(page, 'Kişi A')
 
   await appendRow(page, {
-    date: '2026-01-15',
+    date: '15/01/2026',
     person: 'Kişi A',
     type: 'gram',
     direction: 'acquire',
@@ -367,7 +372,7 @@ test('Ortak can be neither renamed nor removed', async () => {
  * The carried date is selected, not merely focused.
  *
  * With the caret left at the end of it, typing the next purchase's date would
- * append to the last one and make `2026-01-152026-02-20` out of two perfectly
+ * append to the last one and make `15/01/202620/02/2026` out of two perfectly
  * good dates. Selecting it means typing replaces and tabbing past keeps, which is
  * the choice every row after the first actually needs.
  */
@@ -380,7 +385,7 @@ test('typing after a commit replaces the carried date rather than appending to i
   await addPerson(page, 'Kişi A')
 
   await appendRow(page, {
-    date: '2026-01-15',
+    date: '15/01/2026',
     person: 'Kişi A',
     type: 'gram',
     direction: 'acquire',
@@ -389,9 +394,9 @@ test('typing after a commit replaces the carried date rather than appending to i
   })
 
   // The caret is back in the date field with the previous date selected.
-  await expect(page.getByTestId('s3-new-date')).toHaveValue('2026-01-15')
-  await page.keyboard.type('2026-02-20')
-  await expect(page.getByTestId('s3-new-date')).toHaveValue('2026-02-20')
+  await expect(page.getByTestId('s3-new-date')).toHaveValue('15/01/2026')
+  await page.keyboard.type('20/02/2026')
+  await expect(page.getByTestId('s3-new-date')).toHaveValue('20/02/2026')
 
   // And the row it produces carries that date, not a concatenation of two.
   await page.keyboard.press('Tab') // date → provisional flag
@@ -405,7 +410,7 @@ test('typing after a commit replaces the carried date rather than appending to i
   await page.keyboard.press('Enter')
 
   await expect(page.locator('[data-testid^="s3-seq-"]')).toHaveCount(2)
-  await expect(page.getByTestId('s3-date-2')).toHaveValue('20.02.2026')
+  await expect(page.getByTestId('s3-date-2')).toHaveValue('20/02/2026')
 })
 
 /**
@@ -428,7 +433,7 @@ test('thirty consecutive rows go in without the mouse and without a dialogue', a
   // date, type, direction and person all carry forward, so each further row is
   // a quantity, a price and Enter.
   await page.getByTestId('s3-new-date').click()
-  await page.keyboard.type('2026-01-01')
+  await page.keyboard.type('01/01/2026')
   await page.getByTestId('s3-new-person').selectOption({ label: 'Kişi A' })
 
   await page.getByTestId('s3-new-denomination').click()
@@ -485,7 +490,7 @@ test('holdings say what the gold is physically made of', async () => {
 
   // Two five-gram pieces, not one ten-gram piece.
   await appendRow(page, {
-    date: '2026-01-15',
+    date: '15/01/2026',
     person: 'Kişi A',
     type: 'gram',
     direction: 'acquire',
@@ -520,7 +525,7 @@ test('a disposal that cuts a piece leaves a remainder the page admits to', async
   await addPerson(page, 'Kişi A')
 
   await appendRow(page, {
-    date: '2026-01-15',
+    date: '15/01/2026',
     person: 'Kişi A',
     type: 'gram',
     direction: 'acquire',
@@ -529,7 +534,7 @@ test('a disposal that cuts a piece leaves a remainder the page admits to', async
   })
   // Seven grams out of a single ten-gram bar: the three left are not a piece.
   await appendRow(page, {
-    date: '2026-02-20',
+    date: '20/02/2026',
     person: 'Kişi A',
     type: 'gram',
     direction: 'dispose',
@@ -560,7 +565,7 @@ test('Ata and Tam coexist as separate coins with separate prices', async () => {
   await addPerson(page, 'Kişi A')
 
   await appendRow(page, {
-    date: '2026-01-15',
+    date: '15/01/2026',
     person: 'Kişi A',
     type: 'tam',
     direction: 'acquire',
@@ -568,7 +573,7 @@ test('Ata and Tam coexist as separate coins with separate prices', async () => {
     price: '40.413,00'
   })
   await appendRow(page, {
-    date: '2026-01-16',
+    date: '16/01/2026',
     person: 'Kişi A',
     type: 'ata',
     direction: 'acquire',

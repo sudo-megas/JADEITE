@@ -93,10 +93,10 @@ export const en = {
     accentUseSequence: 'Use the palette sequence',
     deleteYear: 'Delete year',
     deleteYearDetail:
-      'The year {{year}}, its {{columns}} columns and {{count}} entries, and the {{banks}} columns and {{cells}} cells of its Payments grid, will be permanently deleted.',
+      'The year {{year}}, with its {{columns}} columns and {{count}} entries, will be permanently deleted.',
     deleteYearWarningTitle: 'This cannot be undone.',
     deleteYearWarningBody:
-      'Everything belonging to this year goes — including its Payments grid. Other years are unaffected.',
+      'Everything belonging to this year goes. Other years and the Payments section are unaffected.',
     deleteYearConfirm: 'Delete the year permanently',
     lastYearKept: 'The last remaining year cannot be deleted.',
 
@@ -178,12 +178,7 @@ export const en = {
     creditLimitOf: '{{name}} credit limit',
     counterPartyOf: '{{name}} — person',
 
-    years: 'Years',
-    year: 'Year',
-    addYear: 'Add year',
-    addYearLede: 'A new year inherits the previous year’s banks; the amounts start empty.',
-    createYear: 'Create year',
-    noBanks: 'No columns in this year yet. Add a bank or card below.',
+    noBanks: 'No columns yet. Add a bank or card below.',
 
     newBankName: 'Bank / card name',
     bankKind: 'Column type',
@@ -203,18 +198,8 @@ export const en = {
     deleteColumn: 'Delete column',
     deleteColumnDetail: '{{name}} holds {{count}} entries ({{total}}).',
     deleteColumnWarningTitle: 'Delete {{name}}?',
-    deleteColumnWarningBody: 'Only this year’s column and its cells go; other years are untouched.',
+    deleteColumnWarningBody: 'The column and its cells go; the other columns are untouched.',
     deleteColumnConfirm: 'Delete column',
-
-    archive: {
-      frozen: '{{year}} is frozen — read only.',
-      frozenHint: 'Reopen it if a correction is needed; nothing is lost either way.',
-      freeze: 'Freeze year',
-      freezeTitle: 'Freeze {{year}}?',
-      freezeDetail: 'This year’s grid becomes read only. Nothing is deleted, and you can reopen it at any time.',
-      freezeConfirm: 'Freeze',
-      reopen: 'Reopen'
-    },
 
     parse: {
       NOT_A_NUMBER: 'That is not a number.',
@@ -226,15 +211,12 @@ export const en = {
 
     errors: {
       LOCKED: 'The vault is locked.',
-      NO_SUCH_YEAR: 'No such year.',
-      YEAR_EXISTS: 'That year already exists.',
-      ARCHIVED: 'This year is frozen. Reopen it to make changes.',
       NO_SUCH_BANK: 'No such column.',
       DUPLICATE_NAME: 'A column with that name already exists.',
       INVALID_NAME: 'That column name is not valid.',
       INVALID_AMOUNT: 'That amount is not valid.',
       INVALID_LIMIT: 'That credit limit is not valid.',
-      INVALID_YEAR: 'That year is not valid.',
+      INVALID_MONTH: 'That month is not valid.',
       INTERNAL: 'Something unexpected went wrong.'
     }
   },
@@ -249,7 +231,7 @@ export const en = {
 
     no: 'No',
     date: 'Date',
-    datePlaceholder: 'YYYY-MM-DD',
+    datePlaceholder: 'DD/MM/YYYY',
     provisional: 'Date under review',
     type: 'Type',
     direction: 'Direction',
@@ -372,7 +354,7 @@ export const en = {
       TOO_LARGE: 'That number is too large.',
       ZERO: 'A quantity cannot be zero.',
       REQUIRED: 'This field cannot be left empty.',
-      INVALID_DATE: 'The date must read YYYY-MM-DD and be a real day.'
+      INVALID_DATE: 'The date must read DD/MM/YYYY and be a real day.'
     },
 
     errors: {
@@ -396,15 +378,9 @@ export const en = {
     median: 'MEDIAN',
     counted: '{{count}} value(s)',
     none: '—',
-    label: 'Label',
-    value: 'Value',
-    newLabel: 'New label',
-    newValue: 'Value',
-    addLine: 'Add line',
-    moveUp: 'Move up',
-    moveDown: 'Move down',
-    deleteLine: 'Delete line',
-    deleteConfirm: 'Delete',
+    box: 'Box {{number}}',
+    clearAll: 'Clear all',
+    clearConfirm: 'Clear',
 
     parse: {
       NOT_A_NUMBER: 'That is not a number.',
@@ -416,8 +392,7 @@ export const en = {
 
     errors: {
       LOCKED: 'The vault is locked.',
-      NO_SUCH_LINE: 'That line was not found.',
-      INVALID_LABEL: 'That label is not valid.',
+      INVALID_SLOT: 'That box number is not valid.',
       INVALID_VALUE: 'That value is not valid.',
       INTERNAL: 'Something unexpected went wrong.'
     }
@@ -445,6 +420,7 @@ export const en = {
     loading: 'Reading the years…',
     empty: 'No years yet. Open one from Income & Expenses.',
     partial: 'These years could not be read and joined no total: {{years}}',
+    partialSections: 'Some sections could not be read and joined no total.',
 
     years: 'Years',
     yearNet: 'Net result',
@@ -456,14 +432,13 @@ export const en = {
 
     tiles: {
       debt: 'Current debt',
-      debtOf: 'the total for {{year}}',
+      debtNow: 'the total across the twelve months',
       remaining: 'Remaining limit',
       market: 'Valuables market value',
       unrealised: 'Unrealised G/L'
     },
 
     notes: {
-      noDebtYear: 'No year in Payments',
       noBanks: 'No card columns this year',
       noHoldings: 'Nothing held',
       noPricedHoldings: 'No holding has a price typed',

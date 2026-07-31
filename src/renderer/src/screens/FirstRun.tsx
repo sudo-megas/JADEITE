@@ -4,6 +4,7 @@ import { useState, type FormEvent, type ReactElement } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { MIN_PASSWORD_LENGTH, type RecoveryKeyIssue } from '@shared/ipc-contract'
+import { JadeGlyph } from '../shell/JadeGlyph.js'
 
 interface Props {
   onCreated: (issue: RecoveryKeyIssue) => void
@@ -39,7 +40,10 @@ export function FirstRun({ onCreated }: Props): ReactElement {
 
   return (
     <form className="panel" onSubmit={submit}>
-      <p className="brand">{t('common.brand')}</p>
+      <p className="brand">
+        <JadeGlyph />
+        <span>{t('common.brand')}</span>
+      </p>
       <h1>{t('firstRun.title')}</h1>
       <p className="lede">{t('firstRun.lede')}</p>
 

@@ -78,17 +78,24 @@ describe('dateAxis', () => {
     expect(at(axis, ['splitLine', 'show'])).toBe(false)
   })
 
-  it('formats its labels in the app language, never the machine (§13)', () => {
+  it('labels the axis in the app’s own date shape, never the machine’s (§13)', () => {
     const formatter = at(dateAxis(palette, 'tr'), ['axisLabel', 'formatter']) as (
       value: number
     ) => string
-    // 8 May 2026, as an instant. Turkish writes it 08.05.2026.
-    expect(formatter(Date.parse('2026-05-08T00:00:00Z'))).toBe('08.05.2026')
+    // 8 May 2026, as an instant. The app writes GG/AA/YYYY.
+    expect(formatter(Date.parse('2026-05-08T00:00:00Z'))).toBe('08/05/2026')
 
+    // English renders the same shape rather than a different one. The two
+    // languages used to disagree here — ICU gives Turkish dots — and the point
+    // revision settled the date as a house format, so they converge. This
+    // assertion therefore no longer discriminates one language from the other,
+    // and it was never the thing that proved §13 anyway: what §13 forbids is
+    // reading the *machine*, and the load-bearing proof of that is the money and
+    // month-name work under a mutated LANG in tests/unit/format.test.ts.
     const english = at(dateAxis(palette, 'en'), ['axisLabel', 'formatter']) as (
       value: number
     ) => string
-    expect(english(Date.parse('2026-05-08T00:00:00Z'))).not.toBe('08.05.2026')
+    expect(english(Date.parse('2026-05-08T00:00:00Z'))).toBe('08/05/2026')
   })
 })
 

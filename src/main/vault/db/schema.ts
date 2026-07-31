@@ -333,10 +333,144 @@ CREATE TABLE s3_price_fetch (
 );
 `
 
+/**
+ * Schema v4 — point revision v0.8b, the reconfigurations of 31 July 2026.
+ *
+ * Two sections lose a dimension apiece, both by the owner's ruling after using
+ * the application for the first time.
+ *
+ * **1. Section 2 has no year** (§7.1, §7.3 as amended). Ödemeler was built as a
+ * year workspace with a selector and a freezable archive, mirroring Section 1.
+ * The owner does not log previous years' bank debts: the section answers *what
+ * do we owe, and what instalments are running, right now*, and twelve month
+ * lines answer that without a year attached to them. A selector offering years
+ * the owner will never fill is a feature that has to be explained, and rule 7 of
+ * the ladder refuses those.
+ *
+ * **The capability is genuinely gone, and that is recorded rather than glossed.**
+ * Only the most recent grid survives this migration; every earlier year's banks
+ * and amounts are dropped, and with them the frozen read-only archive of §7.3
+ * and the freeze/reopen act that §7.3's own 2026-07-29 amendment introduced.
+ * There is no longer any way to look at what a bank was owed last year. That is
+ * the owner's decision, taken with the trade-off stated, and a later rung that
+ * wants history back should disagree with this paragraph on purpose rather than
+ * discover the gap.
+ *
+ * `MAX(year)` names the survivor. Every year present in `s2_banks` has at least
+ * one bank in it — the table is where a year's columns live — so the newest year
+ * is always a real grid rather than an empty shell, and a vault that never had a
+ * bank migrates to an empty Section 2 without raising anything.
+ *
+ * **`UNIQUE (name)` is safe, and it was checked rather than assumed.** The old
+ * constraint was `UNIQUE (year, name)`, so one name could repeat across years.
+ * `assertNameFree` in `db/section2.ts` has always queried on year and name with
+ * no `is_counter` predicate, which means a bank column and a counter column
+ * could never share a name inside one year either. One year is copied, so the
+ * names in it are already globally unique and the tightened constraint cannot
+ * refuse the backfill.
+ *
+ * **The statement order is the whole of the safety here.** `applyPragmas` turns
+ * `foreign_keys` ON before `migrate` runs, and `PRAGMA foreign_keys` is a no-op
+ * inside a transaction — which is exactly where migrations execute. Enforcement
+ * therefore cannot be lifted for the rebuild, so the sequence simply never
+ * violates a constraint: both new tables are created and filled while the old
+ * pair still stands, the child is dropped before the parent, and the parent is
+ * renamed before the child so SQLite rewrites the child's `REFERENCES` clause
+ * for us. No `legacy_alter_table` games, and no moment at which a row points at
+ * a table that is not there.
+ *
+ * **`years.s2_archived` stays as a dead column.** It is Section 2's flag living
+ * on Section 1's table, and nothing will read it after this. It is left alone
+ * anyway: it carries a column-level `CHECK`, which SQLite's `DROP COLUMN`
+ * refuses outright, so removing it would mean rebuilding `years` — the foreign-key
+ * parent of `s1_categories` and `s1_entries`, and the one table in this vault
+ * whose rebuild could fail in the way v3's comment above describes, locking the
+ * owner out behind the only interface that could fix it. An unread column costs
+ * a line of documentation. A bricked vault costs the history.
+ *
+ * **2. Section 4 is a grid of boxes, not a list of labelled lines** (§9, amended).
+ * The owner's finding is blunt and correct: a month can carry a hundred and
+ * twenty figures, and an *etiket* typed before each one makes the section
+ * unusable for the only thing it is for. `s4_lines(label, value, position)`
+ * becomes `s4_cells(slot, value)` — a box either holds a figure or it does not.
+ *
+ * **The labels are dropped and cannot be recovered.** §9 is the scratchpad, the
+ * owner asked for the field's removal in the same breath as diagnosing it, and
+ * the alternative — carrying a column nothing writes and nothing reads — is the
+ * retiring workbook's habit rather than this application's.
+ *
+ * The table is deliberately sparse: an untouched box has no row at all, and a
+ * box holding zero has a row holding zero. That is the same distinction
+ * `computeStatistics` has always drawn between a heading and a figure, kept
+ * without a nullable column to draw it with. `value` also gains the
+ * `CHECK (value >= 0)` that `s1_entries.amount` and `s2_cells.amount` have
+ * carried since v1 and that `s4_lines.value` never did, so §5.2's positive-amounts
+ * rule is enforced by SQLite here too rather than by two layers of JavaScript.
+ *
+ * `ROW_NUMBER()` closes the gaps as it copies, so the boxes read in the order
+ * the lines were arranged in. Nothing references `s4_lines` and it references
+ * nothing, so this half carries none of the hazard the first half avoids.
+ */
+const V4 = `
+-- Section 2 loses its year. Both tables are built and filled before either old
+-- one is touched; see the note above on why the order is not negotiable.
+CREATE TABLE s2_banks_new (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  name          TEXT    NOT NULL,
+  credit_limit  INTEGER NOT NULL DEFAULT 0 CHECK (credit_limit >= 0),
+  position      INTEGER NOT NULL,
+  is_counter    INTEGER NOT NULL DEFAULT 0 CHECK (is_counter IN (0, 1)),
+  counter_party TEXT,
+  UNIQUE (name)
+);
+
+-- The newest grid is the one the owner is living in; the rest are not kept.
+INSERT INTO s2_banks_new (id, name, credit_limit, position, is_counter, counter_party)
+  SELECT id, name, credit_limit, position, is_counter, counter_party
+    FROM s2_banks
+   WHERE year = (SELECT MAX(year) FROM s2_banks);
+
+CREATE TABLE s2_cells_new (
+  id      INTEGER PRIMARY KEY AUTOINCREMENT,
+  month   INTEGER NOT NULL CHECK (month BETWEEN 1 AND 12),
+  bank_id INTEGER NOT NULL REFERENCES s2_banks_new(id) ON DELETE CASCADE,
+  amount  INTEGER NOT NULL CHECK (amount >= 0),
+  UNIQUE (month, bank_id)
+);
+
+-- Bank ids are carried across unchanged, so the cells need no remapping.
+INSERT INTO s2_cells_new (id, month, bank_id, amount)
+  SELECT id, month, bank_id, amount
+    FROM s2_cells
+   WHERE year = (SELECT MAX(year) FROM s2_banks);
+
+DROP TABLE s2_cells;
+DROP TABLE s2_banks;
+
+-- Parent first: renaming it rewrites the child's REFERENCES clause.
+ALTER TABLE s2_banks_new RENAME TO s2_banks;
+ALTER TABLE s2_cells_new RENAME TO s2_cells;
+
+-- Section 4 — a fixed grid of value boxes (§9, amended). An untouched box has
+-- no row; a box holding zero has a row holding zero.
+CREATE TABLE s4_cells (
+  slot  INTEGER PRIMARY KEY CHECK (slot >= 0),
+  value INTEGER NOT NULL CHECK (value >= 0)
+);
+
+INSERT INTO s4_cells (slot, value)
+  SELECT ROW_NUMBER() OVER (ORDER BY position, id) - 1, value
+    FROM s4_lines
+   WHERE value IS NOT NULL;
+
+DROP TABLE s4_lines;
+`
+
 export const MIGRATIONS: readonly Migration[] = Object.freeze([
   { version: 1, name: 'initial', sql: V1 },
   { version: 2, name: 'denomination-and-count', sql: V2 },
-  { version: 3, name: 'live-provider', sql: V3 }
+  { version: 3, name: 'live-provider', sql: V3 },
+  { version: 4, name: 'year-free-payments-and-boxes', sql: V4 }
 ])
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version

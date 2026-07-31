@@ -1,18 +1,29 @@
 /**
- * Section 4 storage — the scratchpad's lines.
+ * Section 4 storage — the scratchpad's boxes.
  *
  * Everything here is a write against the encrypted database or a read out of it.
  * The three statistics live in shared/section4/engine.ts and are stored nowhere
  * (§5.3): a scratchpad whose total was a stored column would be the spreadsheet
  * this application replaces, in miniature.
  *
+ * The table is sparse (schema.ts, v4), and that decides the shape of everything
+ * below. An untouched box has no row, so emptying one is a delete rather than a
+ * write of null; there is no `value IS NULL` branch anywhere here, and a grid of
+ * a thousand boxes with nine figures in it costs nine rows. It also means
+ * emptying a box that was already empty is not a failure — the row that was
+ * asked for is gone either way, which is why nothing in this file has an
+ * equivalent of the old `NO_SUCH_LINE`.
+ *
+ * One statement apiece, so none of these opens a transaction: the upsert is
+ * atomic in SQLite by itself, and there is no read-then-write here to protect.
+ *
  * There is no year and no person here. §9 is deliberately unfancy, and so is this.
  */
 
 import type { Database as DatabaseType } from 'better-sqlite3-multiple-ciphers'
 
-import type { Line, LineDraft, LinePatch } from '../../../shared/section4/types.js'
-import { MAX_LABEL_LENGTH } from '../../../shared/section4/types.js'
+import type { Cell, CellPatch } from '../../../shared/section4/types.js'
+import { COLUMNS, MAX_ROWS } from '../../../shared/section4/types.js'
 import { VaultDataError } from './errors.js'
 
 /** Thrown inside a transaction and turned into a Result by the IPC layer. */
@@ -29,30 +40,33 @@ function fail(code: string): never {
 
 // --- Validation ------------------------------------------------------------
 
+/** One past the last box the grid can ever draw. */
+const SLOT_LIMIT = COLUMNS * MAX_ROWS
+
 /**
- * A label, or an empty one.
+ * A box number.
  *
- * Unlike every other name in the app this may be blank: a line is created before
- * it is described, and refusing an empty label would mean the owner had to name a
- * line before typing the figure that prompted it. Whitespace is collapsed but not
- * required to exist.
+ * Bounded above as well as below, which the SQL cannot do for us: `slot` is a
+ * primary key with a `CHECK (slot >= 0)` and no ceiling, so a renderer asking to
+ * write box nine million would be obliged and the row would sit there for ever,
+ * counted in every total and reachable from no screen. The grid draws at most
+ * `MAX_ROWS` rows of `COLUMNS`, so that is where the slots stop.
  */
-function cleanLabel(label: unknown): string {
-  if (label === null || label === undefined) return ''
-  if (typeof label !== 'string') fail('INVALID_LABEL')
-  const trimmed = label.trim().replace(/\s+/g, ' ')
-  if (trimmed.length > MAX_LABEL_LENGTH) fail('INVALID_LABEL')
-  return trimmed
+function cleanSlot(slot: unknown): number {
+  if (typeof slot !== 'number' || !Number.isSafeInteger(slot) || slot < 0 || slot >= SLOT_LIMIT) {
+    fail('INVALID_SLOT')
+  }
+  return slot
 }
 
 /**
- * Integer hundredths, or nothing at all.
+ * Integer hundredths.
  *
  * Non-negative, because figures reach this section through the same parser as
  * every other figure in the app and that parser refuses a leading minus (§5.2).
+ * Clearing a box is a null on the patch and never reaches here.
  */
-function cleanValue(value: unknown): number | null {
-  if (value === null || value === undefined) return null
+function cleanValue(value: unknown): number {
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
     fail('INVALID_VALUE')
   }
@@ -61,112 +75,40 @@ function cleanValue(value: unknown): number | null {
 
 // --- Rows ------------------------------------------------------------------
 
-interface LineRow {
-  id: number
-  label: string
-  value: number | null
-  position: number
-}
-
-export function readLines(db: DatabaseType): Line[] {
-  return db
-    .prepare('SELECT id, label, value, position FROM s4_lines ORDER BY position, id')
-    .all() as LineRow[]
-}
-
-export function addLine(db: DatabaseType, draft: LineDraft): number {
-  const label = cleanLabel(draft.label)
-  const value = cleanValue(draft.value)
-
-  const run = db.transaction(() => {
-    const next = db.prepare('SELECT COALESCE(MAX(position) + 1, 0) AS next FROM s4_lines').get() as {
-      next: number
-    }
-    const result = db
-      .prepare('INSERT INTO s4_lines (label, value, position) VALUES (?, ?, ?)')
-      .run(label, value, next.next)
-    return Number(result.lastInsertRowid)
-  })
-
-  return run()
+export function readCells(db: DatabaseType): Cell[] {
+  return db.prepare('SELECT slot, value FROM s4_cells ORDER BY slot').all() as Cell[]
 }
 
 /**
- * Edit one line.
+ * Write one box, or empty it.
  *
- * Absent fields are left alone; an explicit null on `value` clears the figure and
- * keeps the label, which is how a line becomes a heading again.
+ * An upsert rather than an update-or-insert pair: the grid sends the same write
+ * whether the box has been used before or not, and asking the database which
+ * case it is would be a read the statement itself already performs.
  */
-export function updateLine(db: DatabaseType, patch: LinePatch): void {
-  const run = db.transaction(() => {
-    const row = db.prepare('SELECT id FROM s4_lines WHERE id = ?').get(patch.id) as
-      | { id: number }
-      | undefined
-    if (!row) fail('NO_SUCH_LINE')
+export function setCell(db: DatabaseType, patch: CellPatch): void {
+  const slot = cleanSlot(patch.slot)
 
-    const sets: string[] = []
-    const values: (string | number | null)[] = []
+  if (patch.value === null) {
+    db.prepare('DELETE FROM s4_cells WHERE slot = ?').run(slot)
+    return
+  }
 
-    if (patch.label !== undefined) {
-      sets.push('label = ?')
-      values.push(cleanLabel(patch.label))
-    }
-    if (patch.value !== undefined) {
-      sets.push('value = ?')
-      values.push(cleanValue(patch.value))
-    }
-    if (sets.length === 0) return
-
-    values.push(patch.id)
-    db.prepare(`UPDATE s4_lines SET ${sets.join(', ')} WHERE id = ?`).run(...values)
-  })
-  run()
-}
-
-/** Remove a line, and close the gap its position leaves. */
-export function deleteLine(db: DatabaseType, id: number): void {
-  const run = db.transaction(() => {
-    const result = db.prepare('DELETE FROM s4_lines WHERE id = ?').run(id)
-    if (result.changes === 0) fail('NO_SUCH_LINE')
-    renumber(db)
-  })
-  run()
+  db.prepare(
+    `INSERT INTO s4_cells (slot, value) VALUES (?, ?)
+       ON CONFLICT (slot) DO UPDATE SET value = excluded.value`
+  ).run(slot, cleanValue(patch.value))
 }
 
 /**
- * Rewrite the order.
+ * Empty every box.
  *
- * Tolerant of an incomplete list, as every other reorder in the app is: unknown
- * ids are dropped, duplicates are dropped, and anything omitted keeps its existing
- * relative order at the end.
+ * The scratchpad is the one place in this application where wiping everything is
+ * an ordinary act rather than a destruction: §9 is where a month's arithmetic is
+ * done and then done with. It is still behind a confirmation in the interface —
+ * the two-click one the ledger uses, not a dialogue (§6.4 forbids one on the
+ * common path, and this is a near-common path).
  */
-export function reorderLines(db: DatabaseType, orderedIds: readonly number[]): void {
-  const run = db.transaction(() => {
-    const existing = db.prepare('SELECT id FROM s4_lines ORDER BY position, id').all() as {
-      id: number
-    }[]
-    const present = new Set(existing.map((row) => row.id))
-
-    const seen = new Set<number>()
-    const order: number[] = []
-    for (const id of orderedIds) {
-      if (!present.has(id) || seen.has(id)) continue
-      seen.add(id)
-      order.push(id)
-    }
-    for (const row of existing) if (!seen.has(row.id)) order.push(row.id)
-
-    const update = db.prepare('UPDATE s4_lines SET position = ? WHERE id = ?')
-    order.forEach((id, index) => update.run(index, id))
-  })
-  run()
-}
-
-/** Positions contiguous from zero, so a later read never has to guess at a gap. */
-function renumber(db: DatabaseType): void {
-  const survivors = db.prepare('SELECT id FROM s4_lines ORDER BY position, id').all() as {
-    id: number
-  }[]
-  const update = db.prepare('UPDATE s4_lines SET position = ? WHERE id = ?')
-  survivors.forEach((row, index) => update.run(index, row.id))
+export function clearCells(db: DatabaseType): void {
+  db.prepare('DELETE FROM s4_cells').run()
 }

@@ -114,8 +114,6 @@ export interface CategoryUsage {
 export interface YearUsage {
   categoryCount: number
   entryCount: number
-  bankCount: number
-  cellCount: number
 }
 
 /** Coarse failure reasons for Section 1, in the style of VaultErrorCode. */

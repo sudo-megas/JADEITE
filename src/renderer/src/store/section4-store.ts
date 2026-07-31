@@ -2,48 +2,52 @@
  * Section 4's view of the vault.
  *
  * The same rule the three stores before it keep: every mutation re-reads from the
- * vault rather than patching a local copy.
+ * vault rather than patching a local copy. The read is cheap enough to keep the
+ * rule honest here — the table is sparse, so it returns only the boxes carrying a
+ * figure, which is a hundred rows in the month the owner described it about and a
+ * thousand at the grid's ceiling.
  *
  * The three statistics are *not* here. They are computed in the component from
- * the lines this store holds, because they are three additions and a sort —
+ * the cells this store holds, because they are three additions and a sort —
  * putting them in the store would give one truth a second home, and putting them
  * behind the bridge would cross it to fetch what the renderer already has.
+ *
+ * `rowsShown` is the exception to all of that: the one piece of state here that
+ * is not a copy of something the vault holds. `visibleRows` gives the floor —
+ * one empty row after the last figure — and the floor drops when a box is
+ * emptied. A grid that shrank at that moment would take the row the caret is
+ * standing in out from under it, so this keeps the high-water mark of the
+ * session instead: it rises with the figures and comes back down only when the
+ * grid is reloaded or emptied outright.
  */
 
 import { create } from 'zustand'
 
-import type { Line, LineDraft, LinePatch, Section4ErrorCode } from '@shared/section4/types'
+import { visibleRows } from '@shared/section4/engine'
+import type { Cell, CellPatch, Section4ErrorCode } from '@shared/section4/types'
+import { MIN_ROWS } from '@shared/section4/types'
 import { registerVaultScoped } from './vault-scoped.js'
 
 interface Section4State {
-  lines: Line[]
+  cells: Cell[]
   loading: boolean
   error: Section4ErrorCode | null
-  /** Moves when a line is added, so the list can focus the new one. */
-  addToken: number
+  /** Rows the grid is drawing; a high-water mark, never lowered by an edit. */
+  rowsShown: number
 
   load(): Promise<void>
-  addLine(draft: LineDraft): Promise<void>
-  updateLine(patch: LinePatch): Promise<void>
-  deleteLine(id: number): Promise<void>
-  moveLine(line: Line, delta: number): Promise<void>
+  setCell(patch: CellPatch): Promise<void>
+  clear(): Promise<void>
   dismissError(): void
   reset(): void
 }
 
 const api = (): typeof window.jadeite.section4 => window.jadeite.section4
 
-type Actions =
-  | 'load'
-  | 'addLine'
-  | 'updateLine'
-  | 'deleteLine'
-  | 'moveLine'
-  | 'dismissError'
-  | 'reset'
+type Actions = 'load' | 'setCell' | 'clear' | 'dismissError' | 'reset'
 
 function emptyState(): Omit<Section4State, Actions> {
-  return { lines: [], loading: false, error: null, addToken: 0 }
+  return { cells: [], loading: false, error: null, rowsShown: MIN_ROWS }
 }
 
 export const useSection4Store = create<Section4State>((set, get) => ({
@@ -51,40 +55,27 @@ export const useSection4Store = create<Section4State>((set, get) => ({
 
   async load() {
     set({ loading: true, error: null })
-    const result = await api().lines()
+    const result = await api().cells()
     if (!result.ok) {
       set({ loading: false, error: result.error })
       return
     }
-    set({ lines: result.value, loading: false })
+    // A fresh read is also a fresh mark: whatever the grid grew to last session
+    // is not a fact about this one, only what the stored figures ask for is.
+    set({ cells: result.value, loading: false, rowsShown: visibleRows(result.value) })
   },
 
-  async addLine(draft) {
-    if (await run(set, () => api().addLine(draft))) {
-      set((state) => ({ addToken: state.addToken + 1 }))
+  async setCell(patch) {
+    await run(set, get, () => api().setCell(patch))
+  },
+
+  async clear() {
+    if (await run(set, get, () => api().clear())) {
+      // The only place the mark comes down while the section stays on screen.
+      // Emptying every box is the owner saying the grid is finished with, so the
+      // rows it grew to are finished with too.
+      set({ rowsShown: visibleRows(get().cells) })
     }
-  },
-
-  async updateLine(patch) {
-    await run(set, () => api().updateLine(patch))
-  },
-
-  async deleteLine(id) {
-    await run(set, () => api().deleteLine(id))
-  },
-
-  /** The whole new order is computed here and sent complete, never a swap. */
-  async moveLine(line, delta) {
-    const ordered = [...get().lines].sort((a, b) => a.position - b.position || a.id - b.id)
-    const from = ordered.findIndex((candidate) => candidate.id === line.id)
-    const to = from + delta
-    if (from === -1 || to < 0 || to >= ordered.length) return
-
-    const [moved] = ordered.splice(from, 1)
-    if (!moved) return
-    ordered.splice(to, 0, moved)
-
-    await run(set, () => api().reorderLines(ordered.map((candidate) => candidate.id)))
   },
 
   dismissError() {
@@ -101,9 +92,11 @@ registerVaultScoped(() => {
 })
 
 type Setter = (partial: Partial<Section4State>) => void
+type Getter = () => Section4State
 
 async function run(
   set: Setter,
+  get: Getter,
   operation: () => Promise<{ ok: true; value: unknown } | { ok: false; error: Section4ErrorCode }>
 ): Promise<boolean> {
   set({ error: null })
@@ -121,12 +114,15 @@ async function run(
     return false
   }
 
-  const reread = await window.jadeite.section4.lines()
+  const reread = await window.jadeite.section4.cells()
   if (!reread.ok) {
     set({ error: reread.error })
     return false
   }
 
-  set({ lines: reread.value })
+  set({
+    cells: reread.value,
+    rowsShown: Math.max(get().rowsShown, visibleRows(reread.value))
+  })
   return true
 }

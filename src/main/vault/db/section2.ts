@@ -1,5 +1,5 @@
 /**
- * Section 2 storage — bank columns, their cells, and the rollover freeze.
+ * Section 2 storage — bank columns and their cells.
  *
  * Everything here is a write against the encrypted database or a read out of
  * it. No arithmetic lives in this file: totals are computed by
@@ -8,17 +8,28 @@
  *
  * One bank definition drives every appearance (§7.1). The source workbook kept
  * its bank list in two places and they had already diverged by the time it was
- * inspected; here there is one row per column per year, and every figure that
- * mentions a bank reads that row.
+ * inspected; here there is one row per column, and every figure that mentions a
+ * bank reads that row.
  *
- * The year lifecycle lives in db/years.ts, because `years` parents this
- * section's tables as well as Section 1's.
+ * **There is no year here** (§7.1, §7.3 as amended by point revision v0.8b).
+ * Section 2 is one standing grid of the twelve months the owner is living in,
+ * because the owner does not log previous years' bank debts. With the year went
+ * the rollover freeze, the archive, and every `year` predicate that used to
+ * appear in the statements below. `years` is Section 1's table now, and
+ * db/years.ts no longer touches this section's rows.
  */
 
 import type { Database as DatabaseType } from 'better-sqlite3-multiple-ciphers'
 
-import { isMonth, isValidYear } from '../../../shared/calendar.js'
-import type { Bank, BankDraft, BankUsage, Cell, CellPatch, YearGrid } from '../../../shared/section2/types.js'
+import { isMonth } from '../../../shared/calendar.js'
+import type {
+  Bank,
+  BankDraft,
+  BankUsage,
+  Cell,
+  CellPatch,
+  PaymentsGrid
+} from '../../../shared/section2/types.js'
 import { MAX_BANK_NAME_LENGTH, MAX_COUNTER_PARTY_LENGTH } from '../../../shared/section2/types.js'
 import { VaultDataError } from './errors.js'
 
@@ -61,7 +72,6 @@ function cleanLimit(limit: unknown): number {
 
 interface BankRow {
   id: number
-  year: number
   name: string
   credit_limit: number
   position: number
@@ -78,7 +88,6 @@ interface CellRow {
 function toBank(row: BankRow): Bank {
   return {
     id: row.id,
-    year: row.year,
     name: row.name,
     creditLimit: row.credit_limit,
     position: row.position,
@@ -90,57 +99,30 @@ function toBank(row: BankRow): Bank {
 function bankOf(db: DatabaseType, id: number): BankRow {
   const row = db
     .prepare(
-      'SELECT id, year, name, credit_limit, position, is_counter, counter_party FROM s2_banks WHERE id = ?'
+      'SELECT id, name, credit_limit, position, is_counter, counter_party FROM s2_banks WHERE id = ?'
     )
     .get(id) as BankRow | undefined
   if (!row) fail('NO_SUCH_BANK')
   return row
 }
 
-/**
- * A frozen year answers every question and accepts no change (§7.3).
- *
- * Checked inside the transaction that is about to write rather than at the IPC
- * edge: freezing is a state, and a state read outside the write it guards is a
- * race with whatever else the owner has open. It doubles as the year-exists
- * check, so a mutation against a year that is not there fails as NO_SUCH_YEAR
- * rather than silently writing nothing.
- */
-function assertOpen(db: DatabaseType, year: number): void {
-  const row = db.prepare('SELECT s2_archived FROM years WHERE year = ?').get(year) as
-    | { s2_archived: number }
-    | undefined
-  if (!row) fail('NO_SUCH_YEAR')
-  if (row.s2_archived === 1) fail('ARCHIVED')
-}
+// --- Reading the grid ------------------------------------------------------
 
-// --- Reading a grid --------------------------------------------------------
-
-export function readGrid(db: DatabaseType, year: number): YearGrid {
-  if (!isValidYear(year)) fail('INVALID_YEAR')
-
-  const yearRow = db
-    .prepare('SELECT accent_override, s2_archived FROM years WHERE year = ?')
-    .get(year) as { accent_override: string | null; s2_archived: number } | undefined
-  if (!yearRow) fail('NO_SUCH_YEAR')
-
+export function readGrid(db: DatabaseType): PaymentsGrid {
   // Banks first, then counter columns, each by position — the order §7.1 draws
   // and the same order shared/section2/engine.ts:orderedBanks produces. The two
   // must agree or the grid and the engine disagree about what "first" means.
   const bankRows = db
     .prepare(
-      `SELECT id, year, name, credit_limit, position, is_counter, counter_party
-         FROM s2_banks WHERE year = ?
+      `SELECT id, name, credit_limit, position, is_counter, counter_party
+         FROM s2_banks
         ORDER BY is_counter, position, id`
     )
-    .all(year) as BankRow[]
+    .all() as BankRow[]
 
   const cellRows = db
-    .prepare(
-      `SELECT bank_id, month, amount
-         FROM s2_cells WHERE year = ? ORDER BY month, bank_id`
-    )
-    .all(year) as CellRow[]
+    .prepare('SELECT bank_id, month, amount FROM s2_cells ORDER BY month, bank_id')
+    .all() as CellRow[]
 
   const cells: Cell[] = cellRows.map((row) => ({
     bankId: row.bank_id,
@@ -148,29 +130,28 @@ export function readGrid(db: DatabaseType, year: number): YearGrid {
     amount: row.amount
   }))
 
-  return {
-    year,
-    archived: yearRow.s2_archived === 1,
-    accentOverride: yearRow.accent_override,
-    banks: bankRows.map(toBank),
-    cells
-  }
+  return { banks: bankRows.map(toBank), cells }
 }
 
 // --- Column management -----------------------------------------------------
 
-function nextPosition(db: DatabaseType, year: number, isCounter: boolean): number {
+function nextPosition(db: DatabaseType, isCounter: boolean): number {
   const row = db
-    .prepare(
-      'SELECT COALESCE(MAX(position) + 1, 0) AS next FROM s2_banks WHERE year = ? AND is_counter = ?'
-    )
-    .get(year, isCounter ? 1 : 0) as { next: number }
+    .prepare('SELECT COALESCE(MAX(position) + 1, 0) AS next FROM s2_banks WHERE is_counter = ?')
+    .get(isCounter ? 1 : 0) as { next: number }
   return row.next
 }
 
-/** Duplicate names are refused before SQLite does it, so the reason survives. */
-function assertNameFree(db: DatabaseType, year: number, name: string, exceptId?: number): void {
-  const row = db.prepare('SELECT id FROM s2_banks WHERE year = ? AND name = ?').get(year, name) as
+/**
+ * Duplicate names are refused before SQLite does it, so the reason survives.
+ *
+ * Never scoped to `is_counter`: a counter column called "Banka A" beside a card
+ * called "Banka A" would put one name in two header rows meaning two things.
+ * That was true when the check also carried a year, and the v4 migration's
+ * `UNIQUE (name)` relies on its having been true.
+ */
+function assertNameFree(db: DatabaseType, name: string, exceptId?: number): void {
+  const row = db.prepare('SELECT id FROM s2_banks WHERE name = ?').get(name) as
     | { id: number }
     | undefined
   if (row && row.id !== exceptId) fail('DUPLICATE_NAME')
@@ -184,22 +165,20 @@ function assertNameFree(db: DatabaseType, year: number, name: string, exceptId?:
  * limit on a counter cannot quietly join the total credit limit, and a person
  * attached to a card cannot appear in a header that is meant to show money.
  */
-export function addBank(db: DatabaseType, year: number, draft: BankDraft): number {
-  if (!isValidYear(year)) fail('INVALID_YEAR')
+export function addBank(db: DatabaseType, draft: BankDraft): number {
   const name = cleanName(draft.name)
   const isCounter = draft.isCounter === true
   const creditLimit = isCounter ? 0 : cleanLimit(draft.creditLimit)
   const counterParty = isCounter ? cleanParty(draft.counterParty) : null
 
   const run = db.transaction(() => {
-    assertOpen(db, year)
-    assertNameFree(db, year, name)
+    assertNameFree(db, name)
     const result = db
       .prepare(
-        `INSERT INTO s2_banks (year, name, credit_limit, position, is_counter, counter_party)
-              VALUES (?, ?, ?, ?, ?, ?)`
+        `INSERT INTO s2_banks (name, credit_limit, position, is_counter, counter_party)
+              VALUES (?, ?, ?, ?, ?)`
       )
-      .run(year, name, creditLimit, nextPosition(db, year, isCounter), isCounter ? 1 : 0, counterParty)
+      .run(name, creditLimit, nextPosition(db, isCounter), isCounter ? 1 : 0, counterParty)
     return Number(result.lastInsertRowid)
   })
 
@@ -209,9 +188,8 @@ export function addBank(db: DatabaseType, year: number, draft: BankDraft): numbe
 export function renameBank(db: DatabaseType, id: number, name: unknown): void {
   const cleaned = cleanName(name)
   const run = db.transaction(() => {
-    const bank = bankOf(db, id)
-    assertOpen(db, bank.year)
-    assertNameFree(db, bank.year, cleaned, id)
+    bankOf(db, id)
+    assertNameFree(db, cleaned, id)
     db.prepare('UPDATE s2_banks SET name = ? WHERE id = ?').run(cleaned, id)
   })
   run()
@@ -229,7 +207,6 @@ export function setCreditLimit(db: DatabaseType, id: number, limit: unknown): vo
   const cleaned = cleanLimit(limit)
   const run = db.transaction(() => {
     const bank = bankOf(db, id)
-    assertOpen(db, bank.year)
     if (bank.is_counter === 1) fail('INTERNAL')
     db.prepare('UPDATE s2_banks SET credit_limit = ? WHERE id = ?').run(cleaned, id)
   })
@@ -241,7 +218,6 @@ export function setCounterParty(db: DatabaseType, id: number, party: unknown): v
   const cleaned = cleanParty(party)
   const run = db.transaction(() => {
     const bank = bankOf(db, id)
-    assertOpen(db, bank.year)
     if (bank.is_counter === 0) fail('INTERNAL')
     db.prepare('UPDATE s2_banks SET counter_party = ? WHERE id = ?').run(cleaned, id)
   })
@@ -258,18 +234,13 @@ export function setCounterParty(db: DatabaseType, id: number, party: unknown): v
  */
 export function reorderBanks(
   db: DatabaseType,
-  year: number,
   isCounter: boolean,
   orderedIds: readonly number[]
 ): void {
-  if (!isValidYear(year)) fail('INVALID_YEAR')
-
   const run = db.transaction(() => {
-    assertOpen(db, year)
-
     const existing = db
-      .prepare('SELECT id FROM s2_banks WHERE year = ? AND is_counter = ? ORDER BY position, id')
-      .all(year, isCounter ? 1 : 0) as { id: number }[]
+      .prepare('SELECT id FROM s2_banks WHERE is_counter = ? ORDER BY position, id')
+      .all(isCounter ? 1 : 0) as { id: number }[]
     const present = new Set(existing.map((row) => row.id))
 
     const seen = new Set<number>()
@@ -298,26 +269,17 @@ export function bankUsage(db: DatabaseType, id: number): BankUsage {
   return { cellCount: row.n, total: row.total, isCounter: bank.is_counter === 1 }
 }
 
-/**
- * Delete a column from one year.
- *
- * Only this year's column row goes; the same bank in another year is a
- * different row with a different id and cannot be reached from this one. That
- * is what makes a year's grid a record of that year rather than a view onto a
- * single mutable list — the defect the source workbook's duplicated bank list
- * produced.
- */
+/** Delete a column, and with it the twelve cells that hung off it. */
 export function deleteBank(db: DatabaseType, id: number): void {
   const run = db.transaction(() => {
     const bank = bankOf(db, id)
-    assertOpen(db, bank.year)
 
     // ON DELETE CASCADE takes this column's cells with it.
     db.prepare('DELETE FROM s2_banks WHERE id = ?').run(id)
 
     const survivors = db
-      .prepare('SELECT id FROM s2_banks WHERE year = ? AND is_counter = ? ORDER BY position, id')
-      .all(bank.year, bank.is_counter) as { id: number }[]
+      .prepare('SELECT id FROM s2_banks WHERE is_counter = ? ORDER BY position, id')
+      .all(bank.is_counter) as { id: number }[]
     const update = db.prepare('UPDATE s2_banks SET position = ? WHERE id = ?')
     survivors.forEach((row, index) => update.run(index, row.id))
   })
@@ -334,19 +296,14 @@ export function deleteBank(db: DatabaseType, id: number): void {
  * zero", and those are two different facts about a card.
  */
 export function setCell(db: DatabaseType, patch: CellPatch): void {
-  if (!isValidYear(patch.year)) fail('INVALID_YEAR')
-  if (!isMonth(patch.month)) fail('INTERNAL')
+  if (!isMonth(patch.month)) fail('INVALID_MONTH')
 
   const run = db.transaction(() => {
-    assertOpen(db, patch.year)
-
-    const bank = bankOf(db, patch.bankId)
-    // Both parents are named on the row, so neither may be taken on trust.
-    if (bank.year !== patch.year) fail('NO_SUCH_BANK')
+    // The column is named on the row, so it may not be taken on trust.
+    bankOf(db, patch.bankId)
 
     if (patch.amount === null) {
-      db.prepare('DELETE FROM s2_cells WHERE year = ? AND month = ? AND bank_id = ?').run(
-        patch.year,
+      db.prepare('DELETE FROM s2_cells WHERE month = ? AND bank_id = ?').run(
         patch.month,
         patch.bankId
       )
@@ -356,46 +313,12 @@ export function setCell(db: DatabaseType, patch: CellPatch): void {
     if (!Number.isSafeInteger(patch.amount) || patch.amount < 0) fail('INVALID_AMOUNT')
 
     db.prepare(
-      `INSERT INTO s2_cells (year, month, bank_id, amount)
-            VALUES (?, ?, ?, ?)
-       ON CONFLICT (year, month, bank_id) DO UPDATE SET
+      `INSERT INTO s2_cells (month, bank_id, amount)
+            VALUES (?, ?, ?)
+       ON CONFLICT (month, bank_id) DO UPDATE SET
             amount = excluded.amount`
-    ).run(patch.year, patch.month, patch.bankId, patch.amount)
+    ).run(patch.month, patch.bankId, patch.amount)
   })
 
-  run()
-}
-
-// --- The rollover freeze (§7.3) --------------------------------------------
-
-export function isArchived(db: DatabaseType, year: number): boolean {
-  if (!isValidYear(year)) fail('INVALID_YEAR')
-  const row = db.prepare('SELECT s2_archived FROM years WHERE year = ?').get(year) as
-    | { s2_archived: number }
-    | undefined
-  if (!row) fail('NO_SUCH_YEAR')
-  return row.s2_archived === 1
-}
-
-/**
- * Freeze a year's grid, or reopen it.
- *
- * §7.3 asks for a read-only archive so that "nothing is destroyed by January
- * anymore". It is set here by a deliberate act rather than as a side effect of
- * creating the next year: the owner who adds 2027's workspace in October has
- * not finished with November. Reopening is the same switch the other way, so
- * neither direction needs a frightening confirmation — nothing is lost either
- * way, which is the point of freezing rather than deleting.
- *
- * `assertOpen` is deliberately not called: this is the one operation that has
- * to work on an archived year.
- */
-export function setArchived(db: DatabaseType, year: number, archived: boolean): void {
-  if (!isValidYear(year)) fail('INVALID_YEAR')
-  const run = db.transaction(() => {
-    const row = db.prepare('SELECT 1 AS present FROM years WHERE year = ?').get(year)
-    if (!row) fail('NO_SUCH_YEAR')
-    db.prepare('UPDATE years SET s2_archived = ? WHERE year = ?').run(archived ? 1 : 0, year)
-  })
   run()
 }

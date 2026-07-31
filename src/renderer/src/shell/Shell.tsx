@@ -9,6 +9,7 @@ import { useCallback, useEffect, useState, type ReactElement } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { DESTINATIONS, SETTINGS_DESTINATION_ID } from './destinations.js'
+import { JadeGlyph } from './JadeGlyph.js'
 import { SectionStub } from './SectionStub.js'
 import { Overview } from '../sections/overview/Overview.js'
 import { focusYearIn } from '../sections/overview/navigate.js'
@@ -93,7 +94,14 @@ export function Shell({ onLock }: Props): ReactElement {
   return (
     <div className="shell-frame" data-testid="shell">
       <nav className="rail" aria-label={t('common.brand')}>
-        <p className="rail-brand">{t('common.brand')}</p>
+        {/* The mark leads the wordmark. The `nav` above already carries the
+            brand as its accessible name, so the glyph is decorative here in the
+            strict sense — hiding it from the accessibility tree says the name
+            once rather than twice. */}
+        <p className="rail-brand">
+          <JadeGlyph />
+          <span>{t('common.brand')}</span>
+        </p>
 
         <ul className="rail-list">
           {DESTINATIONS.map((d) => (

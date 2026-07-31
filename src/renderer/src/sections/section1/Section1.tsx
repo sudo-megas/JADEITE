@@ -105,11 +105,9 @@ export function Section1(): ReactElement {
   const requestYearDelete = useCallback(async (year: number) => {
     const usage = await window.jadeite.section1.yearUsage(year)
     if (!usage.ok) return
-    const { categoryCount, entryCount, bankCount, cellCount } = usage.value
-    if (categoryCount === 0 && entryCount === 0 && bankCount === 0 && cellCount === 0) {
-      // An empty workspace is a mistyped year; there is nothing to weigh. The
-      // Payments grid is counted too, or a year holding only banks would be
-      // deleted without anyone being asked.
+    const { categoryCount, entryCount } = usage.value
+    if (categoryCount === 0 && entryCount === 0) {
+      // An empty workspace is a mistyped year; there is nothing to weigh.
       void useSection1Store.getState().deleteYear(year)
       return
     }
@@ -438,9 +436,7 @@ function ConfirmDeleteYear({
           {t('section1.deleteYearDetail', {
             year,
             columns: usage.categoryCount,
-            count: usage.entryCount,
-            banks: usage.bankCount,
-            cells: usage.cellCount
+            count: usage.entryCount
           })}
         </p>
         <p className="warning">

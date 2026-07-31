@@ -121,91 +121,76 @@ test('a December value in any bank updates every dependent total', async () => {
   await expect(page.getByTestId('s2-total-remaining-limit')).toHaveText('344.000,00 ₺')
 })
 
-test('a frozen year is read-only, lossless, and reopens', async () => {
+/*
+ * There is no frozen year here any more, and no new-year carry-over, and no
+ * tests for either.
+ *
+ * Until point revision v0.8b Ödemeler held a grid per year, and two cases stood
+ * in this place. The first proved that freezing a year turned it into a
+ * read-only archive that lost nothing — every figure identical, the add-column
+ * form and the column menus withdrawn, the cells readable but `readonly` — and
+ * that reopening it gave the year back intact and editable. The second proved
+ * that creating the next year carried the column *definitions* forward, limits
+ * and counter parties included, while carrying no amount at all, and left the
+ * year it came from untouched and unfrozen.
+ *
+ * §7.1 and §7.3 as amended leave one standing grid of the twelve months the
+ * owner is living in: previous years' bank debts are not logged, so there is
+ * nothing to archive and no next year to carry into. The capabilities were
+ * removed rather than hidden — `s2-freeze`, `s2-reopen`, `s2-frozen-banner`,
+ * `s2-add-year` and the year chips are gone from the interface, and
+ * `setArchived`, `createYear` and `years` are gone from the Section 2 bridge
+ * (`tests/e2e/hardening.spec.ts` enumerates what is left). Nothing in the
+ * section is read-only any longer, so no case below needs to assert that a cell
+ * is writable; every one of them writes to one.
+ */
+
+/**
+ * Section 1's years and Ödemeler's grid are unrelated tables.
+ *
+ * This case used to prove something weaker. Both sections held years, so what
+ * mattered was that each kept its *own* open one — checking an old instalment
+ * plan was not allowed to drag the income grid back to 2019 and leave it there.
+ * Point revision v0.8b removed the years from Section 2 rather than the
+ * independence, and what is left is stronger and simpler: creating a year in
+ * Section 1 does not touch Ödemeler at all. `createYear` copies Section 1's own
+ * columns from the nearest earlier year and has never had anything to say about
+ * banks; the standing grid is not a party to it.
+ *
+ * The grid is read *after* navigating back, and that round trip is the point.
+ * Section 2 loads from the vault on mount, so what is checked here is what the
+ * vault holds — not a React state that was never given the chance to be
+ * disturbed.
+ */
+test('a year created in Section 1 leaves Ödemeler untouched', async () => {
   session = await launchFresh()
   await createVaultAndEnter(session)
   const page = session.page
+
+  // One column and one amount: the smallest thing there is to lose.
   await openSection2(page)
+  await addBank(page, 'A', '200000')
+  await typeCell(page, 'A', 'Ocak', '1000')
+  await expect(page.getByTestId('s2-grand-total-debt')).toHaveText('1.000,00 ₺')
 
-  await buildInspectedShape(page)
-
-  await page.getByTestId('s2-freeze').click()
-  await page.getByTestId('s2-confirm-freeze-yes').click()
-  await expect(page.getByTestId('s2-frozen-banner')).toBeVisible()
-
-  // Every figure survives the freeze untouched.
-  await expect(page.getByTestId('s2-grand-total-debt')).toHaveText(GRAND_TOTAL_DEBT)
-  await expect(page.getByTestId('s2-total-remaining-limit')).toHaveText(TOTAL_REMAINING_LIMIT)
-
-  // Nothing offers to change it: no add-column form, no column menus.
-  await expect(page.getByTestId('s2-add-column')).toHaveCount(0)
-  await expect(page.getByTestId('s2-column-menu-A')).toHaveCount(0)
-
-  // The cells are readable — an archive is something to read — but not writable.
-  const cell = page.getByTestId('s2-cell-A-Ocak')
-  await expect(cell).toBeVisible()
-  await expect(cell).toHaveAttribute('readonly', '')
-
-  await page.getByTestId('s2-reopen').click()
-  await expect(page.getByTestId('s2-frozen-banner')).toHaveCount(0)
-
-  // Reopened, unchanged, and editable again.
-  await expect(page.getByTestId('s2-grand-total-debt')).toHaveText(GRAND_TOTAL_DEBT)
-  await typeCell(page, 'A', 'Şubat', '250')
-  await expect(page.getByTestId('s2-debt-A')).toHaveText('1.250,00 ₺')
-})
-
-test('a new year carries the banks over and clears the amounts', async () => {
-  session = await launchFresh()
-  await createVaultAndEnter(session)
-  const page = session.page
-  await openSection2(page)
-
-  await buildInspectedShape(page)
-  const firstYear = Number(await page.locator('[data-testid^="s2-year-"]').first().innerText())
-
-  await page.getByTestId('s2-add-year').click()
-  await page.getByTestId('s2-new-year-submit').click()
-  await expect(page.getByTestId(`s2-workspace-${firstYear + 1}`)).toBeVisible()
-
-  // Definitions carried, including the limits and the counter's person.
-  await expect(page.getByTestId('s2-header-A')).toBeVisible()
-  await expect(page.getByTestId('s2-header-sayacA')).toBeVisible()
-  // A regex, because the value carries the non-breaking space formatMoney puts
-  // before the symbol and toHaveValue does not normalise whitespace.
-  await expect(page.getByTestId('s2-limit-A')).toHaveValue(/^200\.000,00\s₺$/)
-  await expect(page.getByTestId('s2-party-sayacA')).toHaveValue('Sayaç A')
-
-  // Amounts never.
-  await expect(page.getByTestId('s2-grand-total-debt')).toHaveText('0,00 ₺')
-  await expect(page.getByTestId('s2-total-remaining-limit')).toHaveText('350.000,00 ₺')
-
-  // And the year it came from is untouched, and not frozen by the act.
-  await page.getByTestId(`s2-year-${firstYear}`).click()
-  await expect(page.getByTestId('s2-grand-total-debt')).toHaveText(GRAND_TOTAL_DEBT)
-  await expect(page.getByTestId('s2-frozen-banner')).toHaveCount(0)
-})
-
-test('each section keeps its own open year', async () => {
-  session = await launchFresh()
-  await createVaultAndEnter(session)
-  const page = session.page
-
-  // Give Section 1 a second year, so there are two to disagree about.
+  // The year has to actually arrive. Without this line the case passes just as
+  // happily over an `add-year` that quietly did nothing, and a test that cannot
+  // fail is not a test.
   await page.getByTestId('nav-section1').click()
   const firstYear = Number(await page.locator('[data-testid^="year-2"]').first().innerText())
   await page.getByTestId('add-year').click()
   await page.getByTestId('new-year-submit').click()
   await expect(page.getByTestId(`workspace-${firstYear + 1}`)).toBeVisible()
 
-  // Section 2 opens on the newest too, then is moved back a year.
+  // The same column and the same amount, in the one pane Ödemeler now has.
   await openSection2(page)
-  await page.getByTestId(`s2-year-${firstYear}`).click()
-  await expect(page.getByTestId(`s2-workspace-${firstYear}`)).toBeVisible()
-
-  // Section 1 is where it was left. One shared year would have dragged it back.
-  await page.getByTestId('nav-section1').click()
-  await expect(page.getByTestId(`workspace-${firstYear + 1}`)).toBeVisible()
+  await expect(page.getByTestId('s2-workspace')).toBeVisible()
+  await expect(page.getByTestId('s2-header-A')).toBeVisible()
+  // Regexes, because these values carry the non-breaking space formatMoney puts
+  // before the symbol and toHaveValue does not normalise whitespace.
+  await expect(page.getByTestId('s2-limit-A')).toHaveValue(/^200\.000,00\s₺$/)
+  await expect(page.getByTestId('s2-cell-A-Ocak')).toHaveValue(/^1\.000,00\s₺$/)
+  await expect(page.getByTestId('s2-grand-total-debt')).toHaveText('1.000,00 ₺')
 })
 
 test('nothing from the Payments grid survives a lock', async () => {
@@ -262,10 +247,21 @@ test('the happy path raises no console error — the Definition of Done, checked
   await createVaultAndEnter(session)
   await openSection2(page)
   await buildInspectedShape(page)
-  await page.getByTestId('s2-freeze').click()
-  await page.getByTestId('s2-confirm-freeze-yes').click()
-  await page.getByTestId('s2-reopen').click()
   await typeCell(page, 'A', 'Mart', '75,50')
+
+  /*
+    The freeze ceremony used to stand here, for the noise a modal makes going up
+    and coming down again. Point revision v0.8b took it away, so the walk goes
+    through the one ceremony Section 2 still has: a column menu, the confirmation
+    that guards a delete with money behind it, and the grid rebuilding itself a
+    column shorter. B carries Aralık, so the confirmation is genuinely raised —
+    `requestDelete` skips it for a column with no cells, and a dialog that never
+    appeared cannot complain about anything.
+  */
+  await page.getByTestId('s2-column-menu-B').click()
+  await page.getByTestId('s2-delete-B').click()
+  await page.getByTestId('s2-confirm-delete-yes').click()
+  await expect(page.getByTestId('s2-header-B')).toHaveCount(0)
 
   expect(complaints, complaints.join('\n')).toEqual([])
 })

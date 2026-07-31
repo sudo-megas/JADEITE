@@ -52,6 +52,21 @@ function createWindow(): void {
     minWidth: 960,
     minHeight: 640,
     show: false,
+    /*
+     * The window and taskbar icon.
+     *
+     * Resolved against `app.getAppPath()` rather than against `here`, because
+     * `here` is `out/main` in both dev and package and the icon is not build
+     * output — it is a committed asset that `electron-builder.yml` lists in
+     * `files`, which puts it at `build/icon.png` relative to the app root either
+     * way. Electron reads paths inside the asar transparently, so the same
+     * string works unpacked and packed.
+     *
+     * Linux only takes this seriously: on Windows and macOS the packaged
+     * executable carries its own icon and this is ignored, which is why nothing
+     * branches on the platform here.
+     */
+    icon: join(app.getAppPath(), 'build/icon.png'),
     // The window paints before the renderer does. Taking the colour from the
     // fallback palette rather than naming one here keeps §12.2 true of the
     // main process too: no component hard-codes a colour, including this one.

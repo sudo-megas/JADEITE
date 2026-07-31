@@ -14,19 +14,18 @@
 import { ipcMain } from 'electron'
 import type { Database as DatabaseType } from 'better-sqlite3-multiple-ciphers'
 
-import { IPC, type Result, type YearIndex } from '../../shared/ipc-contract.js'
+import { IPC, type Result } from '../../shared/ipc-contract.js'
 import type {
   BankDraft,
   BankUsage,
   CellPatch,
-  Section2ErrorCode,
-  YearGrid
+  PaymentsGrid,
+  Section2ErrorCode
 } from '../../shared/section2/types.js'
 import { MAX_BANK_NAME_LENGTH, MAX_COUNTER_PARTY_LENGTH } from '../../shared/section2/types.js'
-import { isMonth, isValidYear } from '../../shared/calendar.js'
+import { isMonth } from '../../shared/calendar.js'
 import * as s2 from '../vault/db/section2.js'
 import { Section2Error } from '../vault/db/section2.js'
-import * as years from '../vault/db/years.js'
 import { VaultDataError } from '../vault/db/errors.js'
 import * as vault from '../vault/vault.js'
 
@@ -41,15 +40,12 @@ type S2Result<T> = Result<T, Section2ErrorCode>
  */
 const CODES: readonly string[] = [
   'LOCKED',
-  'NO_SUCH_YEAR',
-  'YEAR_EXISTS',
-  'ARCHIVED',
   'NO_SUCH_BANK',
   'DUPLICATE_NAME',
   'INVALID_NAME',
   'INVALID_AMOUNT',
   'INVALID_LIMIT',
-  'INVALID_YEAR',
+  'INVALID_MONTH',
   'INTERNAL'
 ]
 
@@ -69,7 +65,7 @@ function withVault<T>(fn: (db: DatabaseType) => T): S2Result<T> {
   try {
     return { ok: true, value: fn(db) }
   } catch (error) {
-    // The base class, so the shared year lifecycle's own failures survive.
+    // The base class, so a failure raised by any shared vault helper survives.
     if (error instanceof VaultDataError) return { ok: false, error: asCode(error.code) }
     return { ok: false, error: 'INTERNAL' }
   }
@@ -77,13 +73,6 @@ function withVault<T>(fn: (db: DatabaseType) => T): S2Result<T> {
 
 function isId(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value > 0
-}
-
-function readYearIndex(db: DatabaseType): YearIndex {
-  // A vault that has never had a year gets one, so the switcher always has
-  // somewhere to be and the app never opens on a modal.
-  years.ensureAnyYear(db)
-  return { years: years.listYears(db), anchorYear: years.accentAnchorYear(db) }
 }
 
 /**
@@ -128,45 +117,25 @@ function asPatch(value: unknown): CellPatch {
   if (typeof value !== 'object' || value === null) throw new Section2Error('INTERNAL')
   const raw = value as Record<string, unknown>
 
-  const year = raw['year']
   const month = raw['month']
   const bankId = raw['bankId']
   const amount = raw['amount']
 
-  if (!isValidYear(year)) throw new Section2Error('INVALID_YEAR')
-  if (typeof month !== 'number' || !isMonth(month)) throw new Section2Error('INTERNAL')
+  if (typeof month !== 'number' || !isMonth(month)) throw new Section2Error('INVALID_MONTH')
   if (!isId(bankId)) throw new Section2Error('NO_SUCH_BANK')
 
   if (amount !== null && (typeof amount !== 'number' || !Number.isSafeInteger(amount) || amount < 0)) {
     throw new Section2Error('INVALID_AMOUNT')
   }
 
-  return { year, month, bankId, amount: amount as number | null }
+  return { month, bankId, amount: amount as number | null }
 }
 
 export function registerSection2Handlers(): void {
-  ipcMain.handle(IPC.s2Years, (): S2Result<YearIndex> => withVault(readYearIndex))
+  ipcMain.handle(IPC.s2Grid, (): S2Result<PaymentsGrid> => withVault((db) => s2.readGrid(db)))
 
-  ipcMain.handle(IPC.s2CreateYear, (_e, year: unknown): S2Result<YearIndex> =>
-    withVault((db) => {
-      if (!isValidYear(year)) throw new Section2Error('INVALID_YEAR')
-      years.createYear(db, year)
-      return readYearIndex(db)
-    })
-  )
-
-  ipcMain.handle(IPC.s2Grid, (_e, year: unknown): S2Result<YearGrid> =>
-    withVault((db) => {
-      if (!isValidYear(year)) throw new Section2Error('INVALID_YEAR')
-      return s2.readGrid(db, year)
-    })
-  )
-
-  ipcMain.handle(IPC.s2AddBank, (_e, year: unknown, draft: unknown): S2Result<number> =>
-    withVault((db) => {
-      if (!isValidYear(year)) throw new Section2Error('INVALID_YEAR')
-      return s2.addBank(db, year, asDraft(draft))
-    })
+  ipcMain.handle(IPC.s2AddBank, (_e, draft: unknown): S2Result<number> =>
+    withVault((db) => s2.addBank(db, asDraft(draft)))
   )
 
   ipcMain.handle(IPC.s2RenameBank, (_e, id: unknown, name: unknown): S2Result<null> =>
@@ -195,13 +164,12 @@ export function registerSection2Handlers(): void {
 
   ipcMain.handle(
     IPC.s2ReorderBanks,
-    (_e, year: unknown, isCounter: unknown, orderedIds: unknown): S2Result<null> =>
+    (_e, isCounter: unknown, orderedIds: unknown): S2Result<null> =>
       withVault((db) => {
-        if (!isValidYear(year)) throw new Section2Error('INVALID_YEAR')
         if (!Array.isArray(orderedIds) || !orderedIds.every(isId)) {
           throw new Section2Error('INTERNAL')
         }
-        s2.reorderBanks(db, year, isCounter === true, orderedIds)
+        s2.reorderBanks(db, isCounter === true, orderedIds)
         return null
       })
   )
@@ -224,14 +192,6 @@ export function registerSection2Handlers(): void {
   ipcMain.handle(IPC.s2SetCell, (_e, patch: unknown): S2Result<null> =>
     withVault((db) => {
       s2.setCell(db, asPatch(patch))
-      return null
-    })
-  )
-
-  ipcMain.handle(IPC.s2SetArchived, (_e, year: unknown, archived: unknown): S2Result<null> =>
-    withVault((db) => {
-      if (!isValidYear(year)) throw new Section2Error('INVALID_YEAR')
-      s2.setArchived(db, year, archived === true)
       return null
     })
   )

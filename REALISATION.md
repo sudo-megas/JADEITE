@@ -218,6 +218,39 @@ The source's real shape is now known rather than assumed — §14.1 records it, 
 
 ---
 
+## Point revision v0.8b — the four reconfigurations
+
+**Goal:** answer what the owner found the first time they used the application, rather than the second.
+
+Not a ladder rung. It amends Realisations II, IV, V and VI — all released — so it takes a letter per §17, and Realisation IX still claims `v0.9`. It arrived the way the best corrections do: the owner ran the built app end to end, offline, and it neither crashed nor raised an error screen. What they filed instead were four things the specification had got wrong about their life.
+
+**It advances no section and adds no feature, which is what qualifies it.** Two of the four *remove* a capability, and neither removal is a shortcut: Section 2 loses a year it was never going to fill, and Section 4 loses a label that was taxing the only activity it exists for. The third changes a format and not a fact — dates are still stored ISO-8601 (§5.2) — and the fourth is chrome. The acceptance figures of Realisations IV through VIII are unchanged, and the regression rule is what proves it.
+
+The precedent this must not become is the one v0.6c named: a letter is not a place to smuggle a rung. What makes these four honest is that after them the application does less than it did, in three of the four cases, and looks like itself in the fourth.
+
+**Scope**
+- **Section 2 has no year** (§7.1, §7.3 as amended). The year selector, the year rollover and the frozen read-only archive are gone, and so is the `year` column on `s2_banks` and `s2_cells`. Ödemeler is one standing grid of the twelve months the owner is living in — *"i am not logging previous years bank debts."* Section 1 keeps its year-workspaces untouched; creating a year there no longer touches Ödemeler at all. The Overview's two debt tiles stop choosing a year to speak for.
+- **Schema v4** — the second migration to touch the owner's real shape, and the first to delete any of it. Section 2's tables are rebuilt without the year and **only the most recent grid survives**; `s4_lines(label, value, position)` becomes `s4_cells(slot, value)`. Both halves run in one transaction whose statement order is the whole of its safety, because `foreign_keys` is ON and cannot be lifted inside a transaction. `years.s2_archived` is left in place as a dead column rather than dropped: its column-level `CHECK` makes `DROP COLUMN` refuse, and rebuilding `years` risks exactly the lockout v3's comment documents.
+- **Section 4 is a grid of value boxes** (§9, amended). No labels. Ten boxes to a row, ten rows to begin with, a fresh row of ten whenever the last row is first used — because the owner's month holds a hundred and twenty figures, not a hundred. TOTAL, AVERAGE and MEDIAN are unchanged and still recompute per box.
+- **Dates read `GG/AA/YYYY`** (§13, amended), in both languages, everywhere the app prints one — the ledger, the price stamps, the chart axes and the settings sample. The Section 3 date box accepts the same shape, and tolerates `.` and `-` and single digits. Storage stays ISO-8601; the main-process validators are untouched, which is the proof.
+- **A jade glyph and an app icon.** The mark stands beside the JADEITE wordmark in the rail and on the four ceremony screens, palette-tinted so it is native in all ten themes and hard-codes no colour (§12.2). The application also gains the OS window and taskbar icon it has never had.
+
+**Acceptance**
+- [ ] A v3 vault opens, migrates to v4, and the newest Payments grid survives intact — banks, counter columns, credit limits and every amount. Earlier years are gone, deliberately.
+- [ ] A v3 vault whose Section 4 held labelled lines keeps every figure, in order, in slots 0…n−1.
+- [ ] A v3 vault with no banks, one with no Section 4 rows, and one where a bank name repeats across years all migrate without raising; a migrated vault opens twice.
+- [ ] Ödemeler shows twelve months and no year control anywhere, and its totals still reconcile down the months and across the columns.
+- [ ] Adding and deleting a year in Section 1 leaves Ödemeler exactly as it was.
+- [ ] The Overview's debt and remaining-limit tiles equal Ödemeler's own figures and deep-link to it.
+- [ ] A hundred and twenty figures go into Hesap Alanı from the keyboard alone, the grid growing as they land, with TOTAL / ORTALAMA / ORTANCA correct at the end.
+- [ ] `15/03/2026` is accepted, `31/02/2026` is refused at the cell, and every date on screen reads `GG/AA/YYYY` in both languages.
+- [ ] The glyph renders in all ten palettes and on the lock screen; the window and taskbar carry the app icon.
+- [ ] All previous Realisations' acceptance checks still pass, and a run with no network is still silent.
+- [ ] `package.json` reads `0.8.1` (§17).
+- [ ] Tag `v0.8b`, and `gh release create`.
+
+---
+
 ## Realisation IX — Backup, Transfer & Hardening · v0.9
 
 **Goal:** the data can survive disks, moves, and audits.

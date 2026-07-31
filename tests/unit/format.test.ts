@@ -13,7 +13,8 @@ import {
   formatMonthName,
   formatNumber,
   localeFor,
-  monthNames
+  monthNames,
+  parseDate
 } from '../../src/renderer/src/i18n/format.js'
 
 describe('Turkish money — the form §6.2 asks for', () => {
@@ -81,14 +82,21 @@ describe('numbers, counts and quantities', () => {
 })
 
 describe('dates', () => {
-  it('renders Turkish as dd.MM.yyyy and English as dd/MM/yyyy', () => {
-    expect(formatDate('2026-05-18', 'tr')).toBe('18.05.2026')
+  it('writes GG/AA/YYYY in both languages — the house shape, not ICU’s default', () => {
+    // ICU would give Turkish `18.05.2026`. The app writes one shape in both
+    // languages, and English already wrote this one.
+    expect(formatDate('2026-05-18', 'tr')).toBe('18/05/2026')
     expect(formatDate('2026-05-18', 'en')).toBe('18/05/2026')
   })
 
+  it('keeps ICU’s zero-padding and day-first order rather than rebuilding them', () => {
+    expect(formatDate('2026-01-02', 'tr')).toBe('02/01/2026')
+    expect(formatDate('2026-01-02', 'en')).toBe('02/01/2026')
+  })
+
   it('does not shift the day across a timezone boundary', () => {
-    expect(formatDate('2026-01-01', 'tr')).toBe('01.01.2026')
-    expect(formatDate('2026-12-31', 'tr')).toBe('31.12.2026')
+    expect(formatDate('2026-01-01', 'tr')).toBe('01/01/2026')
+    expect(formatDate('2026-12-31', 'tr')).toBe('31/12/2026')
   })
 
   it('returns the input unchanged rather than inventing a date', () => {
@@ -112,6 +120,100 @@ describe('dates', () => {
     ])
     expect(formatMonthName(1, 'en')).toBe('January')
     expect(formatMonthName(12, 'en')).toBe('December')
+  })
+})
+
+/** The typed half. Display is one direction; this is the one that stores. */
+describe('reading a typed date back', () => {
+  it('reads GG/AA/YYYY into the ISO-8601 the vault stores', () => {
+    expect(parseDate('18/05/2026', 'tr')).toEqual({ kind: 'date', iso: '2026-05-18' })
+    expect(parseDate('18/05/2026', 'en')).toEqual({ kind: 'date', iso: '2026-05-18' })
+  })
+
+  it('takes a single-digit day and month — 1/3/2026 is not a mistake', () => {
+    expect(parseDate('1/3/2026', 'tr')).toEqual({ kind: 'date', iso: '2026-03-01' })
+    expect(parseDate('01/3/2026', 'tr')).toEqual({ kind: 'date', iso: '2026-03-01' })
+    expect(parseDate('1/03/2026', 'tr')).toEqual({ kind: 'date', iso: '2026-03-01' })
+  })
+
+  it('tolerates the dot and the dash, which is what the old shapes used', () => {
+    // The dot is what ICU writes for Turkish and what the owner's spreadsheets
+    // are full of; the dash is the separator the ledger asked for until now.
+    expect(parseDate('18.05.2026', 'tr')).toEqual({ kind: 'date', iso: '2026-05-18' })
+    expect(parseDate('18-05-2026', 'tr')).toEqual({ kind: 'date', iso: '2026-05-18' })
+    expect(parseDate('1.3.2026', 'tr')).toEqual({ kind: 'date', iso: '2026-03-01' })
+  })
+
+  it('refuses a separator that changes halfway through', () => {
+    expect(parseDate('18/05.2026', 'tr')).toEqual({ kind: 'error', reason: 'INVALID_DATE' })
+    expect(parseDate('18.05-2026', 'tr')).toEqual({ kind: 'error', reason: 'INVALID_DATE' })
+  })
+
+  it('ignores surrounding whitespace, since a paste carries it', () => {
+    expect(parseDate('  18/05/2026 ', 'tr')).toEqual({ kind: 'date', iso: '2026-05-18' })
+  })
+
+  it('refuses a day the calendar does not have', () => {
+    // Date.UTC rolls this into 3 March without a word, which is why the check is
+    // a round trip rather than a rule about February.
+    expect(parseDate('31/02/2026', 'tr')).toEqual({ kind: 'error', reason: 'INVALID_DATE' })
+    expect(parseDate('31/04/2026', 'tr')).toEqual({ kind: 'error', reason: 'INVALID_DATE' })
+    expect(parseDate('00/05/2026', 'tr')).toEqual({ kind: 'error', reason: 'INVALID_DATE' })
+    expect(parseDate('18/13/2026', 'tr')).toEqual({ kind: 'error', reason: 'INVALID_DATE' })
+    expect(parseDate('18/00/2026', 'tr')).toEqual({ kind: 'error', reason: 'INVALID_DATE' })
+  })
+
+  it('accepts 29 February in a leap year and refuses it in the year after', () => {
+    expect(parseDate('29/02/2024', 'tr')).toEqual({ kind: 'date', iso: '2024-02-29' })
+    expect(parseDate('29/02/2025', 'tr')).toEqual({ kind: 'error', reason: 'INVALID_DATE' })
+  })
+
+  it('holds the same year bounds the main process refuses on', () => {
+    expect(parseDate('01/01/1970', 'tr')).toEqual({ kind: 'date', iso: '1970-01-01' })
+    expect(parseDate('31/12/2200', 'tr')).toEqual({ kind: 'date', iso: '2200-12-31' })
+    expect(parseDate('31/12/1969', 'tr')).toEqual({ kind: 'error', reason: 'INVALID_DATE' })
+    expect(parseDate('01/01/2201', 'tr')).toEqual({ kind: 'error', reason: 'INVALID_DATE' })
+  })
+
+  it('refuses ISO, rather than quietly understanding two grammars at once', () => {
+    // Day-first and only day-first: 2026 is not a day. Storage is still ISO —
+    // this is about what the *field* accepts.
+    expect(parseDate('2026-05-18', 'tr')).toEqual({ kind: 'error', reason: 'INVALID_DATE' })
+    expect(parseDate('2026/05/18', 'tr')).toEqual({ kind: 'error', reason: 'INVALID_DATE' })
+  })
+
+  it('refuses a two-digit year rather than guessing a century', () => {
+    expect(parseDate('18/05/26', 'tr')).toEqual({ kind: 'error', reason: 'INVALID_DATE' })
+  })
+
+  it('refuses everything that is not a date at all', () => {
+    expect(parseDate('', 'tr')).toEqual({ kind: 'error', reason: 'INVALID_DATE' })
+    expect(parseDate('   ', 'tr')).toEqual({ kind: 'error', reason: 'INVALID_DATE' })
+    expect(parseDate('dün', 'tr')).toEqual({ kind: 'error', reason: 'INVALID_DATE' })
+    expect(parseDate('18/05', 'tr')).toEqual({ kind: 'error', reason: 'INVALID_DATE' })
+    expect(parseDate('18/05/2026/01', 'tr')).toEqual({ kind: 'error', reason: 'INVALID_DATE' })
+    expect(parseDate('180/5/2026', 'tr')).toEqual({ kind: 'error', reason: 'INVALID_DATE' })
+    expect(parseDate('18 05 2026', 'tr')).toEqual({ kind: 'error', reason: 'INVALID_DATE' })
+  })
+
+  it('round-trips against formatDate, which is the property that matters', () => {
+    // Every date the ledger can show must be a date the ledger can read back —
+    // the append row carries a formatted date into a field this parses.
+    const isoDates = [
+      '1970-01-01',
+      '2023-10-15',
+      '2026-01-01',
+      '2026-02-28',
+      '2024-02-29',
+      '2026-05-18',
+      '2026-12-31',
+      '2200-12-31'
+    ]
+    for (const iso of isoDates) {
+      for (const language of ['tr', 'en'] as const) {
+        expect(parseDate(formatDate(iso, language), language)).toEqual({ kind: 'date', iso })
+      }
+    }
   })
 })
 

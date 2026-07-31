@@ -53,14 +53,13 @@ interface Props {
 /**
  * Today, read once per mount.
  *
- * `computeGrid` takes a `Today` from its caller rather than reading a clock, and
- * Section 2 reads it once on mount for the same reason. Reading it per selector
- * call would let a dashboard left open across midnight answer two questions
- * about two different days.
+ * `computeGrid` takes the current month from its caller rather than reading a
+ * clock, and Section 2 reads it once on mount for the same reason. Reading it
+ * per selector call would let a dashboard left open across midnight answer two
+ * questions about two different days.
  */
-function todayNow(): { year: number; month: number } {
-  const now = new Date()
-  return { year: now.getFullYear(), month: now.getMonth() + 1 }
+function currentMonthNow(): number {
+  return new Date().getMonth() + 1
 }
 
 export function Overview({ navigate }: Props): ReactElement {
@@ -70,6 +69,7 @@ export function Overview({ navigate }: Props): ReactElement {
 
   const years = useOverviewStore((s) => s.years)
   const anchorYear = useOverviewStore((s) => s.anchorYear)
+  const payments = useOverviewStore((s) => s.payments)
   const ledger = useOverviewStore((s) => s.ledger)
   const loading = useOverviewStore((s) => s.loading)
   const error = useOverviewStore((s) => s.error)
@@ -80,16 +80,22 @@ export function Overview({ navigate }: Props): ReactElement {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const today = useMemo(todayNow, [])
+  const currentMonth = useMemo(currentMonthNow, [])
   const palette = useMemo(() => paletteById(paletteId), [paletteId])
 
   const cards = useMemo(() => yearCards(years), [years])
   const holdings = useMemo(() => holdingsOf(ledger), [ledger])
-  const debt = useMemo(() => debtTile(years, today), [years, today])
-  const remaining = useMemo(() => remainingTile(years, today), [years, today])
+  const debt = useMemo(() => debtTile(payments, currentMonth), [payments, currentMonth])
+  const remaining = useMemo(
+    () => remainingTile(payments, currentMonth),
+    [payments, currentMonth]
+  )
   const market = useMemo(() => marketTile(holdings), [holdings])
   const unrealised = useMemo(() => unrealisedTile(holdings), [holdings])
-  const incomplete = useMemo(() => incompleteReads(years, ledger), [years, ledger])
+  const incomplete = useMemo(
+    () => incompleteReads(years, payments, ledger),
+    [years, payments, ledger]
+  )
 
   const money = (kurus: number): string => formatTry(kurus, language)
 
@@ -111,11 +117,11 @@ export function Overview({ navigate }: Props): ReactElement {
       */}
       {incomplete.any ? (
         <p className="overview-partial" role="status" data-testid="ov-partial">
-          {t('overview.partial', {
-            years: [...new Set([...incomplete.workspaceYears, ...incomplete.gridYears])]
-              .sort((a, b) => a - b)
-              .join(', ')
-          })}
+          {incomplete.workspaceYears.length > 0
+            ? t('overview.partial', {
+                years: [...incomplete.workspaceYears].sort((a, b) => a - b).join(', ')
+              })
+            : t('overview.partialSections')}
         </p>
       ) : null}
 
@@ -139,17 +145,13 @@ export function Overview({ navigate }: Props): ReactElement {
               label={t('overview.tiles.debt')}
               figure={debt.kind === 'figure' ? money(debt.debt) : null}
               note={
-                debt.kind === 'no-years'
-                  ? t('overview.notes.noDebtYear')
-                  : debt.kind === 'unreadable'
-                    ? t('overview.notes.gridUnreadable')
-                    : debt.kind === 'no-columns'
-                      ? t('overview.notes.noBanks')
-                      : t('overview.tiles.debtOf', { year: debt.year })
+                debt.kind === 'unreadable'
+                  ? t('overview.notes.gridUnreadable')
+                  : debt.kind === 'no-columns'
+                    ? t('overview.notes.noBanks')
+                    : t('overview.tiles.debtNow')
               }
-              onOpen={
-                debt.kind === 'no-years' ? undefined : () => navigate('section2', debt.year)
-              }
+              onOpen={() => navigate('section2')}
             />
 
             <Tile
@@ -157,19 +159,13 @@ export function Overview({ navigate }: Props): ReactElement {
               label={t('overview.tiles.remaining')}
               figure={remaining.kind === 'figure' ? money(remaining.remaining) : null}
               note={
-                remaining.kind === 'no-years'
-                  ? t('overview.notes.noDebtYear')
-                  : remaining.kind === 'unreadable'
-                    ? t('overview.notes.gridUnreadable')
-                    : remaining.kind === 'no-limits'
-                      ? t('overview.notes.noBanks')
-                      : null
+                remaining.kind === 'unreadable'
+                  ? t('overview.notes.gridUnreadable')
+                  : remaining.kind === 'no-limits'
+                    ? t('overview.notes.noBanks')
+                    : null
               }
-              onOpen={
-                remaining.kind === 'no-years'
-                  ? undefined
-                  : () => navigate('section2', remaining.year)
-              }
+              onOpen={() => navigate('section2')}
             />
 
             <Tile

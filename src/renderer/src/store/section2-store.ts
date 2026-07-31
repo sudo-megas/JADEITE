@@ -1,48 +1,34 @@
 /**
  * Section 2's view of the vault.
  *
- * Two rules, the same two Section 1's store keeps.
- *
  * Every mutation re-reads the grid from the vault rather than patching a local
  * copy. The alternative — a client-side model that believes it knows what the
  * database contains — is how two views of one truth start to disagree, which is
  * the defect this whole application is a reply to.
  *
- * The open year is this store's own. Section 1 and Section 2 read the same
- * `years` table but keep their own place in it: checking an old instalment plan
- * should not drag the income grid to 2019 and leave it there.
+ * There is no year here, and no year state to keep. This store used to hold an
+ * open year of its own, deliberately independent of Section 1's, so that
+ * checking an old instalment plan would not drag the income grid to 2019 and
+ * leave it there. Point revision v0.8b removed the years rather than the
+ * independence: Ödemeler is one standing grid of the twelve months the owner is
+ * living in (§7.1, §7.3 as amended), and Section 1 keeps its workspaces alone.
  *
- * There is no sort and no filter here. Section 2's rows are the calendar, and a
- * grid whose rows are the calendar is not sorted — see docs/realisation-iv.md.
+ * There is no sort and no filter here either. Section 2's rows are the calendar,
+ * and a grid whose rows are the calendar is not sorted — see
+ * docs/realisation-iv.md.
  */
 
 import { create } from 'zustand'
 
-import type { Bank, BankDraft, Section2ErrorCode, YearGrid } from '@shared/section2/types'
+import type { Bank, BankDraft, PaymentsGrid, Section2ErrorCode } from '@shared/section2/types'
 import { registerVaultScoped } from './vault-scoped.js'
 
-/** Which way the workspace transition should play. */
-export type SwitchDirection = 'forward' | 'backward' | 'none'
-
 interface Section2State {
-  years: number[]
-  /** The year the accent sequence counts from (§12.3). */
-  anchorYear: number
-  activeYear: number | null
-  /** A year asked for from outside before this section mounted — see navigate.ts. */
-  pendingYear: number | null
-  grid: YearGrid | null
+  grid: PaymentsGrid | null
   loading: boolean
   error: Section2ErrorCode | null
-  direction: SwitchDirection
-  /** Moves only on a real workspace change, so editing never restarts a sampler. */
-  switchToken: number
 
   load(): Promise<void>
-  selectYear(year: number): Promise<void>
-  /** Ask for a year synchronously, before this section exists. */
-  focusYear(year: number): void
-  createYear(year: number): Promise<void>
   addBank(draft: BankDraft): Promise<void>
   renameBank(id: number, name: string): Promise<void>
   setCreditLimit(id: number, limit: number): Promise<void>
@@ -50,7 +36,6 @@ interface Section2State {
   moveBank(bank: Bank, delta: number): Promise<void>
   deleteBank(id: number): Promise<void>
   setCell(month: number, bankId: number, amount: number | null): Promise<void>
-  setArchived(archived: boolean): Promise<void>
   dismissError(): void
   reset(): void
 }
@@ -58,33 +43,11 @@ interface Section2State {
 const api = (): typeof window.jadeite.section2 => window.jadeite.section2
 
 /** The state of a store that has never seen an open vault. */
-function emptyState(): Omit<
-  Section2State,
-  | 'load'
-  | 'selectYear'
-  | 'focusYear'
-  | 'createYear'
-  | 'addBank'
-  | 'renameBank'
-  | 'setCreditLimit'
-  | 'setCounterParty'
-  | 'moveBank'
-  | 'deleteBank'
-  | 'setCell'
-  | 'setArchived'
-  | 'dismissError'
-  | 'reset'
-> {
+function emptyState(): Pick<Section2State, 'grid' | 'loading' | 'error'> {
   return {
-    years: [],
-    anchorYear: new Date().getFullYear(),
-    activeYear: null,
-    pendingYear: null,
     grid: null,
     loading: false,
-    error: null,
-    direction: 'none',
-    switchToken: 0
+    error: null
   }
 }
 
@@ -93,78 +56,16 @@ export const useSection2Store = create<Section2State>((set, get) => ({
 
   async load() {
     set({ loading: true, error: null })
-    const index = await api().years()
-    if (!index.ok) {
-      set({ loading: false, error: index.error })
-      return
-    }
-
-    const { years, anchorYear } = index.value
-    const { activeYear: current, pendingYear } = get()
-    // A year asked for from outside wins: it is the most recent statement of
-    // intent and was made before this section could hold one. Then the year
-    // already open, then the newest.
-    const asked = pendingYear !== null && years.includes(pendingYear) ? pendingYear : null
-    const target =
-      asked ?? (current !== null && years.includes(current) ? current : years[years.length - 1])
-
-    if (target === undefined) {
-      set({ years, anchorYear, activeYear: null, pendingYear: null, grid: null, loading: false })
-      return
-    }
-
-    const grid = await api().grid(target)
+    const grid = await api().grid()
     if (!grid.ok) {
-      set({ years, anchorYear, loading: false, error: grid.error })
+      set({ loading: false, error: grid.error })
       return
     }
-    set({ years, anchorYear, activeYear: target, pendingYear: null, grid: grid.value, loading: false })
-  },
-
-  /**
-   * Switch workspace.
-   *
-   * The rows are in hand before anything moves: the outgoing year stays fully
-   * interactive until the incoming one is ready, so the transition never plays
-   * over an empty pane waiting to be filled.
-   */
-  focusYear(year) {
-    set({ pendingYear: year })
-  },
-
-  async selectYear(year) {
-    const { activeYear } = get()
-    if (year === activeYear) return
-
-    set({ error: null })
-    const grid = await api().grid(year)
-    if (!grid.ok) {
-      set({ error: grid.error })
-      return
-    }
-
-    set((state) => ({
-      activeYear: year,
-      pendingYear: null,
-      grid: grid.value,
-      direction: activeYear === null ? 'none' : year > activeYear ? 'forward' : 'backward',
-      switchToken: state.switchToken + 1
-    }))
-  },
-
-  async createYear(year) {
-    set({ error: null })
-    const created = await api().createYear(year)
-    if (!created.ok) {
-      set({ error: created.error })
-      return
-    }
-    set({ years: created.value.years, anchorYear: created.value.anchorYear })
-    await get().selectYear(year)
+    set({ grid: grid.value, loading: false })
   },
 
   async addBank(draft) {
-    await run(set, get, () => api().addBank(requireYear(get), draft))
+    await run(set, get, () => api().addBank(draft))
   },
 
   async renameBank(id, name) {
@@ -205,7 +106,6 @@ export const useSection2Store = create<Section2State>((set, get) => ({
 
     await run(set, get, () =>
       api().reorderBanks(
-        requireYear(get),
         bank.isCounter,
         ordered.map((candidate) => candidate.id)
       )
@@ -217,11 +117,7 @@ export const useSection2Store = create<Section2State>((set, get) => ({
   },
 
   async setCell(month, bankId, amount) {
-    await run(set, get, () => api().setCell({ year: requireYear(get), month, bankId, amount }))
-  },
-
-  async setArchived(archived) {
-    await run(set, get, () => api().setArchived(requireYear(get), archived))
+    await run(set, get, () => api().setCell({ month, bankId, amount }))
   },
 
   dismissError() {
@@ -241,26 +137,23 @@ registerVaultScoped(() => {
 type Setter = (partial: Partial<Section2State>) => void
 type Getter = () => Section2State
 
-function requireYear(get: Getter): number {
-  const year = get().activeYear
-  if (year === null) throw new Error('no active year')
-  return year
-}
-
 /**
  * Perform a write, then re-read the grid it changed.
  *
  * The re-read is the point: the grid renders what the vault holds, never what
- * the renderer hoped it wrote. It is also how a refusal from a frozen year
- * reaches the screen without the interface having to predict one.
+ * the renderer hoped it wrote.
+ *
+ * The guard is a load check, not a year check. Nothing in this section can be
+ * edited before its grid has arrived — there are no cells on screen to edit —
+ * and a mutation fired against a store that has not loaded would write into a
+ * grid the owner has not seen.
  */
 async function run(
   set: Setter,
   get: Getter,
   operation: () => Promise<{ ok: true; value: unknown } | { ok: false; error: Section2ErrorCode }>
 ): Promise<void> {
-  const year = get().activeYear
-  if (year === null) return
+  if (get().grid === null) return
 
   set({ error: null })
   let result: Awaited<ReturnType<typeof operation>>
@@ -276,7 +169,7 @@ async function run(
     return
   }
 
-  const grid = await window.jadeite.section2.grid(year)
+  const grid = await window.jadeite.section2.grid()
   if (!grid.ok) {
     set({ error: grid.error })
     return

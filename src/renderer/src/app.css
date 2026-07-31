@@ -28,7 +28,16 @@
   max-width: 560px;
 }
 
+/*
+ * The mark, then the wordmark. `flex` rather than an inline SVG left in the
+ * text flow: a baseline-aligned glyph sits a fraction low beside uppercase
+ * letters with this much tracking, and centring it is one line instead of a
+ * hand-tuned vertical-align that would need retuning at every font size.
+ */
 .brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.18em;
@@ -208,6 +217,9 @@ button {
 }
 
 .rail-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.18em;
@@ -422,7 +434,6 @@ button {
 }
 
 .s1-years,
-.s2-years,
 .s3-views {
   display: flex;
   align-items: center;
@@ -433,7 +444,6 @@ button {
 /* The switcher chip is the one place a year accent reaches full strength —
    a small mark, per the elegance constraint of §12.3. */
 .s1-year-chip,
-.s2-year-chip,
 .s3-view-chip {
   padding: 6px 14px;
   background: var(--surface-raised);
@@ -445,14 +455,12 @@ button {
 }
 
 .s1-year-chip:hover,
-.s2-year-chip:hover,
 .s3-view-chip:hover {
   border-color: var(--border-strong);
   color: var(--text);
 }
 
 .s1-year-chip[data-active='true'],
-.s2-year-chip[data-active='true'],
 .s3-view-chip[data-active='true'] {
   background: var(--year-accent-tint);
   border-color: var(--year-accent-mark);
@@ -462,8 +470,7 @@ button {
 
 /* The chip and its menu button travel together, so the menu can anchor to the
    year it belongs to. */
-.s1-year-slot,
-.s2-year-slot {
+.s1-year-slot {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -513,8 +520,7 @@ button {
   box-shadow: inset 0 0 0 2px var(--surface-raised);
 }
 
-.s1-year-add,
-.s2-year-add {
+.s1-year-add {
   width: 30px;
   height: 30px;
   background: none;
@@ -525,23 +531,25 @@ button {
   line-height: 1;
 }
 
-.s1-year-add:hover,
-.s2-year-add:hover {
+.s1-year-add:hover {
   color: var(--text);
   border-color: var(--accent);
 }
 
-.s1-tools,
-.s2-tools {
+.s1-tools {
   display: flex;
   gap: 8px;
 }
 
 /* The workspace switch: one directional slide of the grid pane, transform and
    opacity only. Nothing that forces layout or paint animates, which is what
-   keeps it smooth at 280 Hz and acceptable on the laptop's iGPU. */
-.s1-pane,
-.s2-pane {
+   keeps it smooth at 280 Hz and acceptable on the laptop's iGPU.
+
+   Section 1 alone now. Section 2's pane wore the same animation while it had
+   years to slide between; §7.3's amendment left it one standing grid, and a
+   section that cannot switch workspaces must not play a workspace switch every
+   time it is opened. */
+.s1-pane {
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -550,15 +558,20 @@ button {
   animation: s1-enter-forward 180ms cubic-bezier(0.2, 0, 0, 1);
 }
 
-.s1-pane[data-direction='backward'],
-.s2-pane[data-direction='backward'] {
+.s1-pane[data-direction='backward'] {
   animation-name: s1-enter-backward;
 }
 
-.s1-pane[data-direction='none'],
-.s2-pane[data-direction='none'] {
+.s1-pane[data-direction='none'] {
   animation: none;
   will-change: auto;
+}
+
+.s2-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
 }
 
 @keyframes s1-enter-forward {
@@ -586,8 +599,7 @@ button {
 /* A fade is still motion, so reduced motion gets an instantaneous swap. The
    direction cue survives statically in the switcher chip. */
 @media (prefers-reduced-motion: reduce) {
-  .s1-pane,
-  .s2-pane {
+  .s1-pane {
     animation: none;
     will-change: auto;
   }
@@ -1417,27 +1429,6 @@ button {
   padding-left: 12px;
 }
 
-/* --- The frozen year (§7.3) ---------------------------------------------- */
-
-.s2-frozen {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-  margin: 0;
-  padding: 8px 12px;
-  background: var(--surface-sunken);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius);
-  font-size: 13px;
-  color: var(--text-muted);
-}
-
-.s2-frozen .lede {
-  margin: 0;
-  font-size: 12px;
-  color: var(--text-subtle);
-}
-
 /* --- Header cells -------------------------------------------------------- */
 
 .s2-header {
@@ -1588,6 +1579,25 @@ button {
 .s3-append td {
   border-bottom: none;
   border-top: 1px solid var(--border-strong);
+}
+
+/* The append row's refusal, drawn under the ledger rather than over it.
+   
+   Every other refusal in this section is an overlay anchored to its own cell,
+   which is right for a cell with rows below it. This one is about the last row
+   of a table inside a scroller — and `overflow-x: auto` makes the other axis
+   `auto` too — so an overlay below that row was cut off at the scroller's edge
+   and one above it at the header. In normal flow beneath the scroller nothing
+   can clip it, and it is on the owner's way to the section rather than over the
+   figures they are checking. */
+.s3-append-problem {
+  margin: 8px 0 0;
+  padding: 6px 10px;
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-sm);
+  background: var(--surface-overlay);
+  color: var(--danger);
+  font-size: 12px;
 }
 
 .s3-cell {
@@ -2072,12 +2082,15 @@ input.s3-person-name:focus {
    buttons, the error line and the refusal tooltip are shared with the sections
    above on the same selector lists; only the list itself lives here. */
 
+/* The 640px this carried while the section was a list of labelled lines would
+   give ten columns 61px apiece, and a figure of any size would clip. This is
+   the width at which a box still holds 1.000.000,00 whole. */
 .s4 {
   display: flex;
   flex-direction: column;
   gap: 16px;
   min-width: 0;
-  max-width: 640px;
+  max-width: 1180px;
 }
 
 /* The three headers are the point of the section, so they are the largest thing
@@ -2201,6 +2214,85 @@ input.s3-person-name:focus {
 .s4-line-tools {
   display: flex;
   gap: 4px;
+}
+
+/* The grid of value boxes (§9, amended). Ten equal columns, and the ten is
+   `COLUMNS` in shared/section4/types.ts — the two have to agree, and a grid
+   template cannot import a constant.
+
+   `minmax(0, 1fr)` rather than `1fr`, so a long figure narrows its own box
+   instead of pushing the whole row wider than the pane. The boxes deliberately
+   do not reuse `.s4-value` above: that rule's fixed 9.5em belongs to a flex row
+   with a label beside it, and a grid column sets its own width. */
+.s4-grid {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 2px;
+}
+
+/* Positioned, so a refusal hangs under the box that was refused rather than
+   under the grid. */
+.s4-box-cell {
+  position: relative;
+  display: block;
+  min-width: 0;
+}
+
+/* `input.s4-box` rather than `.s4-box`, which is the only rule in this section
+   that needs saying twice. The global `input[type='text']` near the top of this
+   file is an attribute selector and outranks a bare class, so a class-only rule
+   here would be silently overruled on font-size, padding and border — which is
+   how a box that should hold 1.000.000,00 ends up clipping it at 15px with 12px
+   of padding either side. Every rule after this one carries a pseudo-class or an
+   attribute of its own and already outranks the global.
+
+   Eleven pixels, smaller than any figure elsewhere in the app, because there are
+   ten of them across a pane the other sections give to three or four columns.
+
+   `text-overflow: ellipsis` is the load-bearing declaration here, and it is a
+   correctness rule rather than a cosmetic one. Ten columns cannot be made wide
+   enough for every figure at the 960px minimum window, so a box *can* be handed
+   more than it can draw — and an input that overflows scrolls to its own start,
+   which renders 1.000.000,00 as "1.000.00". That is not a clipped number; it is
+   a different number, complete-looking and wrong by a factor of a hundred, in an
+   application whose whole reason for existing is a spreadsheet that displayed a
+   total it was not computing. The ellipsis turns it back into something that
+   reads as truncated, and focusing the box shows the ungrouped editable form,
+   which is shorter and always fits. */
+input.s4-box {
+  width: 100%;
+  padding: 5px 3px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  text-overflow: ellipsis;
+}
+
+.s4-box:hover {
+  border-color: var(--border-strong);
+}
+
+/* Lifted rather than sunken while it is being typed in: the box at the caret is
+   the one thing on this screen that is not a hundred identical rectangles. */
+.s4-box:focus {
+  background: var(--surface-raised);
+  border-color: var(--accent);
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -1px;
+}
+
+.s4-box[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.s4-tools {
+  display: flex;
+  gap: 8px;
 }
 
 /* --- Altın Eğrisi ---------------------------------------------------------- */

@@ -1,26 +1,33 @@
 /**
  * Section 4 — Calculation Zone (§9).
  *
- * "Deliberately unfancy": a list of label-and-value lines, with TOTAL, AVERAGE and
- * MEDIAN always visible above them. The source workbook only ever sketched this
- * section in placeholder text, so there is nothing here being reproduced — this is
- * the first real one.
+ * A fixed grid of value boxes, ten wide, with TOPLAM, ORTALAMA and ORTANCA
+ * always above it. Nothing labels a box and nothing can: the owner's finding
+ * after their first day with the application is that a month can carry a hundred
+ * and twenty figures, and an *etiket* demanded before each one made the section
+ * unusable for the only thing it is for (§9, amended 31 July 2026).
  *
- * The three headers are always on screen, including when the list is empty, where
- * they say so rather than showing a zero. A zero total is a real answer for a list
- * of zeros; an empty list has no total, and the difference is worth a word.
+ * The three headers are always on screen, including when every box is empty,
+ * where they say so rather than showing a zero. A zero total is a real answer
+ * for a grid of zeros; an empty grid has no total, and the difference is worth a
+ * word.
  *
- * The keyboard path of §6.4 applies here too. The append row at the foot carries
- * nothing forward — every line in a scratchpad is its own thing — but Enter commits
- * it and returns the caret to the label, so a column of figures goes in without
- * reaching for anything.
+ * The keyboard path of §6.4 applies here too, and the grid *is* the whole of it.
+ * Boxes are one flat run in DOM order — left to right, then down — so Tab walks
+ * a row and falls into the next one, and a run of figures goes in without
+ * reaching for anything. There is no arrow-key navigation and no roving
+ * tabindex: this application has neither anywhere, and inventing them here would
+ * make the scratchpad the one screen where the caret moves by a rule the rest of
+ * the app does not follow. The grid grows a row at a time instead of ending in
+ * an append widget — the eleventh box of a row is reached exactly as the tenth
+ * was, and the row after the last figure is always there to be reached.
  */
 
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { computeStatistics } from '@shared/section4/engine'
-import type { Line } from '@shared/section4/types'
+import { COLUMNS } from '@shared/section4/types'
 import { amountToInput, parseAmount, type ParseFailure } from '@shared/money'
 import { formatNumber } from '../../i18n/format.js'
 import { useAppStore } from '../../store/app-store.js'
@@ -30,7 +37,7 @@ export function Section4(): ReactElement {
   const { t } = useTranslation()
   const language = useAppStore((s) => s.language)
   const store = useSection4Store()
-  const { lines, loading, error, addToken } = store
+  const { cells, loading, error, rowsShown } = store
 
   useEffect(() => {
     void store.load()
@@ -38,9 +45,17 @@ export function Section4(): ReactElement {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const stats = useMemo(() => computeStatistics(lines), [lines])
+  const stats = useMemo(() => computeStatistics(cells), [cells])
 
-  if (loading && lines.length === 0) return <section className="s4" data-testid="section4" />
+  // The cells arrive sparse and the grid is drawn dense, so the lookup is built
+  // once per read rather than scanned once per box.
+  const bySlot = useMemo(() => {
+    const map = new Map<number, number>()
+    for (const cell of cells) map.set(cell.slot, cell.value)
+    return map
+  }, [cells])
+
+  if (loading && cells.length === 0) return <section className="s4" data-testid="section4" />
 
   return (
     <section className="s4" data-testid="section4">
@@ -77,19 +92,19 @@ export function Section4(): ReactElement {
         </p>
       ) : null}
 
-      <ol className="s4-lines" data-testid="s4-lines">
-        {lines.map((line, index) => (
-          <Row
-            key={line.id}
-            line={line}
+      <div className="s4-grid" data-testid="s4-grid">
+        {Array.from({ length: rowsShown * COLUMNS }, (_unused, slot) => (
+          <Box
+            key={slot}
+            slot={slot}
+            value={bySlot.get(slot) ?? null}
             language={language}
-            first={index === 0}
-            last={index === lines.length - 1}
+            onCommit={(value) => void store.setCell({ slot, value })}
           />
         ))}
-      </ol>
+      </div>
 
-      <AppendRow language={language} addToken={addToken} />
+      <ClearAll />
     </section>
   )
 }
@@ -124,202 +139,112 @@ function Statistic({
   )
 }
 
-function Row({
-  line,
-  language,
-  first,
-  last
-}: {
-  line: Line
-  language: 'tr' | 'en'
-  first: boolean
-  last: boolean
-}): ReactElement {
-  const { t } = useTranslation()
-  const store = useSection4Store()
-  const [confirming, setConfirming] = useState(false)
-
-  return (
-    <li className="s4-line" data-testid={`s4-line-${line.id}`}>
-      <LabelField
-        value={line.label}
-        testId={`s4-label-${line.id}`}
-        onCommit={(label) => void store.updateLine({ id: line.id, label })}
-      />
-
-      <ValueField
-        value={line.value}
-        language={language}
-        testId={`s4-value-${line.id}`}
-        onCommit={(value) => void store.updateLine({ id: line.id, value })}
-      />
-
-      <span className="s4-line-tools">
-        <button
-          type="button"
-          className="s4-btn-quiet"
-          disabled={first}
-          aria-label={t('section4.moveUp')}
-          onClick={() => void store.moveLine(line, -1)}
-        >
-          ↑
-        </button>
-        <button
-          type="button"
-          className="s4-btn-quiet"
-          disabled={last}
-          aria-label={t('section4.moveDown')}
-          onClick={() => void store.moveLine(line, 1)}
-        >
-          ↓
-        </button>
-
-        {/* Two clicks rather than a dialogue, as the ledger does: one scratchpad
-            line is a small thing to lose, and §9 is not a place for ceremony. */}
-        {confirming ? (
-          <button
-            type="button"
-            className="s4-btn-danger-quiet"
-            data-testid={`s4-delete-confirm-${line.id}`}
-            onClick={() => void store.deleteLine(line.id)}
-          >
-            {t('section4.deleteConfirm')}
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="s4-btn-quiet"
-            aria-label={t('section4.deleteLine')}
-            data-testid={`s4-delete-${line.id}`}
-            onClick={() => setConfirming(true)}
-          >
-            ×
-          </button>
-        )}
-      </span>
-    </li>
-  )
-}
-
-function LabelField({
-  value,
-  testId,
-  onCommit
-}: {
-  value: string
-  testId: string
-  onCommit: (label: string) => void
-}): ReactElement {
-  const { t } = useTranslation()
-  const [draft, setDraft] = useState(value)
-  const [editing, setEditing] = useState(false)
-
-  useEffect(() => {
-    if (!editing) setDraft(value)
-  }, [value, editing])
-
-  return (
-    <input
-      className="s4-label"
-      type="text"
-      aria-label={t('section4.label')}
-      value={draft}
-      data-testid={testId}
-      onFocus={() => setEditing(true)}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={() => {
-        setEditing(false)
-        if (draft !== value) onCommit(draft)
-      }}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') e.currentTarget.blur()
-        if (e.key === 'Escape') {
-          setDraft(value)
-          e.currentTarget.blur()
-        }
-      }}
-    />
-  )
-}
-
 /**
- * A figure, or nothing.
+ * One box.
  *
- * Empty commits as null rather than as zero: a line with a label and no figure is
- * a heading, and a heading that counted as a zero would drag every average toward
- * it (§9, and the engine's opening note).
+ * The same state machine every editable figure in this application uses
+ * (`sections/section2/AmountCell.tsx`): the app language parses what was typed
+ * rather than the machine's locale, a refusal keeps what was typed instead of
+ * discarding it, and nothing is guessed at. It is a `type="text"` with
+ * `inputMode="decimal"` for the reason given there — a grid of spinners is
+ * noise, and a `type="number"` would accept the operating system's idea of a
+ * decimal separator rather than the app's.
+ *
+ * Empty commits as null, which removes the box's row rather than storing a zero.
+ * A box the owner cleared is not a box holding nothing; it is a box holding no
+ * figure, and an average must not be dragged toward a zero nobody typed.
  */
-function ValueField({
+function Box({
+  slot,
   value,
   language,
-  testId,
   onCommit
 }: {
+  slot: number
+  /** Minor units, or null for a box with nothing in it. */
   value: number | null
   language: 'tr' | 'en'
-  testId: string
   onCommit: (value: number | null) => void
 }): ReactElement {
   const { t } = useTranslation()
-  const [draft, setDraft] = useState('')
   const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState('')
   const [problem, setProblem] = useState<ParseFailure | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
+  // While not editing, the box shows the formatted figure; the moment it is
+  // focused it shows the ungrouped, editable one.
   useEffect(() => {
     if (!editing) setDraft(amountToInput(value, language))
   }, [value, language, editing])
 
-  function commit(): boolean {
+  function beginEditing(): void {
+    setDraft(amountToInput(value, language))
+    setEditing(true)
+    setProblem(null)
+  }
+
+  function commit(): void {
     const parsed = parseAmount(draft, language)
+
     if (parsed.kind === 'error') {
       setProblem(parsed.reason)
-      return false
+      return
     }
     setProblem(null)
     setEditing(false)
+
     if (parsed.kind === 'empty') {
       if (value !== null) onCommit(null)
-      return true
+      return
     }
-    if (parsed.minorUnits !== value) onCommit(parsed.minorUnits)
-    return true
+    if (parsed.minorUnits === value) return
+    onCommit(parsed.minorUnits)
   }
 
+  function cancel(): void {
+    setDraft(amountToInput(value, language))
+    setProblem(null)
+    setEditing(false)
+  }
+
+  const display = value === null ? '' : formatNumber(value / 100, language)
+
   return (
-    <span className="s4-value-cell">
+    <span className="s4-box-cell">
       <input
-        className="s4-value"
+        ref={inputRef}
+        className="s4-box"
         type="text"
         inputMode="decimal"
-        aria-label={t('section4.value')}
+        // No label names this box, so its number does. Counted from one: the
+        // first box is the first box, and only the storage counts from zero.
+        aria-label={t('section4.box', { number: slot + 1 })}
         aria-invalid={problem !== null}
-        value={editing ? draft : value === null ? '' : formatNumber(value / 100, language)}
-        data-testid={testId}
-        onFocus={() => {
-          setDraft(amountToInput(value, language))
-          setEditing(true)
-          setProblem(null)
-        }}
+        value={editing ? draft : display}
+        data-testid={`s4-box-${slot}`}
+        onFocus={beginEditing}
         onChange={(e) => {
           setDraft(e.target.value)
           if (problem) setProblem(null)
         }}
         onBlur={() => {
+          // A refusal keeps the box open rather than discarding what was typed.
           if (editing) commit()
         }}
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
             e.preventDefault()
-            if (commit()) e.currentTarget.blur()
+            commit()
+            inputRef.current?.blur()
           } else if (e.key === 'Escape') {
             e.preventDefault()
-            setDraft(amountToInput(value, language))
-            setProblem(null)
-            setEditing(false)
-            e.currentTarget.blur()
+            cancel()
+            inputRef.current?.blur()
           }
         }}
       />
+
       {problem ? (
         <p className="s4-problem" role="alert">
           {t(`section4.parse.${problem}`)}
@@ -329,91 +254,43 @@ function ValueField({
   )
 }
 
-/** The always-present line at the foot. Enter commits and comes back here. */
-function AppendRow({
-  language,
-  addToken
-}: {
-  language: 'tr' | 'en'
-  addToken: number
-}): ReactElement {
+/**
+ * Empty every box.
+ *
+ * Two clicks rather than a dialogue, exactly as the ledger's own removals do:
+ * §6.4 refuses a modal on the common path, and clearing a finished month's
+ * arithmetic is close enough to common. It sits *after* the grid so that the one
+ * destructive control in the section is never in the tab path of ordinary entry.
+ */
+function ClearAll(): ReactElement {
   const { t } = useTranslation()
   const store = useSection4Store()
-  const [label, setLabel] = useState('')
-  const [value, setValue] = useState('')
-  const [problem, setProblem] = useState<ParseFailure | null>(null)
-  const labelRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (addToken === 0) return
-    setLabel('')
-    setValue('')
-    setProblem(null)
-    labelRef.current?.focus()
-  }, [addToken])
-
-  function submit(): void {
-    const parsed = parseAmount(value, language)
-    if (parsed.kind === 'error') {
-      setProblem(parsed.reason)
-      return
-    }
-    // A line with neither a label nor a figure is nothing at all.
-    if (label.trim().length === 0 && parsed.kind === 'empty') return
-
-    setProblem(null)
-    void store.addLine({
-      label: label.trim(),
-      value: parsed.kind === 'amount' ? parsed.minorUnits : null
-    })
-  }
+  const [confirming, setConfirming] = useState(false)
 
   return (
-    <div
-      className="s4-line s4-append"
-      data-testid="s4-append"
-      onKeyDown={(e) => {
-        if (e.key !== 'Enter') return
-        e.preventDefault()
-        submit()
-      }}
-    >
-      <input
-        ref={labelRef}
-        className="s4-label"
-        type="text"
-        placeholder={t('section4.newLabel')}
-        aria-label={t('section4.newLabel')}
-        value={label}
-        data-testid="s4-new-label"
-        onChange={(e) => setLabel(e.target.value)}
-      />
-      <span className="s4-value-cell">
-        <input
-          className="s4-value"
-          type="text"
-          inputMode="decimal"
-          placeholder={t('section4.newValue')}
-          aria-label={t('section4.newValue')}
-          aria-invalid={problem !== null}
-          value={value}
-          data-testid="s4-new-value"
-          onChange={(e) => {
-            setValue(e.target.value)
-            if (problem) setProblem(null)
+    <div className="s4-tools">
+      {confirming ? (
+        <button
+          type="button"
+          className="s4-btn-danger-quiet"
+          data-testid="s4-clear-confirm"
+          onClick={() => {
+            setConfirming(false)
+            void store.clear()
           }}
-        />
-        {problem ? (
-          <p className="s4-problem" role="alert" data-testid="s4-append-problem">
-            {t(`section4.parse.${problem}`)}
-          </p>
-        ) : null}
-      </span>
-      <span className="s4-line-tools">
-        <button type="button" className="s4-btn" data-testid="s4-add-line" onClick={submit}>
-          {t('section4.addLine')}
+        >
+          {t('section4.clearConfirm')}
         </button>
-      </span>
+      ) : (
+        <button
+          type="button"
+          className="s4-btn-quiet"
+          data-testid="s4-clear"
+          onClick={() => setConfirming(true)}
+        >
+          {t('section4.clearAll')}
+        </button>
+      )}
     </div>
   )
 }

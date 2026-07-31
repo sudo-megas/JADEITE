@@ -1,10 +1,16 @@
 /**
- * Section 2 storage — bank columns, cells, and the rollover freeze.
+ * Section 2 storage — bank columns and their cells, in one standing grid.
  *
  * These run inside Electron because they open a real SQLCipher database. The
  * arithmetic is tested separately under Vitest against the pure engine; what is
  * proved here is that the rows the engine will be handed are the rows the owner
- * actually typed, and that a frozen year refuses every one of them.
+ * actually typed.
+ *
+ * **There is no year in any of this** (§7.1, §7.3 as amended by point revision
+ * v0.8b). Every helper below used to take one as its first argument and every
+ * fixture began by creating a year to hang the columns from. Ödemeler is now
+ * twelve month lines and one set of columns, so the year is gone from the
+ * fixtures as completely as it is gone from the schema.
  */
 
 import { mkdtempSync, rmSync } from 'node:fs'
@@ -16,9 +22,7 @@ import { afterEach, beforeEach, describe, expect, it } from './harness.js'
 import { generateDek } from '../../src/main/vault/dek.js'
 import { closeDatabase, openDatabase } from '../../src/main/vault/db/connection.js'
 import { seedDefaultSettings } from '../../src/main/vault/db/settings.js'
-import * as s1 from '../../src/main/vault/db/section1.js'
 import * as s2 from '../../src/main/vault/db/section2.js'
-import * as years from '../../src/main/vault/db/years.js'
 import { computeGrid } from '../../src/shared/section2/engine.js'
 
 let dir: string
@@ -35,29 +39,85 @@ afterEach(() => {
   rmSync(dir, { recursive: true, force: true })
 })
 
-const TODAY = { year: 2026, month: 7 }
+/**
+ * The month the grid is being read in. A number rather than a date: the engine
+ * takes the current month from its caller so nothing here races a clock, and it
+ * no longer takes a year to compare against because the twelve lines always
+ * straddle the present.
+ */
+const CURRENT_MONTH = 7
 
-function addBank(year: number, name: string, creditLimit: number): number {
-  return s2.addBank(db, year, { name, creditLimit, isCounter: false, counterParty: null })
+function addBank(name: string, creditLimit: number): number {
+  return s2.addBank(db, { name, creditLimit, isCounter: false, counterParty: null })
 }
 
-function addCounter(year: number, name: string, party: string): number {
-  return s2.addBank(db, year, { name, creditLimit: 0, isCounter: true, counterParty: party })
+function addCounter(name: string, party: string): number {
+  return s2.addBank(db, { name, creditLimit: 0, isCounter: true, counterParty: party })
 }
 
-function put(year: number, month: number, bankId: number, amount: number | null): void {
-  s2.setCell(db, { year, month, bankId, amount })
+function put(month: number, bankId: number, amount: number | null): void {
+  s2.setCell(db, { month, bankId, amount })
 }
+
+/**
+ * The code a refusal names, not merely that it refused.
+ *
+ * The harness has no `toThrow(code)` and does not need one, but "it threw" is
+ * the weaker assertion: a `setCell` that rejected a thirteenth month by
+ * complaining about the amount would pass it, and the owner would be told to
+ * correct a figure that is perfectly good. The code is what the IPC layer turns
+ * into the sentence on screen, so the code is what is asserted.
+ */
+function codeOf(fn: () => unknown): string {
+  try {
+    fn()
+  } catch (error) {
+    return (error as { code?: string }).code ?? String(error)
+  }
+  return ''
+}
+
+/**
+ * What is no longer tested here, and why — point revision v0.8b (§7.1, §7.3).
+ *
+ * Five things left this file with the dimension they were about. They are named
+ * rather than quietly dropped, because a test that vanishes between two commits
+ * is indistinguishable from coverage that was lost by accident:
+ *
+ * - **The rollover** (`'the rollover carries the banks and clears the amounts'`).
+ *   `createYear` no longer copies bank columns into the new year; there is one
+ *   set of columns and creating a Section 1 year does not touch them.
+ * - **The frozen year** (`'a frozen year is read-only and lossless'`, and with
+ *   it `'freezes one year without freezing its neighbours'`). `isArchived` and
+ *   `setArchived` are gone, the `ARCHIVED` code is gone from the error union,
+ *   and `years.s2_archived` survives only as a dead column schema.ts explains.
+ * - **Year-scoped names** (`'refuses a duplicate name inside one year, and
+ *   allows it in another'`). One name, one column, vault-wide — which is what
+ *   the v4 migration's `UNIQUE (name)` now enforces, and what the surviving
+ *   duplicate-name test below asserts in both directions.
+ * - **Cross-year isolation** (`'refuses a cell whose column belongs to another
+ *   year'`, `'leaves year N untouched when year N+1 retires a column'`). There
+ *   is no other year to be isolated from. The half of the first that still has a
+ *   subject — a cell naming a column that does not exist — is kept below.
+ * - **`yearUsage`'s Section 2 counts** (`describe('deleting a year takes the
+ *   Payments grid with it')`). Deleting a year cannot reach Ödemeler any more,
+ *   so `yearUsage` returns `{categoryCount, entryCount}` and the cascade it
+ *   asserted does not exist. Section 1's suite owns what is left of it.
+ *
+ * The capability those blocks described is genuinely gone: no previous year's
+ * debts are kept, and there is no read-only archive of one. That is the owner's
+ * ruling, recorded here so a later rung disagrees with it deliberately rather
+ * than discovering the gap.
+ */
 
 describe('bank columns', () => {
   it('positions banks and counter columns contiguously within their own side', () => {
-    years.createYear(db, 2026)
-    const a = addBank(2026, 'A', 10_000_000)
-    const b = addBank(2026, 'B', 20_000_000)
-    const sayacA = addCounter(2026, 'Sayaç A', 'Sayaç A')
-    const sayacB = addCounter(2026, 'Sayaç B', 'Sayaç B')
+    const a = addBank('A', 10_000_000)
+    const b = addBank('B', 20_000_000)
+    const sayacA = addCounter('Sayaç A', 'Sayaç A')
+    const sayacB = addCounter('Sayaç B', 'Sayaç B')
 
-    const grid = s2.readGrid(db, 2026)
+    const grid = s2.readGrid(db)
     const byId = new Map(grid.banks.map((bank) => [bank.id, bank]))
 
     expect(byId.get(a)!.position).toBe(0)
@@ -71,11 +131,10 @@ describe('bank columns', () => {
   })
 
   it('stores a counter column with a person and no limit, and a bank the other way round', () => {
-    years.createYear(db, 2026)
-    addBank(2026, 'Kart', 5_000_000)
-    addCounter(2026, 'Sayaç A', 'Sayaç A')
+    addBank('Kart', 5_000_000)
+    addCounter('Sayaç A', 'Sayaç A')
 
-    const grid = s2.readGrid(db, 2026)
+    const grid = s2.readGrid(db)
     const card = grid.banks.find((bank) => bank.name === 'Kart')!
     const counter = grid.banks.find((bank) => bank.name === 'Sayaç A')!
 
@@ -89,79 +148,80 @@ describe('bank columns', () => {
   })
 
   it('forces a limit off a counter column even when one is offered', () => {
-    years.createYear(db, 2026)
     // A stray limit here would silently join the total credit limit.
-    const id = s2.addBank(db, 2026, {
+    const id = s2.addBank(db, {
       name: 'Sayaç A',
       creditLimit: 999_000_000,
       isCounter: true,
       counterParty: 'Sayaç A'
     })
 
-    const grid = s2.readGrid(db, 2026)
+    const grid = s2.readGrid(db)
     expect(grid.banks.find((bank) => bank.id === id)!.creditLimit).toBe(0)
-    expect(computeGrid(grid, TODAY).totalCreditLimit).toBe(0)
+    expect(computeGrid(grid, CURRENT_MONTH).totalCreditLimit).toBe(0)
   })
 
-  it('refuses a duplicate name inside one year, and allows it in another', () => {
-    years.createYear(db, 2025)
-    addBank(2025, 'Kart', 1_000_000)
-    expect(() => addBank(2025, 'Kart', 2_000_000)).toThrow()
+  /**
+   * One name, one column — across both kinds of column, not merely within one.
+   *
+   * `assertNameFree` has never carried an `is_counter` predicate: a counter
+   * column called "Banka A" beside a card called "Banka A" would put one name in
+   * two header rows meaning two things. That used to be true inside a year and
+   * is now true vault-wide, which is precisely what the v4 migration relied on
+   * when it tightened `UNIQUE (year, name)` to `UNIQUE (name)`. Asserted in both
+   * directions, because a check written on only one of the two tables' worth of
+   * rows would pass one of them.
+   */
+  it('refuses a duplicate name, whichever kind of column already holds it', () => {
+    addBank('Kart', 1_000_000)
+    expect(codeOf(() => addBank('Kart', 2_000_000))).toBe('DUPLICATE_NAME')
+    expect(codeOf(() => addCounter('Kart', 'Sayaç A'))).toBe('DUPLICATE_NAME')
 
-    // A different year is a different set of columns, so the name is free
-    // there. 2020 is older than 2025 and therefore inherits nothing.
-    years.createYear(db, 2020)
-    addBank(2020, 'Kart', 1_000_000)
-    expect(s2.readGrid(db, 2020).banks).toHaveLength(1)
+    addCounter('Sayaç A', 'Sayaç A')
+    expect(codeOf(() => addBank('Sayaç A', 500_000))).toBe('DUPLICATE_NAME')
 
-    // And a year that *did* inherit it already has it taken.
-    years.createYear(db, 2026)
-    expect(s2.readGrid(db, 2026).banks.map((bank) => bank.name)).toEqual(['Kart'])
-    expect(() => addBank(2026, 'Kart', 1_000_000)).toThrow()
+    // Refused before the row was written, not after: two columns, still.
+    expect(s2.readGrid(db).banks).toHaveLength(2)
   })
 
   it('refuses a blank or oversized name', () => {
-    years.createYear(db, 2026)
-    expect(() => addBank(2026, '   ', 0)).toThrow()
-    expect(() => addBank(2026, 'x'.repeat(49), 0)).toThrow()
+    expect(() => addBank('   ', 0)).toThrow()
+    expect(() => addBank('x'.repeat(49), 0)).toThrow()
   })
 
   it('renames, retypes the limit, and still refuses to collide', () => {
-    years.createYear(db, 2026)
-    const a = addBank(2026, 'A', 1_000_000)
-    addBank(2026, 'B', 2_000_000)
+    const a = addBank('A', 1_000_000)
+    addBank('B', 2_000_000)
 
     s2.renameBank(db, a, '  Yeni   Kart ')
-    expect(s2.readGrid(db, 2026).banks[0]!.name).toBe('Yeni Kart')
+    expect(s2.readGrid(db).banks[0]!.name).toBe('Yeni Kart')
 
     expect(() => s2.renameBank(db, a, 'B')).toThrow()
 
     s2.setCreditLimit(db, a, 7_500_000)
-    expect(s2.readGrid(db, 2026).banks[0]!.creditLimit).toBe(7_500_000)
+    expect(s2.readGrid(db).banks[0]!.creditLimit).toBe(7_500_000)
   })
 
   it('refuses a limit on a counter column and a person on a card', () => {
-    years.createYear(db, 2026)
-    const card = addBank(2026, 'Kart', 1_000_000)
-    const counter = addCounter(2026, 'Sayaç A', 'Sayaç A')
+    const card = addBank('Kart', 1_000_000)
+    const counter = addCounter('Sayaç A', 'Sayaç A')
 
     expect(() => s2.setCreditLimit(db, counter, 500)).toThrow()
     expect(() => s2.setCounterParty(db, card, 'biri')).toThrow()
 
     s2.setCounterParty(db, counter, 'Sayaç B')
-    expect(s2.readGrid(db, 2026).banks.find((b) => b.id === counter)!.counterParty).toBe('Sayaç B')
+    expect(s2.readGrid(db).banks.find((bank) => bank.id === counter)!.counterParty).toBe('Sayaç B')
   })
 
   it('reorders one side and renumbers it contiguously, leaving the other alone', () => {
-    years.createYear(db, 2026)
-    const a = addBank(2026, 'A', 0)
-    const b = addBank(2026, 'B', 0)
-    const c = addBank(2026, 'C', 0)
-    const sayacA = addCounter(2026, 'Sayaç A', 'Sayaç A')
+    const a = addBank('A', 0)
+    const b = addBank('B', 0)
+    const c = addBank('C', 0)
+    const sayacA = addCounter('Sayaç A', 'Sayaç A')
 
-    s2.reorderBanks(db, 2026, false, [c, a, b])
+    s2.reorderBanks(db, false, [c, a, b])
 
-    const grid = s2.readGrid(db, 2026)
+    const grid = s2.readGrid(db)
     expect(grid.banks.filter((bank) => !bank.isCounter).map((bank) => bank.name)).toEqual([
       'C',
       'A',
@@ -171,242 +231,128 @@ describe('bank columns', () => {
   })
 
   it('tolerates a partial order rather than leaving a gap', () => {
-    years.createYear(db, 2026)
-    const a = addBank(2026, 'A', 0)
-    addBank(2026, 'B', 0)
-    const c = addBank(2026, 'C', 0)
+    const a = addBank('A', 0)
+    addBank('B', 0)
+    addBank('C', 0)
+    const d = addBank('D', 0)
 
-    // Unknown ids dropped, duplicates dropped, the omitted one appended.
-    s2.reorderBanks(db, 2026, false, [c, c, 9_999, a])
+    // Unknown ids dropped, duplicates dropped, the two omitted ones appended.
+    s2.reorderBanks(db, false, [d, d, 9_999, a])
 
-    const positions = s2.readGrid(db, 2026).banks.map((bank) => bank.position)
-    expect(positions).toEqual([0, 1, 2])
-    expect(s2.readGrid(db, 2026).banks.map((bank) => bank.name)).toEqual(['C', 'A', 'B'])
+    const positions = s2.readGrid(db).banks.map((bank) => bank.position)
+    expect(positions).toEqual([0, 1, 2, 3])
+    // Two are omitted rather than one, so "B before C" is an assertion about
+    // the order they were left in and not an accident of there being one.
+    expect(s2.readGrid(db).banks.map((bank) => bank.name)).toEqual(['D', 'A', 'B', 'C'])
   })
 })
 
 describe('deleting a column', () => {
   it('reports what would be destroyed before it is offered', () => {
-    years.createYear(db, 2026)
-    const a = addBank(2026, 'A', 1_000_000)
-    put(2026, 1, a, 150_000)
-    put(2026, 2, a, 250_000)
+    const a = addBank('A', 1_000_000)
+    put(1, a, 150_000)
+    put(2, a, 250_000)
 
     expect(s2.bankUsage(db, a)).toEqual({ cellCount: 2, total: 400_000, isCounter: false })
+
+    // A counter's total is its own unsigned figures; the confirmation names what
+    // is about to be destroyed, not what it contributes to a total.
+    const sayacA = addCounter('Sayaç A', 'Sayaç A')
+    put(3, sayacA, 85_000)
+    expect(s2.bankUsage(db, sayacA)).toEqual({ cellCount: 1, total: 85_000, isCounter: true })
   })
 
-  it('takes only this year’s cells with it, and renumbers the survivors', () => {
-    years.createYear(db, 2026)
-    const a = addBank(2026, 'A', 0)
-    const b = addBank(2026, 'B', 0)
-    const c = addBank(2026, 'C', 0)
-    put(2026, 1, b, 500)
+  it('takes its own cells with it, and renumbers the survivors', () => {
+    const a = addBank('A', 0)
+    const b = addBank('B', 0)
+    const c = addBank('C', 0)
+    put(1, a, 300)
+    put(1, b, 500)
 
     s2.deleteBank(db, b)
 
-    const grid = s2.readGrid(db, 2026)
+    const grid = s2.readGrid(db)
     expect(grid.banks.map((bank) => bank.name)).toEqual(['A', 'C'])
+    // Re-compacted: C moves up rather than the grid keeping a hole at 1.
     expect(grid.banks.map((bank) => bank.position)).toEqual([0, 1])
-    expect(grid.cells).toHaveLength(0)
     expect(grid.banks.map((bank) => bank.id)).toEqual([a, c])
-  })
 
-  it('leaves year N untouched when year N+1 retires a column', () => {
-    years.createYear(db, 2025)
-    const old = addBank(2025, 'Kapanan', 1_000_000)
-    put(2025, 5, old, 90_000)
-
-    years.createYear(db, 2026)
-    const carried = s2.readGrid(db, 2026).banks.find((bank) => bank.name === 'Kapanan')!
-    s2.deleteBank(db, carried.id)
-
-    const previous = s2.readGrid(db, 2025)
-    expect(previous.banks.map((bank) => bank.name)).toEqual(['Kapanan'])
-    expect(previous.cells).toHaveLength(1)
-    expect(previous.cells[0]!.amount).toBe(90_000)
+    // The cascade took B's cell and nothing else's.
+    expect(grid.cells).toEqual([{ bankId: a, month: 1, amount: 300 }])
   })
 })
 
 describe('cells', () => {
   it('stores a typed zero, and clears to absence rather than to zero', () => {
-    years.createYear(db, 2026)
-    const a = addBank(2026, 'A', 0)
+    const a = addBank('A', 0)
 
-    put(2026, 3, a, 0)
-    expect(s2.readGrid(db, 2026).cells).toHaveLength(1)
-    expect(s2.readGrid(db, 2026).cells[0]!.amount).toBe(0)
+    put(3, a, 0)
+    expect(s2.readGrid(db).cells).toHaveLength(1)
+    expect(s2.readGrid(db).cells[0]!.amount).toBe(0)
 
-    put(2026, 3, a, null)
-    expect(s2.readGrid(db, 2026).cells).toHaveLength(0)
+    put(3, a, null)
+    expect(s2.readGrid(db).cells).toHaveLength(0)
   })
 
   it('keeps one cell per column and month, overwriting rather than accumulating', () => {
-    years.createYear(db, 2026)
-    const a = addBank(2026, 'A', 0)
+    const a = addBank('A', 0)
 
-    put(2026, 4, a, 100)
-    put(2026, 4, a, 250)
+    put(4, a, 100)
+    put(4, a, 250)
 
-    const cells = s2.readGrid(db, 2026).cells
+    const cells = s2.readGrid(db).cells
     expect(cells).toHaveLength(1)
     expect(cells[0]!.amount).toBe(250)
   })
 
-  it('refuses a negative amount, and a month outside the twelve', () => {
-    years.createYear(db, 2026)
-    const a = addBank(2026, 'A', 0)
+  it('refuses a negative amount and a fractional one, kuruş being whole', () => {
+    const a = addBank('A', 0)
 
-    expect(() => put(2026, 1, a, -1)).toThrow()
-    expect(() => put(2026, 0, a, 100)).toThrow()
-    expect(() => put(2026, 13, a, 100)).toThrow()
+    expect(codeOf(() => put(1, a, -1))).toBe('INVALID_AMOUNT')
+    expect(codeOf(() => put(1, a, 100.5))).toBe('INVALID_AMOUNT')
+    expect(s2.readGrid(db).cells).toHaveLength(0)
   })
 
-  it('refuses a cell whose column belongs to another year', () => {
-    years.createYear(db, 2025)
-    years.createYear(db, 2026)
-    const older = s2.readGrid(db, 2025)
-    const stranger = addBank(2025, 'Yalnız', 0)
+  /**
+   * A month outside the twelve, refused by name.
+   *
+   * Written against a column that exists, so the refusal cannot come from the
+   * column lookup by accident: §7.1's grid is twelve lines and a thirteenth is
+   * a defect in whatever asked for it, which the code has to be able to say.
+   */
+  it('refuses a month outside the twelve, and names that as the reason', () => {
+    const a = addBank('A', 0)
 
-    expect(older.banks).toHaveLength(0)
-    expect(() => put(2026, 1, stranger, 100)).toThrow()
+    expect(codeOf(() => put(0, a, 100))).toBe('INVALID_MONTH')
+    expect(codeOf(() => put(13, a, 100))).toBe('INVALID_MONTH')
+    expect(codeOf(() => put(6.5, a, 100))).toBe('INVALID_MONTH')
+  })
+
+  it('refuses a cell whose column is not there', () => {
+    const a = addBank('A', 0)
+    s2.deleteBank(db, a)
+
+    // The column is named on the row, so it is checked rather than trusted —
+    // otherwise a cell would outlive the column it belongs to.
+    expect(codeOf(() => put(1, a, 100))).toBe('NO_SUCH_BANK')
   })
 
   it('refuses a negative limit', () => {
-    years.createYear(db, 2026)
-    expect(() => addBank(2026, 'A', -1)).toThrow()
-  })
-})
-
-describe('the rollover carries the banks and clears the amounts (§7.3)', () => {
-  it('gives the new year the same columns with nothing drawn on them', () => {
-    years.createYear(db, 2026)
-    const a = addBank(2026, 'A', 12_000_000)
-    const sayacA = addCounter(2026, 'Sayaç A', 'Sayaç A')
-    put(2026, 1, a, 500_000)
-    put(2026, 2, sayacA, 100_000)
-
-    years.createYear(db, 2027)
-    const next = s2.readGrid(db, 2027)
-
-    expect(next.banks.map((bank) => bank.name)).toEqual(['A', 'Sayaç A'])
-    expect(next.banks[0]!.creditLimit).toBe(12_000_000)
-    expect(next.banks[1]!.isCounter).toBe(true)
-    expect(next.banks[1]!.counterParty).toBe('Sayaç A')
-
-    // Definitions carried; amounts never.
-    expect(next.cells).toHaveLength(0)
-
-    // Fresh rows, so editing next year cannot reach back into this one.
-    expect(next.banks[0]!.id === a).toBe(false)
-    expect(s2.readGrid(db, 2026).cells).toHaveLength(2)
-  })
-
-  it('does not freeze the year it inherited from', () => {
-    years.createYear(db, 2026)
-    addBank(2026, 'A', 0)
-    years.createYear(db, 2027)
-
-    // Adding next year's workspace in October must not take away the ability
-    // to correct November. Freezing is a decision, not a side effect.
-    expect(s2.isArchived(db, 2026)).toBe(false)
-    expect(s2.isArchived(db, 2027)).toBe(false)
-  })
-
-  it('inherits only backwards, never from a later year', () => {
-    years.createYear(db, 2026)
-    addBank(2026, 'A', 0)
-
-    years.createYear(db, 2020)
-    expect(s2.readGrid(db, 2020).banks).toHaveLength(0)
-  })
-})
-
-describe('a frozen year is read-only and lossless (§7.3)', () => {
-  /**
-   * Set up inside each test rather than in a hook: the harness keeps one
-   * beforeEach slot for the whole run, so a nested hook would replace the one
-   * that opens the database rather than run after it.
-   */
-  function frozenYear(): { bank: number; counter: number } {
-    years.createYear(db, 2026)
-    const bank = addBank(2026, 'A', 10_000_000)
-    const counter = addCounter(2026, 'Sayaç A', 'Sayaç A')
-    put(2026, 1, bank, 300_000)
-    put(2026, 2, counter, 50_000)
-    s2.setArchived(db, 2026, true)
-    return { bank, counter }
-  }
-
-  it('refuses every mutation while it is frozen', () => {
-    const { bank, counter } = frozenYear()
-
-    expect(() => addBank(2026, 'Yeni', 0)).toThrow()
-    expect(() => s2.renameBank(db, bank, 'Başka')).toThrow()
-    expect(() => s2.setCreditLimit(db, bank, 1)).toThrow()
-    expect(() => s2.setCounterParty(db, counter, 'Sayaç B')).toThrow()
-    expect(() => s2.reorderBanks(db, 2026, false, [bank])).toThrow()
-    expect(() => s2.deleteBank(db, bank)).toThrow()
-    expect(() => put(2026, 3, bank, 1_000)).toThrow()
-  })
-
-  it('names the reason, so the interface can say which one it is', () => {
-    const { bank } = frozenYear()
-    let code = ''
-    try {
-      put(2026, 3, bank, 1_000)
-    } catch (error) {
-      code = (error as { code: string }).code
-    }
-    expect(code).toBe('ARCHIVED')
-  })
-
-  it('loses nothing across a freeze and a reopen', () => {
-    frozenYear()
-    const frozen = s2.readGrid(db, 2026)
-
-    expect(frozen.archived).toBe(true)
-    expect(frozen.banks).toHaveLength(2)
-    expect(frozen.cells).toHaveLength(2)
-
-    s2.setArchived(db, 2026, false)
-    const reopened = s2.readGrid(db, 2026)
-
-    expect(reopened.archived).toBe(false)
-    expect(reopened.banks).toEqual(frozen.banks)
-    expect(reopened.cells).toEqual(frozen.cells)
-  })
-
-  it('accepts the same edit once it is reopened', () => {
-    const { bank } = frozenYear()
-    s2.setArchived(db, 2026, false)
-
-    put(2026, 3, bank, 1_000)
-    expect(s2.readGrid(db, 2026).cells).toHaveLength(3)
-  })
-
-  it('freezes one year without freezing its neighbours', () => {
-    frozenYear()
-    years.createYear(db, 2027)
-
-    expect(s2.isArchived(db, 2027)).toBe(false)
-    const carried = s2.readGrid(db, 2027).banks[0]!
-    s2.setCreditLimit(db, carried.id, 1_000)
-    expect(s2.readGrid(db, 2027).banks[0]!.creditLimit).toBe(1_000)
+    expect(codeOf(() => addBank('A', -1))).toBe('INVALID_LIMIT')
   })
 })
 
 describe('the acceptance arithmetic, through real rows', () => {
   it('reaches the grand total and the remaining limit from what was typed', () => {
-    years.createYear(db, 2026)
-    const a = addBank(2026, 'A', 20_000_000)
-    const b = addBank(2026, 'B', 15_000_000)
-    const sayacA = addCounter(2026, 'Sayaç A', 'Sayaç A')
+    const a = addBank('A', 20_000_000)
+    const b = addBank('B', 15_000_000)
+    const sayacA = addCounter('Sayaç A', 'Sayaç A')
 
-    put(2026, 1, a, 300_000)
-    put(2026, 12, b, 900_000)
-    put(2026, 12, sayacA, 85_000)
+    put(1, a, 300_000)
+    put(12, b, 900_000)
+    put(12, sayacA, 85_000)
 
-    const computed = computeGrid(s2.readGrid(db, 2026), TODAY)
+    const computed = computeGrid(s2.readGrid(db), CURRENT_MONTH)
 
     expect(computed.grandTotalDebt).toBe(300_000 + 900_000 - 85_000)
     // The Remaining Limit row, and nothing else: the counter is not in it.
@@ -415,48 +361,17 @@ describe('the acceptance arithmetic, through real rows', () => {
   })
 
   it('moves every dependent total when December moves in the last column', () => {
-    years.createYear(db, 2026)
-    addBank(2026, 'A', 10_000_000)
-    const last = addBank(2026, 'F', 25_000_000)
+    addBank('A', 10_000_000)
+    const last = addBank('F', 25_000_000)
 
-    const before = computeGrid(s2.readGrid(db, 2026), TODAY)
-    put(2026, 12, last, 750_000)
-    const after = computeGrid(s2.readGrid(db, 2026), TODAY)
+    const before = computeGrid(s2.readGrid(db), CURRENT_MONTH)
+    put(12, last, 750_000)
+    const after = computeGrid(s2.readGrid(db), CURRENT_MONTH)
 
     expect(after.months[11]!.totalDebt).toBe(before.months[11]!.totalDebt + 750_000)
     expect(after.grandTotalDebt).toBe(before.grandTotalDebt + 750_000)
     expect(after.totalRemainingLimit).toBe(before.totalRemainingLimit - 750_000)
     expect(after.banks[1]!.debt).toBe(750_000)
     expect(after.banks[1]!.remaining).toBe(25_000_000 - 750_000)
-  })
-})
-
-describe('deleting a year takes the Payments grid with it', () => {
-  it('counts all four tables before offering the deletion', () => {
-    years.createYear(db, 2026)
-    s1.addCategory(db, 2026, { name: 'MAAŞ', kind: 'income', valueType: 'TRY' })
-    const a = addBank(2026, 'A', 1_000_000)
-    put(2026, 1, a, 100)
-
-    expect(years.yearUsage(db, 2026)).toEqual({
-      categoryCount: 1,
-      entryCount: 0,
-      bankCount: 1,
-      cellCount: 1
-    })
-  })
-
-  it('cascades to the banks and their cells', () => {
-    years.createYear(db, 2025)
-    years.createYear(db, 2026)
-    const a = addBank(2026, 'A', 1_000_000)
-    put(2026, 1, a, 100)
-
-    years.deleteYear(db, 2026)
-
-    const banks = db.prepare('SELECT COUNT(*) AS n FROM s2_banks').get() as { n: number }
-    const cells = db.prepare('SELECT COUNT(*) AS n FROM s2_cells').get() as { n: number }
-    expect(banks.n).toBe(0)
-    expect(cells.n).toBe(0)
   })
 })

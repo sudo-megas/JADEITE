@@ -4,6 +4,7 @@ import { useState, type FormEvent, type ReactElement } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import type { LockReason } from '@shared/ipc-contract'
+import { JadeGlyph } from '../shell/JadeGlyph.js'
 
 interface Props {
   reason: LockReason | null
@@ -37,7 +38,10 @@ export function Lock({ reason, onUnlocked, onForgotPassword }: Props): ReactElem
 
   return (
     <form className="panel" onSubmit={submit}>
-      <p className="brand">{t('common.brand')}</p>
+      <p className="brand">
+        <JadeGlyph />
+        <span>{t('common.brand')}</span>
+      </p>
       <h1>{t('lock.title')}</h1>
       {lede ? <p className="lede">{lede}</p> : <p className="lede" />}
 

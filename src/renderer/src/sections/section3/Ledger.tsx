@@ -34,7 +34,7 @@ import type {
 import { parseQuantity, quantityToInput } from '@shared/section3/units'
 import { parseAmount } from '@shared/money'
 import type { AppLanguage } from '../../i18n/format.js'
-import { formatDate } from '../../i18n/format.js'
+import { formatDate, parseDate } from '../../i18n/format.js'
 import { CountCell, MoneyCell, QuantityCell } from './Cells.js'
 import { formatQuantity, formatTry } from './format.js'
 
@@ -73,95 +73,117 @@ export function Ledger({
 }: Props): ReactElement {
   const { t } = useTranslation()
 
-  return (
-    <div className="s3-ledger-scroll">
-      <table className="s3-ledger" data-testid="s3-ledger">
-        <thead>
-          <tr>
-            <th scope="col" className="s3-num">
-              {t('section3.no')}
-            </th>
-            <th scope="col">{t('section3.date')}</th>
-            <th scope="col">{t('section3.type')}</th>
-            <th scope="col">{t('section3.direction')}</th>
-            <th scope="col" className="s3-figure">
-              {t('section3.denomination')}
-            </th>
-            <th scope="col" className="s3-figure">
-              {t('section3.count')}
-            </th>
-            <th scope="col" className="s3-figure">
-              {t('section3.quantity')}
-            </th>
-            <th scope="col" className="s3-figure">
-              {t('section3.totalQuantity')}
-            </th>
-            <th scope="col" className="s3-figure">
-              {t('section3.unitPrice')}
-            </th>
-            <th scope="col" className="s3-figure">
-              {t('section3.transactionTotal')}
-            </th>
-            <th scope="col">{t('section3.source')}</th>
-            <th scope="col">{t('section3.person')}</th>
-            <th scope="col">{t('section3.note')}</th>
-            <th scope="col">
-              <span className="s3-sr-only">{t('common.actions')}</span>
-            </th>
-          </tr>
-        </thead>
+  /**
+   * The append row's refusal, held here rather than in the row itself.
+   *
+   * Every other refusal in this section is an overlay hanging off the cell it is
+   * about, which is right for a cell with rows below it. The append row is the
+   * last row of a table inside an `overflow-x: auto` scroller — and a scroller
+   * clips both axes, not the one it names — so an overlay below that row is cut
+   * off at its bottom edge and one above it is cut off at the header. Drawn as a
+   * sibling of the scroller, it cannot be clipped by anything.
+   */
+  const [appendProblem, setAppendProblem] = useState<string | null>(null)
 
-        <tbody>
-          {rows.map((row) => (
-            <Row
-              key={row.transaction.seq}
-              row={row}
+  return (
+    <>
+      <div className="s3-ledger-scroll">
+        <table className="s3-ledger" data-testid="s3-ledger">
+          <thead>
+            <tr>
+              <th scope="col" className="s3-num">
+                {t('section3.no')}
+              </th>
+              <th scope="col">{t('section3.date')}</th>
+              <th scope="col">{t('section3.type')}</th>
+              <th scope="col">{t('section3.direction')}</th>
+              <th scope="col" className="s3-figure">
+                {t('section3.denomination')}
+              </th>
+              <th scope="col" className="s3-figure">
+                {t('section3.count')}
+              </th>
+              <th scope="col" className="s3-figure">
+                {t('section3.quantity')}
+              </th>
+              <th scope="col" className="s3-figure">
+                {t('section3.totalQuantity')}
+              </th>
+              <th scope="col" className="s3-figure">
+                {t('section3.unitPrice')}
+              </th>
+              <th scope="col" className="s3-figure">
+                {t('section3.transactionTotal')}
+              </th>
+              <th scope="col">{t('section3.source')}</th>
+              <th scope="col">{t('section3.person')}</th>
+              <th scope="col">{t('section3.note')}</th>
+              <th scope="col">
+                <span className="s3-sr-only">{t('common.actions')}</span>
+              </th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {rows.map((row) => (
+              <Row
+                key={row.transaction.seq}
+                row={row}
+                types={types}
+                persons={persons}
+                language={language}
+                handlers={handlers}
+              />
+            ))}
+
+            <AppendRow
               types={types}
               persons={persons}
               language={language}
-              handlers={handlers}
+              previous={rows.at(-1) ?? null}
+              commitToken={commitToken}
+              onAppend={handlers.onAppend}
+              problem={appendProblem}
+              onProblem={setAppendProblem}
             />
-          ))}
+          </tbody>
 
-          <AppendRow
-            types={types}
-            persons={persons}
-            language={language}
-            previous={rows.at(-1) ?? null}
-            commitToken={commitToken}
-            onAppend={handlers.onAppend}
-          />
-        </tbody>
+          <tfoot>
+            <tr className="s3-ledger-totals" data-testid="s3-ledger-totals">
+              <th scope="row" colSpan={4}>
+                {t('section3.ledgerTotals', { count: totals.rowCount })}
+              </th>
+              {/* Denomination, Count, Quantity, Total Quantity, Unit Price — five
+                  since §8.3's amendment split quantity into two typed columns and
+                  one derived, where there was one. */}
+              <td colSpan={5} className="s3-figure">
+                {totals.provisionalCount > 0
+                  ? t('section3.provisionalCount', { count: totals.provisionalCount })
+                  : null}
+              </td>
+              <td className="s3-figure" data-testid="s3-total-acquired">
+                {t('section3.acquiredValue', {
+                  value: formatTry(totals.acquiredValue, language)
+                })}
+              </td>
+              <td colSpan={3} className="s3-figure" data-testid="s3-total-disposed">
+                {totals.disposedValue > 0
+                  ? t('section3.disposedValue', {
+                      value: formatTry(totals.disposedValue, language)
+                    })
+                  : null}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
 
-        <tfoot>
-          <tr className="s3-ledger-totals" data-testid="s3-ledger-totals">
-            <th scope="row" colSpan={4}>
-              {t('section3.ledgerTotals', { count: totals.rowCount })}
-            </th>
-            {/* Denomination, Count, Quantity, Total Quantity, Unit Price — five
-                since §8.3's amendment split quantity into two typed columns and
-                one derived, where there was one. */}
-            <td colSpan={5} className="s3-figure">
-              {totals.provisionalCount > 0
-                ? t('section3.provisionalCount', { count: totals.provisionalCount })
-                : null}
-            </td>
-            <td className="s3-figure" data-testid="s3-total-acquired">
-              {t('section3.acquiredValue', {
-                value: formatTry(totals.acquiredValue, language)
-              })}
-            </td>
-            <td colSpan={3} className="s3-figure" data-testid="s3-total-disposed">
-              {totals.disposedValue > 0
-                ? t('section3.disposedValue', {
-                    value: formatTry(totals.disposedValue, language)
-                  })
-                : null}
-            </td>
-          </tr>
-        </tfoot>
-      </table>
-    </div>
+      {appendProblem ? (
+        <p className="s3-append-problem" role="alert" data-testid="s3-append-problem">
+          {t(appendProblem)}
+        </p>
+      ) : null}
+    </>
   )
 }
 
@@ -395,6 +417,13 @@ interface Composed {
  * clearing it would put a keystroke back into the loop §6.4 exists to empty.
  * Count clears to `1` rather than to empty for the same reason in reverse: one
  * piece is what most rows record, so the common case needs no keystroke at all.
+ *
+ * The date carries as the **display** string, not as the ISO the row stores. The
+ * append row's date cell is a cell the owner types into, and what carries into
+ * it has to be something they could have typed themselves; handing it back the
+ * `2026-02-20` the vault holds would put a shape into the field that the field
+ * no longer accepts, and the first row of every run would be refused for
+ * agreeing with the database.
  */
 function carriedForward(
   previous: LedgerRow | null,
@@ -416,7 +445,7 @@ function carriedForward(
     }
   }
   return {
-    date: previous.transaction.date,
+    date: formatDate(previous.transaction.date, language),
     typeCode: previous.transaction.typeCode,
     direction: previous.transaction.direction,
     denomination: quantityToInput(
@@ -438,7 +467,9 @@ function AppendRow({
   language,
   previous,
   commitToken,
-  onAppend
+  onAppend,
+  problem,
+  onProblem
 }: {
   types: readonly ValuableType[]
   persons: readonly Person[]
@@ -446,13 +477,25 @@ function AppendRow({
   previous: LedgerRow | null
   commitToken: number
   onAppend: (draft: TransactionDraft) => Promise<boolean>
+  /**
+   * The refusal belongs to the row but is drawn outside the table.
+   *
+   * It used to hang off a cell as every other refusal in this section does,
+   * which works for a cell in the middle of a grid and not for this one: the
+   * append row is the last row of a table inside an `overflow: auto` scroller,
+   * so an overlay below it is cut off at the scroller's edge and one above it is
+   * cut off at the header. `Ledger` draws it under the scroller instead, where
+   * nothing can clip it and the owner is already looking.
+   */
+  problem: string | null
+  onProblem: (problem: string | null) => void
 }): ReactElement {
   const { t } = useTranslation()
   const [composed, setComposed] = useState<Composed>(() =>
     carriedForward(previous, types, language)
   )
   const [provisional, setProvisional] = useState(false)
-  const [problem, setProblem] = useState<string | null>(null)
+  const setProblem = onProblem
   const dateRef = useRef<HTMLInputElement>(null)
 
   /**
@@ -461,10 +504,10 @@ function AppendRow({
    *
    * The carried date is **selected**, not merely focused. With the caret left at
    * the end, typing a new date would append to the old one and make
-   * `2026-04-0512` out of two perfectly good dates — while selecting it means
+   * `05/04/202612` out of two perfectly good dates — while selecting it means
    * typing replaces and tabbing past keeps, which is exactly the choice the next
    * row needs. It also keeps the field scrolled to its start, so a ten-character
-   * date is read from the year rather than from its last nine characters.
+   * date is read from the day rather than from its last nine characters.
    */
   useEffect(() => {
     if (commitToken === 0) return
@@ -486,8 +529,12 @@ function AppendRow({
   async function submit(): Promise<void> {
     if (!type) return
 
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(composed.date)) {
-      setProblem('section3.parse.INVALID_DATE')
+    // Typed as GG/AA/YYYY, stored as ISO-8601 (§5.2). The conversion happens
+    // here, on the way out, so the main process still receives — and still
+    // refuses on — exactly the shape it always did.
+    const date = parseDate(composed.date, language)
+    if (date.kind === 'error') {
+      setProblem(`section3.parse.${date.reason}`)
       dateRef.current?.focus()
       return
     }
@@ -522,7 +569,7 @@ function AppendRow({
     }
 
     const accepted = await onAppend({
-      date: composed.date,
+      date: date.iso,
       dateProvisional: provisional,
       typeCode: composed.typeCode,
       direction: composed.direction,
@@ -712,11 +759,6 @@ function AppendRow({
         >
           {t('section3.addRow')}
         </button>
-        {problem ? (
-          <p className="s3-cell-problem" role="alert" data-testid="s3-append-problem">
-            {t(problem)}
-          </p>
-        ) : null}
       </td>
     </tr>
   )
@@ -727,12 +769,21 @@ function AppendRow({
 /**
  * A date, with the flag that says it is still under review.
  *
- * Entry is ISO-8601 and display is the app language's. A native date field would
- * have been friendlier to click and would also have drawn its format from the
- * operating system, which §13 forbids outright — an app that speaks Turkish must
- * not show an American date because Chromium was started with `--lang=en-US`.
- * The previous row's date carries into the next, so a run of purchases needs a
- * day changed rather than a date typed.
+ * Read and written in the app's own shape, GG/AA/YYYY, and stored as the ISO-8601
+ * §5.2 pins. It showed the localised form when idle and the raw `2026-02-20`
+ * the moment it was focused, which meant the cell displayed one thing and edited
+ * another and the owner had to know both. One shape in both states is the fix,
+ * and it is only possible now that there is a parser to read that shape back.
+ *
+ * A native date field would have been friendlier to click and would also have
+ * drawn its format from the operating system, which §13 forbids outright — an
+ * app that speaks Turkish must not show an American date because Chromium was
+ * started with `--lang=en-US`.
+ *
+ * A refusal keeps the cell open with what was typed still in it, exactly as
+ * `Cells.tsx` does for a price or a quantity: a date that cannot be read is
+ * never guessed at, and silently discarding the attempt would lose an edit in
+ * the middle of the long typing session this section is built for.
  */
 function DateField({
   value,
@@ -750,12 +801,30 @@ function DateField({
   onToggleProvisional: (provisional: boolean) => void
 }): ReactElement {
   const { t } = useTranslation()
+  const display = formatDate(value, language)
   const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState(value)
+  const [draft, setDraft] = useState(display)
+  const [problem, setProblem] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!editing) setDraft(value)
-  }, [value, editing])
+    if (!editing) setDraft(display)
+  }, [display, editing])
+
+  /**
+   * The comparison is between ISO strings, never between the typed text and the
+   * stored value: `20/02/2026` and `2026-02-20` are the same day spelled two
+   * ways, and comparing them raw would make every focus-then-tab-away a patch.
+   */
+  function commit(): void {
+    const parsed = parseDate(draft, language)
+    if (parsed.kind === 'error') {
+      setProblem(`section3.parse.${parsed.reason}`)
+      return
+    }
+    setProblem(null)
+    setEditing(false)
+    if (parsed.iso !== value) onCommitDate(parsed.iso)
+  }
 
   return (
     <div className="s3-cell s3-date-cell">
@@ -764,21 +833,26 @@ function DateField({
         type="text"
         inputMode="numeric"
         aria-label={t('section3.date')}
-        value={editing ? draft : formatDate(value, language)}
+        aria-invalid={problem !== null}
+        value={editing ? draft : display}
         data-testid={testId}
         onFocus={() => {
-          setDraft(value)
+          setDraft(display)
           setEditing(true)
+          setProblem(null)
         }}
-        onChange={(e) => setDraft(e.target.value)}
+        onChange={(e) => {
+          setDraft(e.target.value)
+          if (problem) setProblem(null)
+        }}
         onBlur={() => {
-          setEditing(false)
-          if (draft !== value) onCommitDate(draft)
+          if (editing) commit()
         }}
         onKeyDown={(e) => {
           if (e.key === 'Enter') e.currentTarget.blur()
           if (e.key === 'Escape') {
-            setDraft(value)
+            setDraft(display)
+            setProblem(null)
             setEditing(false)
             e.currentTarget.blur()
           }
@@ -794,6 +868,12 @@ function DateField({
         <span className="s3-sr-only">{t('section3.provisional')}</span>
         <span aria-hidden="true">?</span>
       </label>
+
+      {problem ? (
+        <p className="s3-cell-problem" role="alert">
+          {t(problem)}
+        </p>
+      ) : null}
     </div>
   )
 }

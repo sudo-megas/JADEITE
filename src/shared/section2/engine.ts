@@ -32,7 +32,7 @@
  */
 
 import { MONTHS } from '../calendar.js'
-import type { Bank, Cell, YearGrid } from './types.js'
+import type { Bank, Cell, PaymentsGrid } from './types.js'
 
 /**
  * What one cell contributes to every total it touches.
@@ -55,21 +55,22 @@ export function signedDebt(
  *
  * Derived, never stored: `s2_cells` has no paid flag, and inventing one would
  * ask the owner to maintain a second record of something the calendar already
- * knows. A future year therefore reads entirely pending and a past year
- * entirely settled, which is correct rather than a defect.
+ * knows.
+ *
+ * The comparison is between two months of one standing grid (§7.1 as amended).
+ * It used to take a year as well, and read a whole past year as settled and a
+ * whole future one as pending; with the year gone from Section 2 there is no
+ * such grid to describe, and the twelve lines always straddle the present.
  */
 export type MonthState = 'settled' | 'current' | 'pending'
 
-/** Supplied by the caller rather than read here, so this module stays pure. */
-export interface Today {
-  year: number
-  month: number
-}
-
-export function monthState(year: number, month: number, today: Today): MonthState {
-  if (year !== today.year) return year < today.year ? 'settled' : 'pending'
-  if (month === today.month) return 'current'
-  return month < today.month ? 'settled' : 'pending'
+/**
+ * The month the owner is in, 1–12. Supplied by the caller rather than read here,
+ * so this module stays pure and the tests never race a clock.
+ */
+export function monthState(month: number, currentMonth: number): MonthState {
+  if (month === currentMonth) return 'current'
+  return month < currentMonth ? 'settled' : 'pending'
 }
 
 /** One of the twelve lines of §7.1. */
@@ -96,8 +97,6 @@ export interface BankColumn {
 }
 
 export interface ComputedGrid {
-  year: number
-  archived: boolean
   /** Twelve lines, Ocak → Aralık, always all twelve even when empty. */
   months: readonly MonthLine[]
   /** Every column in draw order: banks by position, then counters. */
@@ -129,14 +128,14 @@ export function orderedBanks(banks: readonly Bank[]): Bank[] {
 }
 
 /**
- * Compute everything a year's Payments grid displays.
+ * Compute everything the Payments grid displays.
  *
  * Cells referring to a column that is not in this grid are ignored rather than
  * trusted: a deleted column must not go on contributing to a total from beyond
  * the grave. Cells are placed into the grid first and totalled from what was
  * placed, so a total can never count a row the grid does not draw.
  */
-export function computeGrid(grid: YearGrid, today: Today): ComputedGrid {
+export function computeGrid(grid: PaymentsGrid, currentMonth: number): ComputedGrid {
   const ordered = orderedBanks(grid.banks)
   const banksById = new Map<number, Bank>()
   for (const bank of ordered) banksById.set(bank.id, bank)
@@ -173,7 +172,7 @@ export function computeGrid(grid: YearGrid, today: Today): ComputedGrid {
       totalDebt: bankTotal - counterTotal,
       bankTotal,
       counterTotal,
-      state: monthState(grid.year, month, today)
+      state: monthState(month, currentMonth)
     }
   })
 
@@ -207,8 +206,6 @@ export function computeGrid(grid: YearGrid, today: Today): ComputedGrid {
   }
 
   return {
-    year: grid.year,
-    archived: grid.archived,
     months,
     columns,
     banks,

@@ -9,6 +9,7 @@ import { useState, type FormEvent, type ReactElement } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { MIN_PASSWORD_LENGTH, type RecoveryKeyIssue } from '@shared/ipc-contract'
+import { JadeGlyph } from '../shell/JadeGlyph.js'
 
 interface Props {
   onReset: (issue: RecoveryKeyIssue) => void
@@ -46,7 +47,10 @@ export function Reset({ onReset, onCancel }: Props): ReactElement {
 
   return (
     <form className="panel panel--wide" onSubmit={submit}>
-      <p className="brand">{t('common.brand')}</p>
+      <p className="brand">
+        <JadeGlyph />
+        <span>{t('common.brand')}</span>
+      </p>
       <h1>{t('reset.title')}</h1>
       <p className="lede">{t('reset.lede')}</p>
 

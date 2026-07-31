@@ -170,7 +170,7 @@ test('the OS locale is ignored — the app stays Turkish under LANG=en_US.UTF-8'
   // And the numbers follow the app language, not the machine's.
   await session.page.getByTestId('nav-settings').click()
   await expect(session.page.getByTestId('sample-try')).toHaveText('1.234,56 ₺')
-  await expect(session.page.getByTestId('sample-date')).toHaveText('18.05.2026')
+  await expect(session.page.getByTestId('sample-date')).toHaveText('18/05/2026')
 })
 
 test('a chosen English stays English under a Turkish OS locale, and persists', async () => {

@@ -83,22 +83,24 @@ test('the bridge exposes the contract and nothing more', async () => {
     'years'
   ])
 
-  // Section 2 arrives with Realisation IV, enumerated for the same reason.
-  // It has no deleteYear and no setAccentOverride: a year and its accent
-  // belong to the vault, and both already have one home in Section 1.
+  // Section 2 arrives with Realisation IV, enumerated for the same reason, and
+  // loses three channels to point revision v0.8b. There is no `years`, no
+  // `createYear` and no `setArchived`, and no year argument anywhere in what is
+  // left: §7.1 and §7.3 as amended make Ödemeler one standing grid of the twelve
+  // months the owner is living in, so there is no year to open, none to create
+  // and none to freeze into an archive. It never had deleteYear or
+  // setAccentOverride either — a year and its accent belong to the vault, and
+  // both have their one home in Section 1, which keeps its years.
   expect(surface.section2).toEqual([
     'addBank',
     'bankUsage',
-    'createYear',
     'deleteBank',
     'grid',
     'renameBank',
     'reorderBanks',
-    'setArchived',
     'setCell',
     'setCounterParty',
-    'setCreditLimit',
-    'years'
+    'setCreditLimit'
   ])
 
   // Section 3 arrives with Realisation V, enumerated for the same reason.
@@ -128,16 +130,13 @@ test('the bridge exposes the contract and nothing more', async () => {
     'updateTransaction'
   ])
 
-  // Section 4 arrives with Realisation VI, enumerated for the same reason. The
-  // smallest surface in the application: total, average and median are computed
-  // in the renderer from the lines, so no channel exists to fetch them.
-  expect(surface.section4).toEqual([
-    'addLine',
-    'deleteLine',
-    'lines',
-    'reorderLines',
-    'updateLine'
-  ])
+  // Section 4 arrives with Realisation VI, enumerated for the same reason, and
+  // shrinks to three when its list of labelled lines becomes a grid of boxes
+  // (§9, amended). The smallest surface in the application: total, average and
+  // median are computed in the renderer from the cells, so no channel exists to
+  // fetch them — and a grid of fixed boxes has nothing to add and no order to
+  // rearrange, so the five channels that did are gone rather than renamed.
+  expect(surface.section4).toEqual(['cells', 'clear', 'setCell'])
 })
 
 test('Section 1 is unreachable while the vault is locked', async () => {
@@ -152,16 +151,16 @@ test('Section 1 is unreachable while the vault is locked', async () => {
 })
 
 test('Section 2 is unreachable while the vault is locked', async () => {
-  // The Payments grid is behind the lock for the same reason.
-  const grid = await session.page.evaluate(() => window.jadeite.section2.grid(2026))
+  // The Payments grid is behind the lock for the same reason. One read, because
+  // there is one thing to read: the year index this case also asked for went
+  // with the years themselves at point revision v0.8b, and `grid` now takes no
+  // argument — the grid is the whole section.
+  const grid = await session.page.evaluate(() => window.jadeite.section2.grid())
   expect(grid).toEqual({ ok: false, error: 'LOCKED' })
-
-  const years = await session.page.evaluate(() => window.jadeite.section2.years())
-  expect(years).toEqual({ ok: false, error: 'LOCKED' })
 
   // A write is refused as firmly as a read.
   const written = await session.page.evaluate(() =>
-    window.jadeite.section2.setCell({ year: 2026, month: 1, bankId: 1, amount: 1000 })
+    window.jadeite.section2.setCell({ month: 1, bankId: 1, amount: 1000 })
   )
   expect(written).toEqual({ ok: false, error: 'LOCKED' })
 })

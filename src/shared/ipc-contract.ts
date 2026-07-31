@@ -19,8 +19,8 @@ import type {
   BankDraft,
   BankUsage,
   CellPatch,
-  Section2ErrorCode,
-  YearGrid
+  PaymentsGrid,
+  Section2ErrorCode
 } from './section2/types.js'
 import type {
   LedgerData,
@@ -32,10 +32,12 @@ import type {
   TransactionPatch,
   TypeCode
 } from './section3/types.js'
+// Section 2 already owns the unqualified `CellPatch` in this file, and both
+// sections genuinely have one; the alias renames the newcomer rather than the
+// import that was here first.
 import type {
-  Line,
-  LineDraft,
-  LinePatch,
+  Cell,
+  CellPatch as Section4CellPatch,
   Section4ErrorCode
 } from './section4/types.js'
 
@@ -66,9 +68,8 @@ export const IPC = {
   s1YearUsage: 's1:year-usage',
   s1DeleteYear: 's1:delete-year',
 
-  // Section 2 — Payments / Installments (§7).
-  s2Years: 's2:years',
-  s2CreateYear: 's2:create-year',
+  // Section 2 — Payments / Installments (§7). No year channels: the section
+  // holds one standing grid (§7.1, §7.3 as amended).
   s2Grid: 's2:grid',
   s2AddBank: 's2:add-bank',
   s2RenameBank: 's2:rename-bank',
@@ -78,7 +79,6 @@ export const IPC = {
   s2BankUsage: 's2:bank-usage',
   s2DeleteBank: 's2:delete-bank',
   s2SetCell: 's2:set-cell',
-  s2SetArchived: 's2:set-archived',
 
   // Section 3 — Valuables (§8). One read, because holdings derive from the
   // ledger and the prices together and must not come from two reads.
@@ -102,12 +102,12 @@ export const IPC = {
    */
   s3RefreshPrices: 's3:refresh-prices',
 
-  // Section 4 — Calculation Zone (§9).
-  s4Lines: 's4:lines',
-  s4AddLine: 's4:add-line',
-  s4UpdateLine: 's4:update-line',
-  s4DeleteLine: 's4:delete-line',
-  s4ReorderLines: 's4:reorder-lines'
+  // Section 4 — Calculation Zone (§9). Three channels: read the grid, write one
+  // box, empty every box. There is no add and no reorder, because a grid of
+  // fixed boxes has nothing to add and no order to rearrange.
+  s4Cells: 's4:cells',
+  s4SetCell: 's4:set-cell',
+  s4Clear: 's4:clear'
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]
@@ -285,32 +285,24 @@ export interface Section1Api {
 /**
  * Section 2 — Payments / Installments (§7).
  *
- * There is no `deleteYear` and no `setAccentOverride` here on purpose. A year
- * and its accent belong to the vault rather than to a section, and both already
- * have exactly one home in Section 1's year menu. A second copy of a
- * destructive dialogue is the "same list kept in two places" defect of §7.1,
- * rebuilt deliberately.
+ * There is no year on this surface at all. Ödemeler is one standing grid of the
+ * twelve months the owner is living in (§7.1, §7.3 as amended by point revision
+ * v0.8b), so there is nothing to select, nothing to create and nothing to
+ * freeze. The years that remain are Section 1's, and its year menu is their one
+ * home — a second copy of a destructive dialogue would be the "same list kept in
+ * two places" defect of §7.1, rebuilt deliberately.
  */
 export interface Section2Api {
-  /** Existing years, ascending, plus the accent anchor. Creates one if none exist. */
-  years(): Promise<Result<YearIndex, Section2ErrorCode>>
-  createYear(year: number): Promise<Result<YearIndex, Section2ErrorCode>>
-  grid(year: number): Promise<Result<YearGrid, Section2ErrorCode>>
-  addBank(year: number, draft: BankDraft): Promise<Result<number, Section2ErrorCode>>
+  grid(): Promise<Result<PaymentsGrid, Section2ErrorCode>>
+  addBank(draft: BankDraft): Promise<Result<number, Section2ErrorCode>>
   renameBank(id: number, name: string): Promise<Result<null, Section2ErrorCode>>
   setCreditLimit(id: number, limit: number): Promise<Result<null, Section2ErrorCode>>
   setCounterParty(id: number, party: string | null): Promise<Result<null, Section2ErrorCode>>
-  reorderBanks(
-    year: number,
-    isCounter: boolean,
-    orderedIds: number[]
-  ): Promise<Result<null, Section2ErrorCode>>
+  reorderBanks(isCounter: boolean, orderedIds: number[]): Promise<Result<null, Section2ErrorCode>>
   /** What deleting this column would destroy, asked before it is offered. */
   bankUsage(id: number): Promise<Result<BankUsage, Section2ErrorCode>>
   deleteBank(id: number): Promise<Result<null, Section2ErrorCode>>
   setCell(patch: CellPatch): Promise<Result<null, Section2ErrorCode>>
-  /** Freeze this year's grid, or reopen it (§7.3). */
-  setArchived(year: number, archived: boolean): Promise<Result<null, Section2ErrorCode>>
 }
 
 /**
@@ -360,14 +352,18 @@ export interface Section3Api {
  * Section 4 — Calculation Zone (§9).
  *
  * The smallest surface in the application, for the least fancy section in it.
- * Total, average and median are computed in the renderer from the lines this
+ * Total, average and median are computed in the renderer from the cells this
  * returns — they are three additions and a sort, and a crossing of the bridge to
  * fetch what the renderer already holds would be a second home for one truth.
+ *
+ * `cells` answers only the boxes that carry a figure, however many boxes the
+ * grid is drawing: the table is sparse, and a hundred empty boxes have nothing
+ * to say. How many rows to draw is the renderer's question and is answered from
+ * these cells (`shared/section4/engine.ts`), never stored.
  */
 export interface Section4Api {
-  lines(): Promise<Result<Line[], Section4ErrorCode>>
-  addLine(draft: LineDraft): Promise<Result<number, Section4ErrorCode>>
-  updateLine(patch: LinePatch): Promise<Result<null, Section4ErrorCode>>
-  deleteLine(id: number): Promise<Result<null, Section4ErrorCode>>
-  reorderLines(orderedIds: number[]): Promise<Result<null, Section4ErrorCode>>
+  cells(): Promise<Result<Cell[], Section4ErrorCode>>
+  setCell(patch: Section4CellPatch): Promise<Result<null, Section4ErrorCode>>
+  /** Empty every box. Confirmed in the interface, never here. */
+  clear(): Promise<Result<null, Section4ErrorCode>>
 }

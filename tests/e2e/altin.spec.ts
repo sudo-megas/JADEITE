@@ -91,7 +91,7 @@ test('the charts derive from the ledger, and follow it as it changes', async () 
 
   await openSection3(page)
   await addPerson(page, 'Kişi A')
-  await acquire(page, '2026-01-15', '10', '5.000,00')
+  await acquire(page, '15/01/2026', '10', '5.000,00')
 
   await openAltin(page)
   await expect(page.getByTestId('altin-empty')).toHaveCount(0)
@@ -105,7 +105,7 @@ test('the charts derive from the ledger, and follow it as it changes', async () 
   // Add a second purchase a year later and come back: the charts have followed,
   // with nothing having been maintained in between.
   await openSection3(page)
-  await acquire(page, '2027-01-15', '10', '7.000,00')
+  await acquire(page, '15/01/2027', '10', '7.000,00')
   await openAltin(page)
 
   expect(await spanDays(page)).toBe(365)
@@ -125,10 +125,10 @@ test('a 300 among 10s is crushed on a linear axis, and the log toggle fixes it',
 
   await openSection3(page)
   await addPerson(page, 'Kişi A')
-  await acquire(page, '2023-10-15', '300', '1.865,00')
-  await acquire(page, '2026-01-15', '10', '5.000,00')
-  await acquire(page, '2026-02-15', '10', '5.200,00')
-  await acquire(page, '2026-03-15', '10', '5.400,00')
+  await acquire(page, '15/10/2023', '300', '1.865,00')
+  await acquire(page, '15/01/2026', '10', '5.000,00')
+  await acquire(page, '15/02/2026', '10', '5.200,00')
+  await acquire(page, '15/03/2026', '10', '5.400,00')
 
   await openAltin(page)
 
@@ -160,8 +160,8 @@ test('a mistyped date is obvious on the date axis', async () => {
 
   await openSection3(page)
   await addPerson(page, 'Kişi A')
-  await acquire(page, '2026-01-15', '10', '5.000,00')
-  await acquire(page, '2026-02-15', '10', '5.200,00')
+  await acquire(page, '15/01/2026', '10', '5.000,00')
+  await acquire(page, '15/02/2026', '10', '5.200,00')
 
   await openAltin(page)
   const tight = await spanDays(page)
@@ -169,7 +169,7 @@ test('a mistyped date is obvious on the date axis', async () => {
 
   // Now a year typed as 2016 rather than 2026 — one digit, ten years.
   await openSection3(page)
-  await acquire(page, '2016-03-15', '10', '5.400,00')
+  await acquire(page, '15/03/2016', '10', '5.400,00')
   await openAltin(page)
 
   const stretched = await spanDays(page)
@@ -187,7 +187,7 @@ test('a provisional date is called out, because the curve misleads there', async
   await openSection3(page)
   await addPerson(page, 'Kişi A')
 
-  await page.getByTestId('s3-new-date').fill('2023-10-15')
+  await page.getByTestId('s3-new-date').fill('15/10/2023')
   await page.getByTestId('s3-new-denomination').fill('300')
   await page.getByTestId('s3-new-price').fill('1.865,00')
   await page.getByTestId('s3-new-provisional').check()
@@ -207,8 +207,8 @@ test('the filters narrow the charts without touching the ledger', async () => {
   await addPerson(page, 'Kişi A')
   await addPerson(page, 'Kişi B')
 
-  await acquire(page, '2026-01-15', '10', '5.000,00', 'Kişi A')
-  await acquire(page, '2029-01-15', '10', '9.000,00', 'Kişi B')
+  await acquire(page, '15/01/2026', '10', '5.000,00', 'Kişi A')
+  await acquire(page, '15/01/2029', '10', '9.000,00', 'Kişi B')
 
   await openAltin(page)
   expect(await spanDays(page)).toBeGreaterThan(1000)
@@ -239,7 +239,7 @@ test('there is no way to add a point to a chart — zero maintenance exists', as
 
   await openSection3(page)
   await addPerson(page, 'Kişi A')
-  await acquire(page, '2026-01-15', '10', '5.000,00')
+  await acquire(page, '15/01/2026', '10', '5.000,00')
   await openAltin(page)
 
   // No field, no append row, no import. The whole surface is a toggle and two

@@ -70,15 +70,11 @@ describe('surviving a kill mid-session', () => {
     const db = vault.database()!
     expect(db.pragma('integrity_check', { simple: true })).toBe('ok')
 
-    const { n } = db.prepare('SELECT count(*) AS n FROM s4_lines').get() as { n: number }
+    const { n } = db.prepare('SELECT count(*) AS n FROM s4_cells').get() as { n: number }
     expect(n, 'every committed row should have survived').toBe(COMMITTED_ROWS)
 
     // And the vault is still fully usable afterwards.
-    db.prepare('INSERT INTO s4_lines (label, value, position) VALUES (?, ?, ?)').run(
-      'after-recovery',
-      1,
-      COMMITTED_ROWS + 1
-    )
+    db.prepare('INSERT INTO s4_cells (slot, value) VALUES (?, ?)').run(COMMITTED_ROWS + 1, 1)
     vault.lock()
     expect(readdirSync(vaultDirectory()).sort()).toEqual(['jadeite.db', 'jadeite.keys'])
   })

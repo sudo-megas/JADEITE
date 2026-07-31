@@ -2,8 +2,8 @@
 
 **Project:** JADEITE — the secure personal wealth & possessions tracker
 **Copyright:** sudo-megas · **Licence:** GPL-3.0 · Free and Open-Source Software
-**Status:** Specification v3 · amended 30 July 2026 (supersedes v2) · Companion document: `REALISATION.md`
-**Amendments:** 2026-07-29 — §4.1, §5.1, §7.3, §16.6, §17, §19 (configuration split into two files; the Section 2 freeze made explicit and reversible; point revisions), settled during Realisations II and IV. · 2026-07-30 (Realisation VII) — §3.3, §5.3, §8.2, §8.3, §14.1, §14.3, §16.2, §19 (two allowlisted hosts and where the session governs them; ziynet struck from the closed list; the socket's decimal format; identification is impossible; the price ceiling). · 2026-07-30 — §1, §15, §16.2, §18, §19, §20 (the migration importer is retired before construction; the ladder ends at Realisation XI; nothing ships that only this owner could use; the `.jbk` importer's remit is backup, restore, copy and merge).
+**Status:** Specification v3 · amended 31 July 2026 (supersedes v2) · Companion document: `REALISATION.md`
+**Amendments:** 2026-07-29 — §4.1, §5.1, §7.3, §16.6, §17, §19 (configuration split into two files; the Section 2 freeze made explicit and reversible; point revisions), settled during Realisations II and IV. · 2026-07-30 (Realisation VII) — §3.3, §5.3, §8.2, §8.3, §14.1, §14.3, §16.2, §19 (two allowlisted hosts and where the session governs them; ziynet struck from the closed list; the socket's decimal format; identification is impossible; the price ceiling). · 2026-07-30 — §1, §15, §16.2, §18, §19, §20 (the migration importer is retired before construction; the ladder ends at Realisation XI; nothing ships that only this owner could use; the `.jbk` importer's remit is backup, restore, copy and merge). · 2026-07-31 (point revision v0.8b, after the owner's first use of the built application) — §5.3, §7.1, §7.3, §9, §12.3, §13, §19 (Section 2 loses its year, its rollover and its archive; Section 4 loses the label and becomes a grid of value boxes; dates read `GG/AA/YYYY`).
 **Provenance:** Every decision in this document was settled explicitly between the owner and the architect during pre-realisation review. The forensic findings below were extracted from `JADEITorigin.xlsx` (the retiring workbook), `Altın_Eğrisi.pptx` (the retiring chart deck) and one year-banding screenshot. Those artefacts are the owner's private reference material; **the build never reads them** (§18).
 
 ---
@@ -158,7 +158,9 @@ Default OS user locations. Data is encrypted at rest exactly per the v1 manifest
 
 ### 5.3 Schema sketch (informative, finalised in Realisation I)
 
-`settings` · `years` · `s1_categories(year, name, kind[income|expense], position)` · `s1_entries(year, month, category, amount, is_refund, note)` · `s2_banks(year, name, credit_limit, position, is_counter, counter_party)` · `s2_cells(year, month, bank, amount)` · `persons` · `valuable_types` (closed seed list, §8.2) · `s3_transactions(seq_auto, date, date_provisional, type, direction[acquire|dispose], denomination, piece_count, quantity*, unit_price, source, person, note)` · `s3_prices_manual(type, value, updated_at)` · `s3_prices_live(type, value, fetched_at, provider)` · `s3_price_fetch(provider, attempted_at, outcome, succeeded_at)` · `s4_lines(label, value, position)` · `backup_log`.
+`settings` · `years` · `s1_categories(year, name, kind[income|expense], position)` · `s1_entries(year, month, category, amount, is_refund, note)` · `s2_banks(name, credit_limit, position, is_counter, counter_party)` · `s2_cells(month, bank, amount)` · `persons` · `valuable_types` (closed seed list, §8.2) · `s3_transactions(seq_auto, date, date_provisional, type, direction[acquire|dispose], denomination, piece_count, quantity*, unit_price, source, person, note)` · `s3_prices_manual(type, value, updated_at)` · `s3_prices_live(type, value, fetched_at, provider)` · `s3_price_fetch(provider, attempted_at, outcome, succeeded_at)` · `s4_cells(slot, value)` · `backup_log`.
+
+*(Amended 31 July 2026.)* The Section 2 tables carried a `year` referencing `years`, and Section 4's table was `s4_lines(label, value, position)`. Both changed in schema v4 — see §7.3 and §9. `years` remains, parenting Section 1's two tables alone.
 
 Derived values (totals, holdings, remaining limits, gains) are **computed, never stored**.
 
@@ -200,7 +202,7 @@ Because **all** data — historical and future — arrives by hand (§18), keybo
 
 ### 7.1 Grid
 
-- **12 fixed month lines** (Ocak → Aralık), one year of view.
+- **12 fixed month lines** (Ocak → Aralık). One standing grid — see §7.3.
 - **Indefinite bank/card columns**, added horizontally by the owner.
 - Top bar rows: **1. Bank Name**, **2. Credit Limit**.
 - Per-month computed **TOTAL DEBT** column, closely set at line end.
@@ -213,11 +215,17 @@ Because **all** data — historical and future — arrives by hand (§18), keybo
 
 The source's icon-sets and data-bars are honoured in spirit, executed elegantly: restrained magnitude bars on TOTAL DEBT, subtle paid/pending state cues — palette-consistent, never carnival.
 
-### 7.3 Year rollover
+### 7.3 One standing grid — no year
 
-On starting a new tracking year, the previous grid is frozen as a **read-only archive** reachable from a year selector; the new year begins with the bank set carried over and amounts cleared. Nothing is destroyed by January anymore (the source workbook overwrote itself annually).
+**Amendment of 31 July 2026, after the owner's first use of the application.** Section 2 has no year. It holds one set of bank and counter columns and twelve month lines, and it is about the present: *"that section is simply for let us see what debts and fixed installments we have right now."* There is no year selector, no year rollover, no read-only archive, and no year column in `s2_banks` or `s2_cells`.
 
-*(Amended 2026-07-29, during Realisation IV.)* The freeze is an **explicit, reversible act**, not an automatic consequence of creating the next year. Creating a year carries the bank set over and clears the amounts as above; freezing the old grid is a separate decision the owner makes in Section 2, and can be undone. The original wording made the freeze automatic, which would mean adding next year's workspace in October silently removed the ability to correct November. Nothing is destroyed in either direction, which is why neither direction needs a grave confirmation.
+This subsection previously specified the opposite, and both of its earlier readings are recorded here rather than deleted. The original required that "on starting a new tracking year, the previous grid is frozen as a **read-only archive** reachable from a year selector; the new year begins with the bank set carried over and amounts cleared" — written against the source workbook, which overwrote itself every January. An amendment of 2026-07-29, during Realisation IV, then made the freeze an **explicit, reversible act** rather than an automatic consequence of creating the next year, because the original wording meant that adding 2027's workspace in October silently removed the ability to correct November.
+
+**The capability is genuinely gone, and that is recorded rather than glossed.** There is no longer any way to look at what a bank was owed in a previous year, and no archive to freeze or reopen. The owner's ruling is that there is nothing to look at: *"i am not logging previous years bank debts."* The rollover machinery was built to protect a history this section was never going to accumulate, and the migration that removes the year keeps only the most recent grid — earlier years' banks and amounts are dropped (schema v4). A later Realisation that wants payment history back should disagree with this paragraph deliberately rather than rediscover the gap.
+
+What §7.3 was really answering — "nothing is destroyed by January anymore" — is answered differently and more simply: nothing is destroyed by January because January is not a boundary. The twelve lines are the twelve months the owner is living in, and an instalment plan that runs past December runs into the same grid it started in.
+
+Section 1 keeps its year-workspaces (§6.1) untouched. That is where a year of history belongs, and creating a year there no longer touches Section 2 at all.
 
 ---
 
@@ -292,7 +300,13 @@ Both bases are always visible: **cost basis** (what was paid, from the ledger) a
 
 ## 9. Section 4 — Calculation Zone
 
-Deliberately unfancy. An indefinite list of `label : value` lines (add/remove freely), with always-visible computed **TOTAL**, **AVERAGE**, **MEDIAN** headers. The source workbook only ever sketched this section in placeholder text; JADEITE's is the first real implementation.
+Deliberately unfancy. A grid of plain **value boxes**, ten to a row, with always-visible computed **TOTAL**, **AVERAGE**, **MEDIAN** headers that move as the boxes are filled. The grid begins at ten rows and grows a fresh row of ten whenever the last row is first used, so a month of a hundred and twenty figures never runs out of room and a short month never shows a page of empty boxes. The source workbook only ever sketched this section in placeholder text; JADEITE's is the first real implementation.
+
+**Amendment of 31 July 2026, after the owner's first use of the application.** This section specified "an indefinite list of `label : value` lines (add/remove freely)" and shipped that way in Realisation VI. It was wrong about what the section is for. The owner's finding: *"it is difficult for user to add every expense in a month… there could be 120 transactions in a month… user have to enter all of them by tags???"* A label typed before every figure is a per-figure tax on the one activity §9 exists to serve, which is totalling a column of numbers quickly.
+
+**The label is gone, and with it the capability it carried.** A box holds a figure and nothing else; there is no way to name a figure, and no way to write a heading between two of them. The rejected alternative was an optional label — which keeps the tax as a temptation and leaves two shapes of row to reason about — and the owner ruled for bare boxes with the trade-off stated. A line that needs naming belongs in Section 1, where a category is a column and the naming is done once instead of once per figure.
+
+The arithmetic is unchanged: TOTAL, AVERAGE and MEDIAN over the boxes that hold a figure, exact to the kuruş, with an empty grid answering "—" rather than zero. An untouched box is not a zero (§6.3's rule, which this section keeps); a box holding a typed zero is.
 
 ---
 
@@ -345,6 +359,8 @@ Every colour in the app resolves through CSS custom properties; palettes are tok
 
 Automatic: each year takes the next accent from the active palette's accent sequence, applied with deliberate restraint (banding, headers, switcher chips). **Elegance constraint (owner's words): this is not a kid's-play app — colours must never be chaotic; clarity must be high.** Accents are muted toward the palette's surface tones; a manual per-year override exists.
 
+*(Amended 31 July 2026.)* Year accents belong to Section 1 and the Overview. Section 2 wore one until §7.3's amendment left it with no year to derive one from, and it now takes the palette's own accent — which is what the year-accent variables already fall back to.
+
 ---
 
 ## 13. Localisation
@@ -352,6 +368,7 @@ Automatic: each year takes the next accent from the active palette's accent sequ
 - **Turkish is primary.** English available.
 - **Manual switching only.** The app must never read the OS locale, and must never change language on its own — the owner's explicit prohibition. Language is a setting inside the vault, defaulting to Turkish on vault creation.
 - Number/date/currency formatting follows the selected app language, not the OS.
+- **Dates read `GG/AA/YYYY` — day, month, year, separated by a slash — in both languages** *(amended 31 July 2026, at the owner's request)*. This is the application's own convention, chosen once and applied everywhere it prints a date; the prohibition above is on reading the machine's conventions, not on having any. Note that it is not ICU's Turkish default, which uses full stops. Dates are still **stored** as ISO-8601 (§5.2) — this rule is about what the owner reads and types, and the two are deliberately different things.
 
 ---
 
@@ -509,11 +526,13 @@ Roughly 47 month-rows, ~38 gold events, and one debt year. Not a build task, not
 | Backup | Encrypted `.jbk` only; prompt after credential changes; truth table in §4.4 |
 | Sign convention | Amounts positive; category/direction carries sign; refunds explicit |
 | Section 1 | Year-workspaces (Niri-style), per-year column sets with inheritance |
-| Section 2 | Forward-looking tracker; read-only archive on rollover, **frozen by an explicit and reversible act** (§7.3, amended) |
+| Section 2 | Forward-looking tracker; **one standing grid of twelve months and no year at all** — the year selector, the rollover and the read-only archive are struck, and with them any way to see a previous year's debts. The owner does not log them (§7.3, amended twice) |
 | Section 2 totals | `TOTAL DEBT = Σ banks − Σ counters`; **`TOTAL REMAINING LIMIT` is the total of the Remaining Limit row** — counter columns have no limit and no cell in it |
 | Section 3 scope | Gold set + USD + EUR + silver — **closed list of ten**; **six** gold coins, Tam and Ata being different products; **ziynet struck** as the family's name rather than a member of it, and with it the only home for weighable 22-ayar gold (§8.2, amended twice) |
 | Egress enforcement | **Two** allowlisted hosts. Session-level for the renderer and for Chromium-stack main traffic; a single in-process chokepoint for Node-stack traffic, which `webRequest` cannot see. The navigation predicate is **not** the request predicate — widening one must never widen the other (§3.3, amended) |
 | Price ceiling | `MAX_UNIT_PRICE` is ₺500.000 per unit. The former ₺100.000 was reasoned about per gram and silently refused a beşli price, which is quoted per piece at about ₺207.000 — a defect that shipped in Realisation V and was found by pointing a provider at the closed list |
+| Section 4 | **A grid of bare value boxes**, ten to a row, growing by rows. The `label : value` line of Realisation VI is struck: an etiket per figure is a tax on the one thing the section is for, and a figure that needs naming belongs in Section 1 (§9, amended) |
+| Date format | **`GG/AA/YYYY` in both languages** — the app's own convention, not ICU's Turkish default and not the machine's. Storage stays ISO-8601 (§13, §5.2) |
 | Weighable quantities | **Denomination × count, stored; total derived** — `2 × 5 g` is two physical chunks and not the same record as `1 × 10 g` (§8.3, amended) |
 | Coin pricing | **ESKİ quotes** — owner's ruling. The gap averages 0,5% and shows no annual step, so the owner's "struck this year" reading is recorded as theirs, not as measurement; mint-year storage is the deferred correction (§8.5, amended) |
 | Live provider | Websocket for current prices, `ajax/cur/history` for history; **the returned date range must be validated** — a stale cache silently truncates it behind HTTP 200 (§14.1–14.2) |

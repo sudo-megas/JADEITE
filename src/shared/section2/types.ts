@@ -11,20 +11,23 @@
  * `s2_banks` has no `value_type` column to say otherwise (schema.ts).
  */
 
-export { MAX_YEAR, MIN_YEAR, MONTHS, isMonth, isValidYear } from '../calendar.js'
+export { MONTHS, isMonth } from '../calendar.js'
 
 /**
- * A column of one year's Payments grid (§7.1).
+ * A column of the Payments grid (§7.1).
  *
  * Two kinds of column live in one table because they occupy one row of the top
  * bar and one line of the grid each, and because the source workbook's defect
  * was keeping one list of banks in two places until they disagreed. A counter
  * column is a bank column with `isCounter` set — not a second table, not a
  * second list.
+ *
+ * There is no year on a column. Section 2 is one standing grid of the twelve
+ * months the owner is living in (§7.1 as amended); the year workspaces belong to
+ * Section 1, which is where a year of history is actually kept.
  */
 export interface Bank {
   id: number
-  year: number
   name: string
   /**
    * Integer minor units, never negative. Always 0 for a counter column: §7.1
@@ -65,20 +68,21 @@ export interface Cell {
 
 /** What a cell edit asks the vault to do. Clearing is a delete, not a zero. */
 export interface CellPatch {
-  year: number
   month: number
   bankId: number
   /** null clears the cell entirely. */
   amount: number | null
 }
 
-/** Everything one year's Payments grid needs to render itself. */
-export interface YearGrid {
-  year: number
-  /** Frozen by the rollover of §7.3. Readable; every mutation refuses. */
-  archived: boolean
-  /** The year's accent (§12.3), so both sections wear the same one. */
-  accentOverride: string | null
+/**
+ * Everything the Payments grid needs to render itself.
+ *
+ * One grid, not one per year. There is no accent override either: §12.3's year
+ * accents are Section 1's and the Overview's, and a section with no year has no
+ * year to take an accent from — Section 2 wears the palette's own (§12.3 as
+ * amended).
+ */
+export interface PaymentsGrid {
   banks: readonly Bank[]
   cells: readonly Cell[]
 }
@@ -100,16 +104,12 @@ export interface BankUsage {
 /** Coarse failure reasons for Section 2, in the style of VaultErrorCode. */
 export type Section2ErrorCode =
   | 'LOCKED'
-  | 'NO_SUCH_YEAR'
-  | 'YEAR_EXISTS'
-  /** The year is frozen (§7.3). Reopen it and the same edit will be accepted. */
-  | 'ARCHIVED'
   | 'NO_SUCH_BANK'
   | 'DUPLICATE_NAME'
   | 'INVALID_NAME'
   | 'INVALID_AMOUNT'
   | 'INVALID_LIMIT'
-  | 'INVALID_YEAR'
+  | 'INVALID_MONTH'
   | 'INTERNAL'
 
 /** A column name has to fit in a header and be told apart from its neighbours. */

@@ -18,11 +18,10 @@
  * does is *choose*: which year, which bucket, which of several honest readings,
  * and — mostly — what to say when there is no reading at all.
  *
- * **No React, no store, no IPC, no clock.** A `Today` is passed in exactly as
- * `computeGrid` takes one (`section2/engine.ts:63`), for the reason stated
- * there: a module that read the clock could not be tested for a year that has
- * not happened yet, and the dashboard's hardest cases are all about which year
- * counts as now.
+ * **No React, no store, no IPC, no clock.** The current month is passed in
+ * exactly as `computeGrid` takes it (`section2/engine.ts`), for the reason
+ * stated there: a module that read the clock could not be tested for a month
+ * that has not happened yet.
  *
  * **Every tile answers with a discriminated state, never a bare number.** This
  * is the point of the file. The rejected alternative was `number | null` per
@@ -37,8 +36,8 @@
 import { buildSeries, type ValuePoint } from '@shared/altin/series'
 import { bucketOf, computeWorkspace, type Bucket, type ComputedWorkspace } from '@shared/section1/engine'
 import { VALUE_TYPES, type ValueType, type YearWorkspace } from '@shared/section1/types'
-import { computeGrid, type Today } from '@shared/section2/engine'
-import type { YearGrid } from '@shared/section2/types'
+import { computeGrid } from '@shared/section2/engine'
+import type { PaymentsGrid } from '@shared/section2/types'
 import { computeHoldings, type HoldingsView } from '@shared/section3/engine'
 import type { LedgerData, TypeCode } from '@shared/section3/types'
 import { sortedTypeCodes, typeCodesAttribute } from '@shared/section3/codes'
@@ -65,14 +64,13 @@ export const HEADLINE_VALUE_TYPE: ValueType = 'TRY'
  * suite that exists to prove it. Same argument as `main/prices/hosts.ts`: a
  * module two runtimes have to agree about does not get to depend on either one.
  *
- * The fields are exactly the store's three, so the store's value is assignable
+ * The fields are exactly the store's two, so the store's value is assignable
  * here and the compiler checks the agreement at every call site the parent
  * writes. Adding a field would break a file this module does not own.
  */
 export interface OverviewYear {
   year: number
   workspace: YearWorkspace | null
-  grid: YearGrid | null
 }
 
 /**
@@ -318,120 +316,81 @@ export function yoySeries(years: readonly OverviewYear[]): YoySeries {
   return { years: drawn, excluded, otherValueTypes }
 }
 
-// --- Which year the debt tiles read -----------------------------------------
-
-/**
- * The year "current debt" and "remaining limit" are about.
- *
- * Section 2 keeps archived years (§7.3) and a vault may hold ten of them, so a
- * grand tile has to choose one, and the choice is **derived from the `Today`
- * that was passed in** rather than from a second clock read. A second reading of
- * now is how the tile and the grid it deep-links into come to disagree about
- * which year is highlighted.
- *
- * The rule is: the latest year that has begun; failing that — every year on
- * record is still in the future — the earliest one. Both clauses are labelled by
- * the tile, which carries its `year`, so neither ever claims to be about today
- * when it is not. Archived years are not skipped: a year frozen by rollover is
- * still what was owed in it, and §7.3 makes the freeze about writing.
- *
- * A year whose grid failed to read is **not** skipped either. Which year is
- * current is a calendar question, not a question about what happened to load;
- * falling through to 2025 because 2026 did not read would print a real figure
- * under a tile the owner reads as being about 2026. The tiles below have an
- * `unreadable` state naming the year instead.
- *
- * On the reading itself: `computeGrid` sums `grandTotalDebt` over all twelve
- * months regardless of `monthState`, so "current debt" is the year's grand total
- * — the figure at §7.1's own DEBT × TOTAL DEBT intersection. That is the only
- * reading with a section source. `s2_cells` carries no paid flag
- * (`section2/types.ts:56-58`), and inventing one to net off the settled months
- * would be the second record §7.1 refuses, maintained by hand, disagreeing with
- * the grid by the end of the first month.
- */
-export function selectDebtYear(years: readonly OverviewYear[], today: Today): number | null {
-  const sorted = byYear(years)
-
-  let begun: number | null = null
-  for (const entry of sorted) {
-    if (entry.year <= today.year) begun = entry.year
-  }
-  if (begun !== null) return begun
-
-  return sorted[0]?.year ?? null
-}
-
-function yearEntry(
-  years: readonly OverviewYear[],
-  year: number | null
-): OverviewYear | null {
-  if (year === null) return null
-  return years.find((entry) => entry.year === year) ?? null
-}
-
 // --- The two debt tiles -----------------------------------------------------
 
 /**
- * Current debt (§10) — the selected year's GRAND TOTAL DEBT.
+ * Current debt (§10) — the Payments grid's GRAND TOTAL DEBT.
  *
- * `no-columns` is a state and not a zero. A year whose grid holds no columns at
- * all totals 0, and a tile reading `0,00 ₺` there tells the owner they owe
- * nothing, which is a claim about their finances made out of an empty table.
+ * There is no year to choose any more. Section 2 held a grid per year until
+ * point revision v0.8b, and this file used to carry a `selectDebtYear` whose
+ * whole job was deciding which of them a grand tile spoke for — the latest year
+ * that had begun, failing that the earliest on record — with every tile state
+ * labelled by its year so it never claimed to be about today when it was not.
+ * §7.1 as amended leaves one standing grid of the twelve months the owner is
+ * living in, so the tile is about now by construction and the choice is gone.
+ *
+ * `no-columns` is a state and not a zero. A grid holding no columns at all
+ * totals 0, and a tile reading `0,00 ₺` there tells the owner they owe nothing,
+ * which is a claim about their finances made out of an empty table.
+ *
+ * On the reading itself: `computeGrid` sums `grandTotalDebt` over all twelve
+ * months regardless of `monthState`, so "current debt" is the grid's grand total
+ * — the figure at §7.1's own DEBT × TOTAL DEBT intersection. That is the only
+ * reading with a section source. `s2_cells` carries no paid flag
+ * (`section2/types.ts`), and inventing one to net off the settled months would be
+ * the second record §7.1 refuses, maintained by hand, disagreeing with the grid
+ * by the end of the first month.
  */
 export type DebtTile =
-  | { kind: 'no-years' }
-  | { kind: 'unreadable'; year: number }
-  | { kind: 'no-columns'; year: number }
-  | { kind: 'figure'; year: number; debt: number }
+  | { kind: 'unreadable' }
+  | { kind: 'no-columns' }
+  | { kind: 'figure'; debt: number }
 
-export function debtTile(years: readonly OverviewYear[], today: Today): DebtTile {
-  const entry = yearEntry(years, selectDebtYear(years, today))
-  if (entry === null) return { kind: 'no-years' }
-  if (entry.grid === null) return { kind: 'unreadable', year: entry.year }
+export function debtTile(payments: PaymentsGrid | null, currentMonth: number): DebtTile {
+  if (payments === null) return { kind: 'unreadable' }
 
-  const computed = computeGrid(entry.grid, today)
-  if (computed.columns.length === 0) return { kind: 'no-columns', year: entry.year }
+  const computed = computeGrid(payments, currentMonth)
+  if (computed.columns.length === 0) return { kind: 'no-columns' }
 
-  return { kind: 'figure', year: entry.year, debt: computed.grandTotalDebt }
+  return { kind: 'figure', debt: computed.grandTotalDebt }
 }
 
 /**
  * Remaining limit (§10) — `TOTAL REMAINING LIMIT`, read and never recomputed.
  *
- * `section2/engine.ts:26-31` fixes what this figure is: the total of the
- * Remaining Limit *row*, over the columns that have a limit. It is emphatically
- * not `totalCreditLimit − grandTotalDebt`, because a counter column carries debt
- * and no limit, so the subtraction credits headroom to a card that was never
+ * `section2/engine.ts` fixes what this figure is: the total of the Remaining
+ * Limit *row*, over the columns that have a limit. It is emphatically not
+ * `totalCreditLimit − grandTotalDebt`, because a counter column carries debt and
+ * no limit, so the subtraction credits headroom to a card that was never
  * charged. This selector therefore reads `totalRemainingLimit` and touches
  * nothing else; the unit suite asserts the subtraction would give a different
  * answer, so a future simplification fails there rather than on screen.
  *
- * **`no-limits` is the state the whole rung turns on.** A year with counter
+ * **`no-limits` is the state the whole rung turns on.** A grid with counter
  * columns and no bank columns totals 0 across an empty Remaining Limit row, and
  * `0,00 ₺` under "remaining limit" reads as *no headroom left* — the precise
  * misreading a counter column's `remaining: null` exists to avoid
- * (`section2/engine.ts:187`). It carries the counter count so the tile can say
- * what the year does hold rather than merely refusing to answer.
+ * (`section2/engine.ts`). It carries the counter count so the tile can say what
+ * the grid does hold rather than merely refusing to answer.
  */
 export type RemainingTile =
-  | { kind: 'no-years' }
-  | { kind: 'unreadable'; year: number }
-  | { kind: 'no-limits'; year: number; counters: number }
-  | { kind: 'figure'; year: number; remaining: number; creditLimit: number }
+  | { kind: 'unreadable' }
+  | { kind: 'no-limits'; counters: number }
+  | { kind: 'figure'; remaining: number; creditLimit: number }
 
-export function remainingTile(years: readonly OverviewYear[], today: Today): RemainingTile {
-  const entry = yearEntry(years, selectDebtYear(years, today))
-  if (entry === null) return { kind: 'no-years' }
-  if (entry.grid === null) return { kind: 'unreadable', year: entry.year }
+export function remainingTile(
+  payments: PaymentsGrid | null,
+  currentMonth: number
+): RemainingTile {
+  if (payments === null) return { kind: 'unreadable' }
 
-  const computed = computeGrid(entry.grid, today)
+  const computed = computeGrid(payments, currentMonth)
   if (computed.banks.length === 0) {
-    return { kind: 'no-limits', year: entry.year, counters: computed.counters.length }
+    return { kind: 'no-limits', counters: computed.counters.length }
   }
 
   return {
     kind: 'figure',
-    year: entry.year,
     remaining: computed.totalRemainingLimit,
     creditLimit: computed.totalCreditLimit
   }
@@ -585,37 +544,39 @@ export function valueLine(ledger: LedgerData | null): ValueLine {
  *
  * Separate from the per-chart `excluded` lists, which mix a failed read together
  * with a year that legitimately holds no lira. This one names only failures, and
- * it names them per section: a year whose income grid did not read and a year
- * whose payments grid did not read are different holes in different tiles, and a
+ * it names them per section: a year whose income grid did not read and a
+ * payments grid that did not read are different holes in different tiles, and a
  * banner saying "2019 is incomplete" without saying in what is a banner the
  * owner cannot act on.
  *
+ * `payments` is a boolean rather than a list of years, because there is one
+ * Payments grid to fail (§7.1 as amended) rather than one per year.
+ *
  * `any` is the banner's own condition, kept here so the component does not
- * re-derive it from three lists and get the empty case wrong.
+ * re-derive it from three fields and get the empty case wrong.
  */
 export interface IncompleteReads {
   workspaceYears: readonly number[]
-  gridYears: readonly number[]
+  payments: boolean
   ledger: boolean
   any: boolean
 }
 
 export function incompleteReads(
   years: readonly OverviewYear[],
+  payments: PaymentsGrid | null,
   ledger: LedgerData | null
 ): IncompleteReads {
   const workspaceYears: number[] = []
-  const gridYears: number[] = []
 
   for (const entry of byYear(years)) {
     if (entry.workspace === null) workspaceYears.push(entry.year)
-    if (entry.grid === null) gridYears.push(entry.year)
   }
 
   return {
     workspaceYears,
-    gridYears,
+    payments: payments === null,
     ledger: ledger === null,
-    any: workspaceYears.length > 0 || gridYears.length > 0 || ledger === null
+    any: workspaceYears.length > 0 || payments === null || ledger === null
   }
 }
