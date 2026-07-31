@@ -54,11 +54,15 @@ linux:
   target:
     - pacman
     - deb
-  category: Office
+  # Both the main category and the additional one, here rather than under
+  # `desktop.entry`. LinuxTargetHelper assigns Categories from this key *after*
+  # merging the entry map, so an entry-level Categories is silently discarded —
+  # which is how the shipped v0.9b packages came to read `Categories=Office;`
+  # while this file appeared to ask for Finance as well.
+  category: Office;Finance;
   synopsis: Secure personal wealth and possessions tracker
   desktop:
     entry:
       Name: JADEITE
       Terminal: false
       Type: Application
-      Categories: Office;Finance;

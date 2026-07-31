@@ -11,6 +11,8 @@
   "license": "GPL-3.0-only",
   "private": true,
   "type": "module",
+  "//desktopName": "Must equal the app_id the running window reports, which is app.setName('jadeite') in src/main/index.ts. electron-builder writes StartupWMClass from this; without it the key falls back to productName and the entry claims a class of JADEITE that no window ever has, so a taskbar cannot match the window to the launcher icon.",
+  "desktopName": "jadeite.desktop",
   "main": "./out/main/index.js",
   "engines": {
     "node": ">=24.0.0"
