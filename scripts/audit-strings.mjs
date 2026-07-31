@@ -1,0 +1,244 @@
+/**
+ * The strings the outside world reads, held to each other — Realisation X.
+ *
+ * Three of `REALISATION.md`'s acceptance boxes are about text that never runs:
+ * what a launcher prints, what `pacman -Qip` prints, and what the window
+ * manager matches a window against. Nothing checked any of them. They were true
+ * when they were written and stayed true by nobody editing the files, which is
+ * not the same as being enforced — and the two point revisions before this one
+ * exist precisely because a string in one file stopped agreeing with a string in
+ * another and no test could see it.
+ *
+ * Three rules, each the mechanical half of a box that had none.
+ *
+ * **1. A retired sentence stays retired.** v0.9d's box reads "No tracked file
+ * says *Secure personal wealth and possessions tracker*". A box phrased as an
+ * absence is exactly the kind that quietly becomes false: the string comes back
+ * in a copied config block or a restored paragraph and nothing anywhere objects.
+ *
+ * **2. The name pair is the same pair everywhere.** v0.9c let the application
+ * call itself *Ekonomi Defteri* on screen while every launcher said something
+ * else, and v0.9d fixed it by hand across three files. This is that fix,
+ * asserted rather than remembered.
+ *
+ * **3. `StartupWMClass` matches the app id.** `package.json`'s comment already
+ * explains this at length — `desktopName` minus its suffix must equal
+ * `app.setName(...)`, or the desktop entry claims a window class no window has
+ * and a taskbar cannot pair the running application with its own icon. The
+ * comment is the only thing that has ever enforced it, and a comment is not an
+ * enforcement. This is the one rule here that guards a *behaviour*: the other
+ * two guard sentences.
+ *
+ * Scanning is over `git ls-files`, so the subject is what the repository ships
+ * rather than what happens to be lying in the working tree. `node_modules/` and
+ * `release/` are untracked and so are never read; `LICENSE` is skipped because
+ * the GPL is not ours to audit for phrasing.
+ */
+
+import { execFileSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const findings = []
+
+function read(relative) {
+  return readFileSync(resolve(root, relative), 'utf8')
+}
+
+// --- 1. Retired strings ------------------------------------------------------
+
+/**
+ * Sentences this project has stopped saying, and the rung that retired each.
+ *
+ * Kept as a list rather than a single constant because it is the shape the next
+ * one will arrive in, and because naming the revision makes a failure
+ * self-explaining: whoever trips this needs to know it was a decision.
+ */
+const RETIRED = [
+  {
+    text: 'Secure personal wealth and possessions tracker',
+    retiredBy: 'v0.9d',
+    insteadSee: "package.json's description and electron-builder.yml's synopsis"
+  }
+]
+
+/**
+ * The files a retired sentence is allowed to appear in.
+ *
+ * This script names every retired string by definition and would otherwise be
+ * the one file that always fails. The two governing documents are the more
+ * interesting exemption: they are where this project records what it has
+ * stopped saying, and **a ledger of retired sentences has to be able to name
+ * them.** v0.9d's box reads "No tracked file says *Secure personal wealth and
+ * possessions tracker*" — and quotes the sentence in order to forbid it, in a
+ * tracked file, so read literally the box is unsatisfiable in the same way
+ * Realisation X's regression line was before v0.9d rewrote it. What it means,
+ * and what is enforced here, is that no file *states this as the application's
+ * description*. `LICENSE` is exempt because the GPL is not ours to edit.
+ */
+const EXEMPT = new Set([
+  'scripts/audit-strings.mjs',
+  'LICENSE',
+  'REALISATION.md',
+  'XJADEITE.md'
+])
+
+/**
+ * The rung companions, `docs/realisation-*.md`, on the same ground as the two
+ * governing documents: they are where a decision is written down, and a
+ * retired sentence cannot be explained without being quoted. This rule found
+ * `docs/realisation-x.md` quoting it while describing the trap, which is the
+ * argument making itself.
+ *
+ * Deliberately narrow, and the exclusions matter more than the inclusion.
+ * `docs/usereadme.md` is the brief for the repository's `README.md` and is
+ * **not** exempt — a retired sentence surviving there would propagate straight
+ * into the one file the outside world reads first, which Realisation XI writes.
+ * Nor is any future `README.md`, for the same reason. Narration is exempt;
+ * anything anybody is meant to read as a description of the application is not.
+ */
+const isRungCompanion = (path) => /^docs\/realisation-[a-z]+\.md$/.test(path)
+
+/**
+ * The tracked file list, or `null` where there is no repository to ask.
+ *
+ * `git ls-files` exits non-zero outside a checkout, and a source tarball is
+ * exactly that — which is the case Realisation X spent a manifest field
+ * fixing, after electron-builder's own `.git/config` read aborted the build
+ * there. Reintroducing the same assumption in the same rung, in the script
+ * that enforces the fix, would be a poor joke.
+ *
+ * Rule 1 is *about* what the repository ships, so outside a repository it has
+ * no subject and is skipped. Rules 2 and 3 read named files and are unaffected,
+ * so the audit still does most of its job. The skip is announced rather than
+ * silent: an audit that quietly checks less than it says is worse than one that
+ * fails.
+ */
+function trackedFiles() {
+  try {
+    return execFileSync('git', ['ls-files'], {
+      cwd: root,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore']
+    })
+      .split('\n')
+      .filter((path) => path !== '' && !EXEMPT.has(path) && !isRungCompanion(path))
+  } catch {
+    return null
+  }
+}
+
+const tracked = trackedFiles()
+
+if (tracked === null) {
+  console.warn(
+    'string audit: no git checkout here, so the retired-sentence rule has nothing to ' +
+      'enumerate and is skipped. The name pair and the window class are still checked.'
+  )
+}
+
+for (const path of tracked ?? []) {
+  let source
+  try {
+    source = readFileSync(resolve(root, path), 'utf8')
+  } catch {
+    // A binary file, or one deleted since `git ls-files` was asked. Neither is
+    // this audit's business.
+    continue
+  }
+  // A NUL byte means this is a PNG or similar, read as UTF-8. Skipped rather
+  // than scanned: a match inside binary noise would be a false positive, and a
+  // miss inside it is not a sentence anybody reads.
+  if (source.includes('\u0000')) continue
+
+  for (const { text, retiredBy, insteadSee } of RETIRED) {
+    const line = source.split('\n').findIndex((l) => l.includes(text))
+    if (line !== -1) {
+      findings.push({
+        where: `${path}:${line + 1}`,
+        why: `says "${text}", retired at ${retiredBy} — see ${insteadSee}`
+      })
+    }
+  }
+}
+
+// --- 2. The name pair --------------------------------------------------------
+
+const NAME_EN = 'Economy Journal'
+const NAME_TR = 'Ekonomi Defteri'
+
+const builderYml = read('electron-builder.yml')
+
+/**
+ * A deliberately small reader rather than a YAML dependency.
+ *
+ * The three keys wanted are top-level-ish scalars on their own line, and adding
+ * a parser to the dependency tree to read three strings would cost more than it
+ * explains — `js-yaml` is not currently a dependency of this project and §1's
+ * argument against carrying what is used once applies to build tooling too.
+ */
+function yamlValue(key) {
+  const match = new RegExp(`^\\s*${key.replace(/[[\]]/g, '\\$&')}:\\s*(.+)$`, 'm').exec(builderYml)
+  return match ? match[1].trim() : null
+}
+
+for (const [key, expected] of [
+  ['GenericName', NAME_EN],
+  ['GenericName[tr]', NAME_TR]
+]) {
+  const actual = yamlValue(key)
+  if (actual !== expected) {
+    findings.push({
+      where: 'electron-builder.yml',
+      why: `${key} is ${actual === null ? 'absent' : `"${actual}"`}, expected "${expected}" — the launcher must name the application what the About page does (§17.1)`
+    })
+  }
+}
+
+const synopsis = yamlValue('synopsis')
+if (synopsis === null || !synopsis.includes(NAME_EN)) {
+  findings.push({
+    where: 'electron-builder.yml',
+    why: `synopsis must carry "${NAME_EN}" — pacman prints it alone, because pacman.erb writes pkgdesc on one line and drops fpm's second (v0.9d)`
+  })
+}
+
+// --- 3. The window class -----------------------------------------------------
+
+const manifest = JSON.parse(read('package.json'))
+const mainSource = read('src/main/index.ts')
+
+const appId = /app\.setName\(\s*['"]([^'"]+)['"]\s*\)/.exec(mainSource)?.[1] ?? null
+const desktopName = (manifest.desktopName ?? '').replace(/\.desktop$/, '')
+
+if (appId === null) {
+  findings.push({
+    where: 'src/main/index.ts',
+    why: 'no app.setName(...) call found — StartupWMClass cannot be checked against the app id'
+  })
+} else if (appId !== desktopName) {
+  findings.push({
+    where: 'package.json',
+    why: `desktopName is "${manifest.desktopName}" (→ "${desktopName}") but app.setName is "${appId}". electron-builder writes StartupWMClass from desktopName, and Electron derives the window's app_id from the same field, so a mismatch means the entry claims a class no window ever reports`
+  })
+}
+
+if (manifest.homepage === undefined) {
+  findings.push({
+    where: 'package.json',
+    why: "no homepage — electron-builder falls back to .git/config's origin remote, which is not a tracked file and is absent from every worktree and every source tarball (Realisation X)"
+  })
+}
+
+// --- Verdict -----------------------------------------------------------------
+
+if (findings.length > 0) {
+  console.error(`\nstring audit FAILED — ${findings.length} finding(s):\n`)
+  for (const f of findings) console.error(`  ${f.where}  ${f.why}`)
+  console.error('\nWhat the outside world reads is decided in three files and must agree in all three.\n')
+  process.exit(1)
+}
+
+console.log('string audit passed — the outward names agree and the retired sentence is gone')

@@ -41,6 +41,47 @@ files:
   # (the project root) and packaged (inside app.asar).
   - build/icon.png
 
+  # Six patterns, two findings, both measured against the built artefact rather
+  # than reasoned about. Nothing here removes a byte the running app can reach.
+  #
+  # **The renderer's libraries are in the asar twice.** `externalizeDepsPlugin()`
+  # is applied to `main` and `preload` in electron.vite.config.ts and to nothing
+  # else, so the renderer's Rollup build inlines what it imports: the packaged
+  # chunk carries `ECharts`, `getZr`, `getCoreRowModel` and `flexRender` as
+  # compiled code, and no `require('echarts')` survives anywhere in it.
+  # electron-builder copies the packages regardless, because they are named in
+  # `dependencies` and that is the only question it asks. 58 MB of echarts, the
+  # 4.7 MB of zrender it draws through, 4.1 MB of @tanstack — 1271 of the
+  # asar's 1769 entries — none of it ever loaded.
+  #
+  # They stay in `dependencies`, rather than being moved to `devDependencies`
+  # which is the other way to reach this outcome. They are runtime libraries of
+  # the application, bundled instead of resolved; calling them development
+  # tooling to make a packager behave would be a lie told to a config file.
+  - '!**/node_modules/echarts/**/*'
+  - '!**/node_modules/zrender/**/*'
+  - '!**/node_modules/@tanstack/**/*'
+
+  # **The SQLite amalgamation ships twice, and the app compiles neither.**
+  # `deps/sqlite3/sqlite3.c` is the C that better-sqlite3-multiple-ciphers was
+  # built from; `build/Release/obj/` is what the compiler left behind on the way
+  # to `build/Release/better_sqlite3.node`. 14 MB each. `src/` is the C++
+  # binding source beside them. What the app loads is the `.node`, and it stays.
+  #
+  # Nothing else inside either native module is touched, and that restraint is
+  # the point rather than timidity. argon2 resolves its binary through
+  # node-gyp-build and better-sqlite3 through `bindings`, and both walk a list
+  # of candidate paths at *require* time — so a package that looks equally dead
+  # on paper (`prebuild-install`, `detect-libc`, `semver`, together under 1 MB)
+  # could be one of those paths, and removing it would fail at unlock, on a
+  # machine that never built the app, where no unit test is watching. Which is
+  # why this list is verified by starting the packaged binary and opening every
+  # section — `tests/package/packaged.spec.ts`, `npm run verify:package` — and
+  # never by reading it back.
+  - '!**/node_modules/better-sqlite3-multiple-ciphers/deps/**/*'
+  - '!**/node_modules/better-sqlite3-multiple-ciphers/build/Release/obj/**/*'
+  - '!**/node_modules/better-sqlite3-multiple-ciphers/src/**/*'
+
 # Native modules must stay outside the asar so their .node binaries are loadable.
 asar: true
 asarUnpack:
@@ -49,6 +90,58 @@ asarUnpack:
 
 # The app never phones home: no publish provider, no update feed.
 publish: null
+
+# The dependencies pacman is told to satisfy — three, and every one of them
+# measured from the shipped binaries rather than accepted from a default.
+#
+# **electron-builder's default list makes the package uninstallable on Arch.**
+# It is `[c-ares, ffmpeg, gtk3, http-parser, libevent, libvpx, libxslt, libxss,
+# minizip, nss, re2, snappy, libnotify, libappindicator-gtk3]`, hardcoded in
+# `FpmTarget`, and two of those names **no longer exist in the repositories**:
+# `http-parser`, which Chromium replaced with llhttp years ago, and
+# `libappindicator-gtk3`, superseded by the Ayatana fork. `pacman -U` does not
+# warn about them — it refuses the transaction outright:
+#
+#     warning: cannot resolve "http-parser", a dependency of "jadeite"
+#     error: failed to prepare transaction (could not satisfy dependencies)
+#
+# So the primary, installer-grade target could not be installed on the primary
+# platform, and nothing in nine rungs of tests could have said so. It was found
+# by the owner running `pacman -U`, which is the one instrument that reaches it,
+# and it is the reason Realisation X's install boxes are owner-observed rather
+# than machine-checked.
+#
+# **How these three were arrived at.** Every ELF object under `opt/JADEITE` was
+# walked with `ldd`, the bundled libraries subtracted, and each remaining
+# `.so` mapped to its owning package with `pacman -Qo` — 94 libraries, 68
+# packages. Reducing that to the members nothing else in the set pulls in
+# transitively leaves exactly three: gtk3 carries the whole GTK, X11, Wayland,
+# cairo, pango and libcups tree beneath it, and nss carries nspr.
+#
+# **What `ldd` cannot see was checked separately**, because a dlopen leaves no
+# entry in the dynamic table. The binary references `libnotify.so.4`,
+# `libsecret-1.so.0`, `libcups.so.2`, `libpulse.so.0` and `libasound.so.2` as
+# strings — Chromium's notification, keyring, printing and audio paths. None of
+# the first four is declared, and the omission is a statement rather than an
+# oversight: this application shows no notification, has no tray, plays no
+# sound, and §16.1 forbids a printing pipeline outright. Declaring them would
+# make the package demand libraries for features the specification prohibits.
+# `libasound` is kept because it is also a load-time link, not only a dlopen.
+# `libxss` is dropped for the opposite reason to the two dead names — it is a
+# real package, and the binary never asks for it: Chromium stopped reading the
+# X11 screensaver extension for idle time, which `src/main/idle.ts` gets from
+# `powerMonitor` instead.
+#
+# The deb keeps electron-builder's defaults. They name real Debian packages, so
+# that target is not broken, and they are over-generous in exactly the way
+# described above — but correcting them means guessing Debian names with no
+# Debian machine to test on, and an untested dependency list is what this
+# comment exists to complain about.
+pacman:
+  depends:
+    - gtk3
+    - nss
+    - alsa-lib
 
 linux:
   target:

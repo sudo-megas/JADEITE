@@ -18,5 +18,15 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["tests/e2e/**/*.ts", "src/shared/**/*.ts", "src/preload/api.d.ts"]
+  // Three Playwright suites, three configs, one tsconfig. `tests/package` reads
+  // a built artefact and `tests/sweep` photographs one; both import
+  // `tests/e2e`'s fixtures and share its two-worlds compiler settings, so they
+  // are typechecked here rather than given a tsconfig each for three files.
+  "include": [
+    "tests/e2e/**/*.ts",
+    "tests/package/**/*.ts",
+    "tests/sweep/**/*.ts",
+    "src/shared/**/*.ts",
+    "src/preload/api.d.ts"
+  ]
 }

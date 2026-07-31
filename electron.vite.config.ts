@@ -28,10 +28,18 @@ const root = dirname(fileURLToPath(import.meta.url))
 const manifest = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8')) as {
   version: string
   releaseDate: string
+  homepage: string
 }
 const buildConstants = {
   __APP_VERSION__: JSON.stringify(manifest.version),
   __RELEASE_DATE__: JSON.stringify(manifest.releaseDate),
+  // The repository address, which the packages also carry — pacman's `url`,
+  // the deb's `Homepage:`. It joins the two constants above at Realisation X
+  // for their reason rather than a new one: the About page had it as a literal
+  // and electron-builder read it from `.git/config`, so the screen and the
+  // package listing stated the same fact from two places and one of them was
+  // not in the repository. Same argument as `LICENSE` below.
+  __REPOSITORY_URL__: JSON.stringify(manifest.homepage),
   __LICENCE_TEXT__: JSON.stringify(readFileSync(resolve(root, 'LICENSE'), 'utf8'))
 }
 

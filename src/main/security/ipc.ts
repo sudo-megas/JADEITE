@@ -61,7 +61,30 @@ export function registerIpcHandlers(getWindow: () => BrowserWindow | null): void
   registerSection4Handlers()
   registerBackupHandlers(getWindow)
 
-  ipcMain.handle(IPC.vaultStatus, (): VaultStatus => vault.status())
+  // Guarded at Realisation X, and the two below it for the same reason. §3.3's
+  // hardening amendment says "no handler is exempt from the guard, including
+  // the two that answer while locked" — and these were the exemptions. Neither
+  // leaks anything today: `status()` reads two paths and `lock()`'s callees
+  // catch their own errors. What makes it worth two lines rather than a note is
+  // that `vault.lock()` runs every registered `onLock` listener synchronously
+  // inside this handler, so the unguarded path is inherited by listeners that
+  // do not exist yet, and an exception escaping one of them is serialised into
+  // the renderer's rejected `invoke()` — message included, which is the exact
+  // failure clause (2) was written after.
+  //
+  // These two cannot use `guarded()`: it answers `{ok: false, error}` and these
+  // channels do not carry a `Result`. The fallback is chosen instead, and it is
+  // the conservative pair. `locked: true` never grants anything, and
+  // `exists: true` sends a renderer that cannot be told the truth to the unlock
+  // screen rather than to the first-run ceremony — the wrong one to guess at,
+  // since it is the screen that offers to make a vault.
+  ipcMain.handle(IPC.vaultStatus, (): VaultStatus => {
+    try {
+      return vault.status()
+    } catch {
+      return { exists: true, locked: true }
+    }
+  })
 
   ipcMain.handle(IPC.vaultCreate, (_e, password: unknown) =>
     exclusively(() => {
@@ -78,7 +101,17 @@ export function registerIpcHandlers(getWindow: () => BrowserWindow | null): void
   )
 
   ipcMain.handle(IPC.vaultLock, () => {
-    vault.lock('manual')
+    try {
+      vault.lock('manual')
+    } catch {
+      // Swallowed rather than reported, and the asymmetry is deliberate: the
+      // renderer asked for the vault to be shut, and the one thing it must not
+      // learn is why that went wrong on a machine it cannot see. `lock()`
+      // closes the database, drops the handle and zeroises the key *before* it
+      // calls a single listener (vault.ts:63-70), so a throw reaching here
+      // means a listener misbehaved after the fact — not that the vault is
+      // still open.
+    }
   })
 
   ipcMain.handle(IPC.vaultReset, (_e, recoveryKey: unknown, newPassword: unknown) =>

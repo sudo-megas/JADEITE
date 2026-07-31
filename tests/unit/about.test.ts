@@ -27,6 +27,7 @@ const manifest = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'))
   version: string
   releaseDate: string
   license: string
+  homepage: string
 }
 
 describe('the release date the About page prints', () => {
@@ -51,6 +52,33 @@ describe('the release date the About page prints', () => {
     // midnight while `Date.now()` is absolute, so a bare `Date.parse` fails for
     // three hours every morning at UTC+3 on a date that is perfectly correct.
     expect(new Date(`${manifest.releaseDate}T00:00:00`).getTime()).toBeLessThanOrEqual(Date.now())
+  })
+})
+
+describe('the repository address the About page prints', () => {
+  it('is in the manifest, so the packages and the page read one string', () => {
+    // Realisation X. This is the field `electron.vite.config.ts` compiles into
+    // `__REPOSITORY_URL__` and the field electron-builder hands fpm as pacman's
+    // `url` and the deb's `Homepage:`, and it is asserted here because its
+    // absence has two failure modes and neither of them is loud.
+    //
+    // Without it electron-builder falls back to reading `.git/config`'s origin
+    // remote, which is not in the repository: a git worktree keeps `.git` as a
+    // *file* and has no such path, and a source tarball — how an AUR build
+    // works — has no `.git` at all. Both abort the build with `Please specify
+    // project homepage`, at packaging time, which is the last moment anybody
+    // looks. And when it does resolve, the address on the About page and the
+    // address in the package listing are two independent statements of one
+    // fact, free to drift the way the application's *name* did before v0.9d.
+    expect(manifest.homepage).toBeTypeOf('string')
+    expect(manifest.homepage).toMatch(/^https:\/\//)
+  })
+
+  it('is the address, without the .git suffix a clone URL carries', () => {
+    // What shipped in the v0.9.2 packages, via hosted-git-info's normalisation
+    // of the clone URL. Pinned so the manifest's value cannot quietly become
+    // the clone form and change what `pacman -Qip` prints.
+    expect(manifest.homepage).toBe('https://github.com/sudo-megas/JADEITE')
   })
 })
 

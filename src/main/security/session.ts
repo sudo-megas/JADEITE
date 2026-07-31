@@ -10,9 +10,15 @@
  * become this page?* Widening the one function answers both — and the second
  * answer would hand a remote origin the preload bridge, and with it the whole
  * vault API. So the widening lives in a second predicate, `isPermittedRequest`,
- * which `onBeforeRequest` alone consults; `isPermitted` is untouched and still
- * governs navigation. Nothing outside this application's own files may ever be
- * navigated to.
+ * which `onBeforeRequest` alone consults.
+ *
+ * Realisation X split the other end for the same reason. This paragraph has
+ * claimed since Realisation I that nothing outside this application's own files
+ * may ever be navigated to, and the predicate it described admitted `blob:`,
+ * `data:` and `chrome-extension:` as well — harmless in fact, and not what the
+ * sentence said. Navigation now has its own set (`NAVIGABLE_SCHEMES`) and the
+ * request path keeps the wider one, so there are three predicates for three
+ * questions and none of them is a comment.
  */
 
 import { app, session, shell, type Session } from 'electron'
@@ -26,6 +32,34 @@ const isDev = !app.isPackaged && typeof devRendererUrl === 'string' && devRender
 /** Schemes the renderer is allowed to load at all. */
 const LOCAL_SCHEMES = new Set(['file:', 'devtools:', 'blob:', 'data:', 'chrome-extension:'])
 
+/**
+ * Schemes the renderer may *become* — a strict subset, added at Realisation X.
+ *
+ * §3.3 states the navigation rule three times and states it categorically:
+ * `will-navigate` "permits nothing but this application's own files". The set
+ * above was doing double duty and three of its five entries are not this
+ * application's own files, so the sentence and the predicate disagreed — and
+ * so did this module's own header, which has said "nothing outside this
+ * application's own files may ever be navigated to" since Realisation I.
+ *
+ * Nothing was exploitable through the gap, which is why it survived a hardening
+ * pass: a `blob:` document is same-origin with the `file:` renderer and confers
+ * no privilege it lacks, Chromium refuses top-level `data:` navigation on its
+ * own account, and no extension is ever loaded into a packaged build. The
+ * argument for narrowing anyway is that every one of those is a fact about
+ * *today's* Chromium rather than a decision this application made, and the
+ * spec sentence is the decision. Read the other way round — weakening a
+ * thrice-stated security rule to match the code that drifted from it — it would
+ * be the wrong repair at v1.0.
+ *
+ * `devtools:` stays. It is Chromium's own inspector UI rather than a document
+ * this application could be persuaded into, and blocking it would break the
+ * developer tools in a build that has them. The request path is untouched: it
+ * genuinely needs `data:` and `blob:` for images, and `isPermittedRequest`
+ * still consults the wider set.
+ */
+const NAVIGABLE_SCHEMES = new Set(['file:', 'devtools:'])
+
 function devOrigin(): string | null {
   if (!isDev || !devRendererUrl) return null
   try {
@@ -35,24 +69,40 @@ function devOrigin(): string | null {
   }
 }
 
-function isPermitted(rawUrl: string): boolean {
+function isLocal(rawUrl: string, schemes: ReadonlySet<string>): boolean {
   let url: URL
   try {
     url = new URL(rawUrl)
   } catch {
     return false
   }
-  if (LOCAL_SCHEMES.has(url.protocol)) return true
+  if (schemes.has(url.protocol)) return true
 
   const dev = devOrigin()
   if (dev !== null) {
-    // Vite's dev server and its HMR websocket, and nothing else.
+    // Vite's dev server and its HMR websocket, and nothing else. Shared by both
+    // predicates on purpose: while developing, the renderer *is* that origin,
+    // so a navigation gate that refused it would refuse the application itself.
     if (url.origin === dev) return true
     if ((url.protocol === 'ws:' || url.protocol === 'wss:') && url.hostname === new URL(dev).hostname) {
       return true
     }
   }
   return false
+}
+
+function isPermitted(rawUrl: string): boolean {
+  return isLocal(rawUrl, LOCAL_SCHEMES)
+}
+
+/**
+ * May the renderer *become* this page? The gate `will-navigate` consults.
+ *
+ * Exported for `tests/electron/egress-suite.ts`, which proves the two
+ * predicates answer differently — the whole point of there being two.
+ */
+export function isPermittedNavigation(rawUrl: string): boolean {
+  return isLocal(rawUrl, NAVIGABLE_SCHEMES)
 }
 
 /**
@@ -160,7 +210,7 @@ export function hardenSession(target: Session = session.defaultSession): void {
 export function hardenWebContents(): void {
   app.on('web-contents-created', (_event, contents) => {
     contents.on('will-navigate', (event, url) => {
-      if (!isPermitted(url)) {
+      if (!isPermittedNavigation(url)) {
         event.preventDefault()
         if (isDev) console.warn('[navigation] blocked', url)
       }

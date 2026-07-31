@@ -81,9 +81,14 @@ const BASIS_POINTS = 10_000
  * answer is `none`. Decided here so that no caller has to decide it again.
  *
  * The scaled comparison stays exact well past anything the vault can hold:
- * `MAX_UNIT_PRICE` caps a typed price at ₺100.000 and a gap of that size scaled
- * by ten thousand is four orders of magnitude inside safe-integer range, so even
- * a provider figure far outside the owner's world cannot make this lie.
+ * `MAX_UNIT_PRICE` caps a typed price at ₺500.000 and a gap of that size scaled
+ * by ten thousand is four orders of magnitude inside safe-integer range
+ * (5.0 × 10¹¹ against 9.0 × 10¹⁵), so even a provider figure far outside the
+ * owner's world cannot make this lie. (The figure read ₺100.000 until
+ * Realisation X — the ceiling §19 raised during Realisation VII. The claim
+ * around it needed no change and got none: the headroom is 10⁴·³ at the new
+ * bound and was 10⁴·⁹ at the old one, so the sentence went on being true while
+ * its number was false, which is how a stale comment survives a test suite.)
  */
 export function driftState(manual: number | null, live: number | null): DriftState {
   if (live === null || live <= 0) return 'none'

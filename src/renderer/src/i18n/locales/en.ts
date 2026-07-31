@@ -187,7 +187,7 @@ export const en = {
     bankKindBank: 'Bank / card',
     bankKindCounter: 'Counter column',
     newLimit: 'Credit limit',
-    newParty: 'Person (e.g. sayacA)',
+    newParty: 'Person (e.g. mother)',
     addColumn: 'Add column',
 
     rename: 'Rename',
@@ -313,7 +313,6 @@ export const en = {
     refreshTooSoon:
       'Just checked — the provider can be asked again in {{seconds}} seconds. The prices on screen are the last ones received.',
     lastGood: 'Last good figure held from {{when}}',
-    liveSkipped: 'The provider was asked a moment ago; try again in {{seconds}}s.',
 
     drift: {
       header: 'Drift',
@@ -427,7 +426,6 @@ export const en = {
     partialSections: 'Some sections could not be read and joined no total.',
 
     years: 'Years',
-    yearNet: 'Net result',
     yearOther: 'Also holds {{types}} columns',
     yearNoTry: 'No TRY column this year',
     yearEmpty: 'No columns this year yet',
@@ -510,7 +508,7 @@ export const en = {
     back: 'Go back',
 
     candidateCreatedAt: 'Taken on',
-    candidateApp: 'Written by JADEITE',
+    candidateApp: 'JADEITE version that wrote it',
     candidateOrigin: 'Origin',
     originSame: 'This vault',
     originOther: 'Another vault',

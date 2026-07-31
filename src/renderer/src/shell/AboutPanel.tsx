@@ -35,9 +35,18 @@ import { formatDate } from '../i18n/format.js'
 import { useAppStore } from '../store/app-store.js'
 import tileSrc from '../assets/tile.png'
 
-/** Where the source lives. Stated, never opened — see the note above. */
-const REPOSITORY_URL = 'https://github.com/sudo-megas/JADEITE'
-const README_URL = 'https://github.com/sudo-megas/JADEITE#readme'
+/**
+ * Where the source lives. Stated, never opened — see the note above.
+ *
+ * Compiled in from `package.json`'s `homepage` at Realisation X, alongside the
+ * version and the release date, rather than written here twice. The packages
+ * print the same address — pacman's `url`, the deb's `Homepage:` — and before
+ * the manifest carried it, this literal and `.git/config`'s origin remote were
+ * two independent statements of one fact, in the way the application's *name*
+ * was until v0.9d.
+ */
+const REPOSITORY_URL = __REPOSITORY_URL__
+const README_URL = `${__REPOSITORY_URL__}#readme`
 
 export function AboutPanel(): ReactElement {
   const { t } = useTranslation()

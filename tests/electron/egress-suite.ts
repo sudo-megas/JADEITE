@@ -460,3 +460,70 @@ describe('the chokepoint on the Node-stack half of egress (§14)', () => {
     expect(warnings).toHaveLength(0)
   })
 })
+
+// --- What the renderer may *become*, as against what it may fetch -----------
+
+/**
+ * The navigation gate — §3.3, added at Realisation X.
+ *
+ * §3.3 says three times that `will-navigate` "permits nothing but this
+ * application's own files", and until this rung the predicate behind it was the
+ * same one `isPermittedRequest` starts from, which admits `blob:`, `data:` and
+ * `chrome-extension:`. Those are legitimate for a *request* — an `img-src` data
+ * URI, a blob the renderer made — and they are not this application's files.
+ *
+ * Nothing was exploitable through the gap: a `blob:` document is same-origin
+ * with the `file:` renderer, Chromium blocks top-level `data:` navigation on
+ * its own, and a packaged build loads no extension. That is exactly why it
+ * wants a test rather than a comment — every one of those is a fact about
+ * today's Chromium, and the spec sentence is a decision this application made.
+ */
+describe('the navigation gate is narrower than the request gate', () => {
+  /** Legitimate to fetch, and never a page this application becomes. */
+  const FETCHABLE_BUT_NOT_NAVIGABLE = [
+    'blob:file:///2a1b8f0c-0000-4000-8000-000000000000',
+    'data:text/css,body{}',
+    'chrome-extension://abcdefghijklmnopabcdefghijklmnop/panel.html'
+  ]
+
+  it('refuses to navigate to what it will happily load', async () => {
+    const { isPermittedNavigation, isPermittedRequest } = await security()
+
+    for (const url of FETCHABLE_BUT_NOT_NAVIGABLE) {
+      // Both halves, in one loop, because either alone is satisfiable by a
+      // predicate that is simply broken: a navigation gate that refused
+      // everything would pass the first assertion and take the application
+      // with it.
+      expect(isPermittedRequest(url, 3), `${url} should still be fetchable`).toBe(true)
+      expect(isPermittedNavigation(url), `${url} must not be navigable`).toBe(false)
+    }
+  })
+
+  it('still lets the application be itself', async () => {
+    const { isPermittedNavigation } = await security()
+
+    for (const url of [
+      'file:///opt/jadeite/resources/app.asar/out/renderer/index.html',
+      // Chromium's own inspector, kept deliberately: it is not a document the
+      // renderer could be persuaded into, and refusing it breaks devtools.
+      'devtools://devtools/bundled/inspector.html',
+      // Dev only, and true here because this suite forced the module into its
+      // development configuration. While developing, the renderer *is* this
+      // origin, so a gate that refused it would refuse the application.
+      `${DEV_SERVER}/src/renderer/src/main.tsx`
+    ]) {
+      expect(isPermittedNavigation(url), `${url} must stay navigable`).toBe(true)
+    }
+  })
+
+  it('refuses the provider hosts, which is the reason the two gates exist', async () => {
+    const { isPermittedNavigation } = await security()
+
+    // §3.3's own words: a permitted top-level navigation to a provider host
+    // would hand a remote origin the preload bridge, and with it the vault API.
+    // The request gate admits these from main; navigation admits them nowhere.
+    for (const url of ['https://www.haremaltin.com/ajax/cur/history', 'https://example.com/']) {
+      expect(isPermittedNavigation(url), `${url} must not be navigable`).toBe(false)
+    }
+  })
+})

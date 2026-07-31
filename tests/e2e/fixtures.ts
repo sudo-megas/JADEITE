@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -29,11 +29,19 @@ export interface Session {
 async function launchIn(
   dataHome: string,
   owned: boolean,
-  extraEnv: NodeJS.ProcessEnv = {}
+  extraEnv: NodeJS.ProcessEnv = {},
+  executablePath?: string
 ): Promise<Session> {
+  // Two ways in, and the difference is the whole of what the packaged suite
+  // adds. Without `executablePath` this runs the development Electron against
+  // the project directory, which is what the thirteen specs in this folder do.
+  // With one, it runs a built application: its own Electron binary, its own
+  // asar, and — the reason the packaged suite exists at all — whatever survived
+  // the `files:` exclusions in electron-builder.yml.
   const app = await electron.launch({
-    args: ['--no-sandbox', projectRoot],
-    cwd: projectRoot,
+    args: executablePath ? ['--no-sandbox'] : ['--no-sandbox', projectRoot],
+    ...(executablePath ? { executablePath } : {}),
+    cwd: executablePath ? dirname(executablePath) : projectRoot,
     env: {
       ...process.env,
       XDG_DATA_HOME: dataHome,
@@ -73,7 +81,7 @@ async function launchIn(
     },
     async relaunch(env = {}) {
       await app.close().catch(() => undefined)
-      return launchIn(dataHome, owned, env)
+      return launchIn(dataHome, owned, env, executablePath)
     }
   }
   return session
@@ -82,6 +90,34 @@ async function launchIn(
 /** A fresh app with an empty data directory, so the first-run ceremony shows. */
 export async function launchFresh(env: NodeJS.ProcessEnv = {}): Promise<Session> {
   return launchIn(mkdtempSync(join(tmpdir(), 'jadeite-e2e-')), true, env)
+}
+
+/** Where `electron-builder --linux --dir` leaves the built application. */
+export const packagedBinary = resolve(projectRoot, 'release/linux-unpacked/jadeite')
+
+/**
+ * The same fresh-vault launch, against the *built* application.
+ *
+ * This is the only instrument that can answer Realisation X's `files:`
+ * question. An over-broad exclusion removes a package that a native module
+ * resolves at require time — argon2 through node-gyp-build, better-sqlite3
+ * through `bindings`, both walking candidate paths rather than importing a
+ * fixed one — and the failure lands at unlock, in a built artefact, with every
+ * unit test still green because the unit tests never load an asar. Reading the
+ * exclusion list back proves only that YAML parses.
+ *
+ * It refuses rather than skips when the binary is absent. A packaged suite that
+ * quietly passes on a machine that never packaged anything is worse than no
+ * suite: it reports the one thing it exists to check as checked.
+ */
+export async function launchPackagedFresh(env: NodeJS.ProcessEnv = {}): Promise<Session> {
+  if (!existsSync(packagedBinary)) {
+    throw new Error(
+      `No packaged application at ${packagedBinary}. Run \`npm run verify:package\` — ` +
+        'this suite verifies a built artefact and has nothing to say without one.'
+    )
+  }
+  return launchIn(mkdtempSync(join(tmpdir(), 'jadeite-pkg-')), true, env, packagedBinary)
 }
 
 export const TEST_PASSWORD = 'kuyumcu-defteri-2026'

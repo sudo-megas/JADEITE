@@ -34,5 +34,9 @@ release/
 # Test artefacts
 coverage/
 test-results/
+
+# The visual-sweep screenshots (npm run sweep:palettes). Deliberately outside
+# test-results/, which Playwright empties at the start of every run.
+palette-sweep/
 playwright-report/
 .tmp/

@@ -317,12 +317,11 @@ export const tr = {
     refreshTooSoon:
       'Az önce bakıldı — sağlayıcıya {{seconds}} saniye sonra yeniden sorulabilir. Ekrandaki fiyatlar en son alınanlardır.',
     lastGood: 'Elde tutulan son geçerli fiyat: {{when}}',
-    liveSkipped: 'Sağlayıcıya az önce soruldu; {{seconds}} sn sonra yeniden deneyebilirsiniz.',
 
     drift: {
       header: 'Sapma',
       none: 'Canlı fiyat yok',
-      unpriced: 'Girilen fiyat yok',
+      unpriced: 'Fiyat girilmedi',
       aligned: 'Uyumlu',
       alignedTitle:
         'Canlı fiyat ile girdiğiniz fiyat arasındaki fark {{threshold}} sınırının altında.',
@@ -432,7 +431,6 @@ export const tr = {
     partialSections: 'Bazı bölümler okunamadı ve hiçbir toplama katılmadı.',
 
     years: 'Yıllar',
-    yearNet: 'Net sonuç',
     yearOther: 'Ayrıca {{types}} sütunları var',
     yearNoTry: 'Bu yılda TL sütunu yok',
     yearEmpty: 'Bu yılda henüz sütun yok',

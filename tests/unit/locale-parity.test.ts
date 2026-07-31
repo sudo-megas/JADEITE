@@ -130,23 +130,30 @@ describe('the Turkish and English catalogues carry the same keys', () => {
     expect(mismatched).toEqual([])
   })
 
-  it('has not quietly shrunk', () => {
-    // Asserted, in the manner of tests/unit/recovery-key.test.ts: a catalogue
-    // that loses half its keys would otherwise still be in perfect parity with
-    // the other one and pass every check above.
+  it('is frozen at the count Realisation X shipped', () => {
+    // **The string freeze (Realisation X).** This was a floor from Realisation
+    // IX until v1.0, and the floor was right for the whole of that time: keys
+    // arrived with every rung, and an equality would have turned each new
+    // string into a failing test. 430 when it was written, 443 from v0.9b —
+    // raising it was the whole point, because a floor left at the previous
+    // count lets the newest namespace be deleted from *both* files with every
+    // other check here still green. Parity holds when both sides lose the same
+    // keys, and 430 ≥ 430.
     //
-    // A floor rather than an equality, because keys are added to both files as
-    // the app grows and an exact count would turn every new string into a
-    // failing test. It only ever moves up, and only deliberately.
+    // It is an equality now because the ladder has stopped adding strings, and
+    // an equality is the assertion a floor could never make: it fails when the
+    // catalogues *grow*. That is the freeze. A new key is no longer a thing
+    // that happens on the way to something else — it is a decision, and this
+    // line is where the decision has to be written down.
     //
-    // 430 when this was written at Realisation IX; 443 from v0.9b, which added
-    // the twelve `about` strings and `nav.about`. **Raising it is the whole
-    // point.** Left at 430 the floor was exactly the pre-v0.9b count, so the
-    // entire About namespace could have been deleted from *both* catalogues and
-    // every check here would still have passed — parity holds when both sides
-    // lose the same keys, and 430 ≥ 430. The page would have rendered its raw
-    // dotted key names with nothing to say so.
-    expect(english.size).toBeGreaterThanOrEqual(443)
-    expect(turkish.size).toBeGreaterThanOrEqual(443)
+    // 442, and the two that went are worth naming so the number is not taken on
+    // trust. `overview.yearNet` was a label for a figure the Overview year card
+    // renders bare, and `section3.liveSkipped` was superseded by
+    // `section3.refreshTooSoon` and left behind — both dead in src/, both
+    // frozen in forever had this stayed a floor of 443 against a tree of 444.
+    // Which is the case for measuring before pinning rather than pinning what
+    // happened to be there.
+    expect(english.size).toBe(442)
+    expect(turkish.size).toBe(442)
   })
 })

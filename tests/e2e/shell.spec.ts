@@ -292,4 +292,28 @@ test('the rail head fits the rail, at every size the mark has ever been', async 
   expect(fit.brandRight, 'the brand block reaches past the rail').toBeLessThanOrEqual(
     fit.railRight
   )
+
+  // The size itself, added at Realisation X, because until then this test's
+  // name promised more than its body delivered: it asserted only that the head
+  // fits, and a mark silently reverted to the 22px of v0.9b fits beautifully.
+  // The whole of v0.9c is that the mark is 66px, and nothing measured it.
+  // `toBeCloseTo` rather than `toBe`, and the reason is worth recording because
+  // it looks like slack and is not: `boundingBox()` reports the *composited*
+  // rectangle, which comes back as 66.00000762939453 on this display. That is
+  // 66 plus 2⁻¹⁷ — a float artefact of the device-pixel transform, not a layout
+  // that missed. Two decimal places is far tighter than any real regression:
+  // the size this guards against is 22px, and even a one-pixel drift fails.
+  const railMark = await session.page.locator('.rail-brand .brand-mark').boundingBox()
+  expect(railMark?.width, 'the rail mark is not 66px wide').toBeCloseTo(66, 2)
+  expect(railMark?.height, 'the rail mark is not 66px tall').toBeCloseTo(66, 2)
+
+  // And on a ceremony screen, which is the other placement §12.2 names. The two
+  // are separate call sites passing the size explicitly — `BrandMark`'s own
+  // comment says the default "is not relied upon" — so one of them can drift
+  // without the other, and only measuring both catches it.
+  await session.page.getByTestId('nav-lock').click()
+  await expect(session.page.getByTestId('submit')).toBeVisible()
+  const lockMark = await session.page.locator('.brand-mark').first().boundingBox()
+  expect(lockMark?.width, 'the lock screen mark is not 66px wide').toBeCloseTo(66, 2)
+  expect(lockMark?.height, 'the lock screen mark is not 66px tall').toBeCloseTo(66, 2)
 })

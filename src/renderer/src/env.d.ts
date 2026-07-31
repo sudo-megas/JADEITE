@@ -17,6 +17,7 @@ declare module '*.png' {
 /** Compiled in by `electron.vite.config.ts` — see the `define` block there. */
 declare const __APP_VERSION__: string
 declare const __RELEASE_DATE__: string
+declare const __REPOSITORY_URL__: string
 declare const __LICENCE_TEXT__: string
 
 interface ImportMetaEnv {

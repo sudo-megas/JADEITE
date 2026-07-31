@@ -1,7 +1,7 @@
 {
   "name": "jadeite",
   "productName": "JADEITE",
-  "version": "0.9.3",
+  "version": "1.0.0",
   "releaseDate": "2026-07-31",
   "//description": "This becomes the .desktop Comment= and the deb's extended description. Per the freedesktop spec a Comment must not restate Name (JADEITE) or GenericName (Economy Journal), so this says what the application does rather than what it is called; the name pair lives in electron-builder.yml's synopsis and GenericName. Keep it under about 78 characters — fpm and deb.erb each prepend a space, and two leading spaces make the line verbatim, so a longer one will not reflow in apt show. No apostrophes: smarten() rewrites them into curly quotes.",
   "description": "Keeps income, expenses, payments and valuables in one encrypted file",
@@ -9,6 +9,8 @@
     "name": "sudo-megas",
     "email": "halil@namli.xyz"
   },
+  "//homepage": "The address the packages carry (pacman's `url`, the deb's `Homepage:`) and the one the Hakkında page prints, from one place. Until Realisation X it was in two, and neither was here: the About page held a string literal, and electron-builder derived the package field from `.git/config`'s origin remote — untracked, so the value depended on how the machine had cloned. A git worktree has no `.git/config` at all (`.git` is a file there), and `getGitUrlFromGitConfig` reads it as a directory, so fpm aborted with `Please specify project homepage`. A source tarball, which is how an AUR build works, has no `.git` either. Committed here, the address is a fact of the project rather than of the clone.",
+  "homepage": "https://github.com/sudo-megas/JADEITE",
   "license": "GPL-3.0-only",
   "private": true,
   "type": "module",
@@ -21,7 +23,7 @@
   "scripts": {
     "dev": "electron-vite dev",
     "build": "npm run audit && electron-vite build",
-    "audit": "node scripts/audit-colours.mjs && node scripts/audit-locale.mjs && node scripts/audit-egress.mjs",
+    "audit": "node scripts/audit-colours.mjs && node scripts/audit-locale.mjs && node scripts/audit-egress.mjs && node scripts/audit-strings.mjs",
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json && tsc --noEmit -p tsconfig.e2e.json",
     "test": "npm run audit && vitest run && npm run test:vault",
@@ -30,6 +32,10 @@
     "test:watch": "vitest",
     "test:e2e": "npm run build && playwright test",
     "package": "electron-vite build && electron-builder --linux",
+    "//package:dir": "Kept deliberately though nothing calls it: `verify:package` runs the full `package` so tests/package/metadata.spec.ts has a .pacman and a .deb to read. This is the fast path for iterating on the packaged suite itself — it produces release/linux-unpacked, which is everything packaged.spec.ts needs, without paying fpm for both targets. Global rule 7 is about code that runs once and is carried forever; this runs whenever somebody edits that suite.",
+    "package:dir": "electron-vite build && electron-builder --linux --dir",
+    "verify:package": "npm run package && playwright test -c playwright.package.config.ts",
+    "sweep:palettes": "playwright test -c playwright.sweep.config.ts",
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
