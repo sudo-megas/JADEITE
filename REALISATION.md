@@ -288,7 +288,7 @@ The precedent this must not become is the one v0.6c named: a letter is not a pla
 **Goal:** "the app became realized" — on Linux.
 
 **Scope**
-- Full-pass QA of every acceptance list above on CachyOS (main rig) **and** Arch/GNOME (laptop).
+- Full-pass QA of every acceptance list above on CachyOS (main rig) **and** Arch/Niri (laptop).
 - Packaging: electron-builder **pacman** package (primary, installer-grade) + deb; install/uninstall/upgrade-in-place verified; desktop entry, icon set.
 - Performance polish to budgets; final visual sweep across all ten palettes; string freeze TR/EN.
 - Documentation inside the app: first-run tour (skippable), the truth table, licence notice.
@@ -303,7 +303,7 @@ The precedent this must not become is the one v0.6c named: a letter is not a pla
 
 ## Realisation XI — Windows Port · v1.1 *(final rung)*
 
-**Goal:** parity on Windows, pixel-identical by construction — and the ladder's end.
+**Goal:** parity on Windows, pixel-identical by construction, Github page README.md — and the ladder's end.
 
 **Scope**
 - NSIS installer; `%APPDATA%\jadeite\` storage; native-module builds (SQLCipher, argon2) for Windows; code-path audit for path/locale assumptions.
@@ -312,6 +312,7 @@ The precedent this must not become is the one v0.6c named: a letter is not a pla
 **Acceptance**
 - [ ] All prior acceptance lists pass on Windows 10/11.
 - [ ] A vault created on Linux, moved as `.jbk`, opens on Windows (and back).
+- [ ] The repository carries a `README.md`, written to the brief in `docs/usereadme.md`.
 - [ ] `package.json` reads `1.1.0` (§17).
 - [ ] Tag `v1.1`, and `gh release create`. **The application is complete.**
 
@@ -324,10 +325,10 @@ The old life enters by hand, per XJADEITE §18. This is an owner activity, not a
 - Checklist of the nine forensic corrections: **XJADEITE §18.3** — kept beside the keyboard.
 - Verification fixtures the typed data must reproduce: **XJADEITE §18.4**.
 - Suggested order (Section 3 → Section 2 → Section 1): **XJADEITE §18.5**.
-- `JADEITorigin.xlsx` and `Altın_Eğrisi.pptx` stay on the archive HDD, outside the repo and outside every session, until the fixtures pass (§18.2).
 - Any friction met while typing is filed as a defect against the owning section — the sessions are the app's real ergonomics test.
 - When the fixtures go green: **LibreOffice and PowerPoint are retired for this job, permanently.**
+- After everything settled, the creator wants to discuss and get your ideas about if the implementation of their app in "AUR repository" is possible. By this way the app can be installed via "yay -S jadeite" or "paru -S jadeite".
 
 ---
 
-*Ladder ends at v1.1. Anything after — new palettes, new valuable types if the closed list is ever reopened, SAAT-family integrations — begins with a spec amendment to `XJADEITE.md`, then a new Realisation numbered XII.*
+*Ladder ends at v1.1. Anything after — new palettes, new valuable types if the closed list is ever reopened, sudo-megas integrations — begins with a spec amendment to `XJADEITE.md`, then a new Realisation numbered XII.*
