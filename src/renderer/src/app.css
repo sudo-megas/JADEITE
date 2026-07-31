@@ -1341,8 +1341,17 @@ button {
   align-items: center;
 }
 
-.s2-cell-input,
-.s2-party-input {
+/* `input.` rather than a bare class, on this rule and on Section 3's below.
+   The global `input[type='password'], input[type='text']` near the top of this
+   file is an attribute selector and outranks a plain class, so every declaration
+   here was silently overruled: the grid cells rendered at 15px with 12px of
+   padding, each carrying the border and sunken background a standalone field
+   wants and a cell in a table does not. Measured in the running app, not
+   reasoned about. The `:focus`, `:read-only` and `[aria-invalid]` rules that
+   follow already carry a pseudo-class or an attribute of their own and have
+   always outranked the global. */
+input.s2-cell-input,
+input.s2-party-input {
   width: 100%;
   min-width: 112px;
   padding: 7px 10px;
@@ -1607,7 +1616,7 @@ button {
   gap: 4px;
 }
 
-.s3-cell-input {
+input.s3-cell-input {
   width: 100%;
   min-width: 5.5em;
   padding: 4px 6px;
