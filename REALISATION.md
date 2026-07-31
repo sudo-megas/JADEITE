@@ -328,7 +328,7 @@ The one thing that would make this a rung rather than a letter is the Hakkında 
 **Acceptance**
 - [ ] Fresh-machine install from the pacman package to working vault in under two minutes.
 - [ ] Zero known defects against XJADEITE; deviations either fixed or spec-amended consciously.
-- [ ] `package.json` reads `1.0.0` (§17).
+- [ ] `package.json` reads `1.0.0`, and `releaseDate` beside it is the day this ships (§17, §17.1).
 - [ ] Tag `v1.0`, and `gh release create`.
 
 ---
@@ -345,7 +345,7 @@ The one thing that would make this a rung rather than a letter is the Hakkında 
 - [ ] All prior acceptance lists pass on Windows 10/11.
 - [ ] A vault created on Linux, moved as `.jbk`, opens on Windows (and back).
 - [ ] The repository carries a `README.md`, written to the brief in `docs/usereadme.md`.
-- [ ] `package.json` reads `1.1.0` (§17).
+- [ ] `package.json` reads `1.1.0`, and `releaseDate` beside it is the day this ships (§17, §17.1).
 - [ ] Tag `v1.1`, and `gh release create`. **The application is complete.**
 
 ---

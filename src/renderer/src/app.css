@@ -363,9 +363,10 @@ button {
 
 /*
  * 148px rather than the 160 the sketch starts from. `docs/conficon.md` says to
- * step the hero down if it crowds, and at 160 the column ran past the fold on a
- * 1080p laptop — the motto, which is the last line and the one the page ends on,
- * was the part that fell off.
+ * step the hero down if it crowds, and at 160 it did: measured in the 1200×944
+ * client area the end-to-end suite runs in, the column overran by roughly 30px
+ * and the page scrolled, which costs the motto — the last line, and the one the
+ * page is meant to end on. A 1080p laptop has less height again, not more.
  */
 .about-tile {
   width: 148px;
