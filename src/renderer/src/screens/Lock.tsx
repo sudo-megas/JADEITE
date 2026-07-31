@@ -4,7 +4,7 @@ import { useState, type FormEvent, type ReactElement } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import type { LockReason } from '@shared/ipc-contract'
-import { JadeGlyph } from '../shell/JadeGlyph.js'
+import { BrandMark } from '../shell/BrandMark.js'
 
 interface Props {
   reason: LockReason | null
@@ -41,7 +41,7 @@ export function Lock({ reason, onUnlocked, onForgotPassword, onRestore }: Props)
   return (
     <form className="panel" onSubmit={submit}>
       <p className="brand">
-        <JadeGlyph />
+        <BrandMark />
         <span>{t('common.brand')}</span>
       </p>
       <h1>{t('lock.title')}</h1>

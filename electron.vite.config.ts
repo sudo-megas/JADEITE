@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
@@ -5,6 +6,34 @@ import react from '@vitejs/plugin-react'
 import type { Plugin } from 'vite'
 
 const root = dirname(fileURLToPath(import.meta.url))
+
+/**
+ * What the About page states about the build, compiled in rather than fetched.
+ *
+ * These three could have been a preload channel. They are not, and the reason is
+ * `tests/e2e/hardening.spec.ts`, which asserts the bridge's exact key list so
+ * that growing it is a decision somebody made rather than a thing that happened.
+ * A version string, a date and a licence are fixed at build time and identical
+ * for every vault, so a channel would widen the boundary to carry three
+ * constants — and the boundary is the security posture of §3.3.
+ *
+ * `releaseDate` is read from `package.json` beside `version`, so the two values
+ * that must move together at a release are edited in one place. A non-standard
+ * field there has precedent: `allowScripts` is already one.
+ *
+ * `LICENSE` is the GPL-3.0 text the repository already ships, read here rather
+ * than copied into the renderer tree, because two copies of a licence is exactly
+ * how they drift apart.
+ */
+const manifest = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8')) as {
+  version: string
+  releaseDate: string
+}
+const buildConstants = {
+  __APP_VERSION__: JSON.stringify(manifest.version),
+  __RELEASE_DATE__: JSON.stringify(manifest.releaseDate),
+  __LICENCE_TEXT__: JSON.stringify(readFileSync(resolve(root, 'LICENSE'), 'utf8'))
+}
 
 /**
  * A packaged renderer is loaded over file://, where no response headers exist
@@ -62,6 +91,7 @@ export default defineConfig({
   },
   renderer: {
     root: resolve(root, 'src/renderer'),
+    define: buildConstants,
     resolve: {
       alias: { '@shared': resolve(root, 'src/shared') }
     },

@@ -77,8 +77,23 @@ export const SETTINGS_DESTINATION_ID = 'settings'
  */
 export const BACKUP_DESTINATION_ID = 'backup'
 
+/**
+ * What the application is, who made it, and under what licence.
+ *
+ * In the foot for the same reason as its two neighbours: the numbered
+ * destinations are the owner's money, and a page about the build is not one of
+ * them. It takes a letter rather than a seventh digit — `H` for Hakkında, since
+ * Turkish is the primary language (§13) and the accelerators should read in it.
+ *
+ * Last of the three, and above Kilitle. Yedekleme and Ayarlar are things the
+ * owner goes to the foot to *do*; this is the one they go there to read, and
+ * locking stays the final entry because it is the way out.
+ */
+export const ABOUT_DESTINATION_ID = 'about'
+
 /** The destinations that live in the rail's foot, in the order they appear. */
 export const FOOT_DESTINATION_IDS: readonly string[] = Object.freeze([
   BACKUP_DESTINATION_ID,
-  SETTINGS_DESTINATION_ID
+  SETTINGS_DESTINATION_ID,
+  ABOUT_DESTINATION_ID
 ])

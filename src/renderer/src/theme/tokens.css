@@ -15,6 +15,13 @@
   --radius-sm: 4px;
   --gap: 16px;
   --rail-width: 232px;
+  /*
+   * Between the mark and the wordmark, in the rail and on every ceremony panel.
+   * `docs/conficon.md` asks for three characters of space; at 13px with 0.18em
+   * of tracking a character advances about 8px, so three of them is 24. One
+   * token rather than two literals, because the two placements must not drift.
+   */
+  --brand-gap: 24px;
   --font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
 

@@ -8,8 +8,15 @@
 import { useCallback, useEffect, useState, type ReactElement } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { BACKUP_DESTINATION_ID, DESTINATIONS, SETTINGS_DESTINATION_ID } from './destinations.js'
-import { JadeGlyph } from './JadeGlyph.js'
+import {
+  ABOUT_DESTINATION_ID,
+  BACKUP_DESTINATION_ID,
+  DESTINATIONS,
+  SETTINGS_DESTINATION_ID
+} from './destinations.js'
+import { AboutPanel } from './AboutPanel.js'
+import { BrandMark } from './BrandMark.js'
+import { InfoGlyph } from './InfoGlyph.js'
 import { SectionStub } from './SectionStub.js'
 import { Backup } from '../sections/backup/Backup.js'
 import { Overview } from '../sections/overview/Overview.js'
@@ -100,6 +107,11 @@ export function Shell({ onLock, onRestored }: Props): ReactElement {
         setActive(BACKUP_DESTINATION_ID)
         return
       }
+      if (event.key === 'h' || event.key === 'H') {
+        event.preventDefault()
+        setActive(ABOUT_DESTINATION_ID)
+        return
+      }
       const digit = Number.parseInt(event.key, 10)
       if (Number.isInteger(digit)) {
         const target = DESTINATIONS.find((d) => d.accelerator === digit)
@@ -124,7 +136,7 @@ export function Shell({ onLock, onRestored }: Props): ReactElement {
             strict sense — hiding it from the accessibility tree says the name
             once rather than twice. */}
         <p className="rail-brand">
-          <JadeGlyph />
+          <BrandMark />
           <span>{t('common.brand')}</span>
         </p>
 
@@ -173,6 +185,23 @@ export function Shell({ onLock, onRestored }: Props): ReactElement {
             <span>{t('nav.settings')}</span>
             <kbd className="rail-key">,</kbd>
           </button>
+          <button
+            type="button"
+            className="rail-item"
+            aria-current={active === ABOUT_DESTINATION_ID ? 'page' : undefined}
+            data-active={active === ABOUT_DESTINATION_ID ? 'true' : undefined}
+            data-testid="nav-about"
+            onClick={() => setActive(ABOUT_DESTINATION_ID)}
+          >
+            {/* `.rail-item` justifies its children apart so the accelerator sits
+                at the far edge. The mark belongs to the label rather than to the
+                row, so the two travel together inside one span. */}
+            <span className="rail-item-label">
+              <InfoGlyph />
+              <span>{t('nav.about')}</span>
+            </span>
+            <kbd className="rail-key">H</kbd>
+          </button>
           <button type="button" className="rail-item" data-testid="nav-lock" onClick={() => void lock()}>
             <span>{t('nav.lock')}</span>
             <kbd className="rail-key">L</kbd>
@@ -187,6 +216,8 @@ export function Shell({ onLock, onRestored }: Props): ReactElement {
             answer for *any* unknown id — including a typo. */}
         {active === SETTINGS_DESTINATION_ID ? (
           <SettingsPanel />
+        ) : active === ABOUT_DESTINATION_ID ? (
+          <AboutPanel />
         ) : active === BACKUP_DESTINATION_ID ? (
           <Backup onStatusChanged={setOverdue} onRestored={onRestored} />
         ) : destination?.id === 'section1' ? (

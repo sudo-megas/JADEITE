@@ -55,6 +55,7 @@ export const en = {
     altinEgrisi: 'Altın Eğrisi',
     backup: 'Backup',
     settings: 'Settings',
+    about: 'About',
     lock: 'Lock'
   },
 
@@ -550,6 +551,22 @@ export const en = {
     truthLimitation:
       'One honest limitation: the key that seals this vault never changes, so a stolen old backup plus its old password stays readable forever. Changing a password does not reach copies someone already holds. That is true of any encrypted file, and it is accepted here — the danger this guards against is a dead disk and a bad memory, not a thief.',
     truthGeneration: 'The recovery key in force now is number {{generation}}.'
+  },
+
+  about: {
+    tagline: 'Secure personal wealth and possessions tracking.',
+    creator: 'Created by',
+    version: 'Version',
+    released: 'Released',
+    repository: 'Source',
+    readme: 'Documentation',
+    linksAreText:
+      'These addresses are not links. JADEITE opens no external address; copy one and paste it into your browser.',
+    licence: 'Licence',
+    licenceRead: 'Read the full licence',
+    licenceTitle: 'GNU General Public License, version 3',
+    licenceBack: '← Back to About',
+    motto: 'Built with Passion and Reason'
   },
 
   errors: {

@@ -26,7 +26,7 @@
 import { useState, type ReactElement } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { JadeGlyph } from '../shell/JadeGlyph.js'
+import { BrandMark } from '../shell/BrandMark.js'
 
 interface Props {
   onDone: () => void
@@ -55,7 +55,7 @@ export function BackupPrompt({ onDone }: Props): ReactElement {
   return (
     <div className="panel" data-testid="backup-prompt">
       <p className="brand">
-        <JadeGlyph />
+        <BrandMark />
         <span>{t('common.brand')}</span>
       </p>
       <h1>{t('backup.promptTitle')}</h1>

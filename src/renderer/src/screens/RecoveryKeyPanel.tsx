@@ -8,7 +8,7 @@
 
 import { useState, type ReactElement } from 'react'
 import { useTranslation } from 'react-i18next'
-import { JadeGlyph } from '../shell/JadeGlyph.js'
+import { BrandMark } from '../shell/BrandMark.js'
 
 interface Props {
   recoveryKey: string
@@ -23,7 +23,7 @@ export function RecoveryKeyPanel({ recoveryKey, generation, onAcknowledged }: Pr
   return (
     <div className="panel panel--wide">
       <p className="brand">
-        <JadeGlyph />
+        <BrandMark />
         <span>{t('common.brand')}</span>
       </p>
       <h1>{t('recovery.title')}</h1>

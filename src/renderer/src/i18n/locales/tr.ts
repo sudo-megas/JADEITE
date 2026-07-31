@@ -55,6 +55,7 @@ export const tr = {
     altinEgrisi: 'Altın Eğrisi',
     backup: 'Yedekleme',
     settings: 'Ayarlar',
+    about: 'Hakkında',
     lock: 'Kilitle'
   },
 
@@ -555,6 +556,22 @@ export const tr = {
     truthLimitation:
       'Dürüst bir sınır: bu kasayı mühürleyen anahtar hiç değişmez, bu yüzden çalınmış eski bir yedek, eski parolasıyla birlikte sonsuza dek okunabilir kalır. Parola değiştirmek başkasının elindeki kopyalara ulaşmaz. Bu, şifrelenmiş her dosya için geçerlidir ve burada kabul edilmiştir — korunulan tehlike hırsız değil, ölen disk ve unutan hafızadır.',
     truthGeneration: 'Şu anda geçerli kurtarma anahtarı {{generation}} numaralıdır.'
+  },
+
+  about: {
+    tagline: 'Güvenli kişisel varlık ve mülk takibi.',
+    creator: 'Yapımcı',
+    version: 'Sürüm',
+    released: 'Yayın tarihi',
+    repository: 'Kaynak kodu',
+    readme: 'Belgeler',
+    linksAreText:
+      'Bu adresler bağlantı değildir. JADEITE hiçbir dış adresi açmaz; adresi kopyalayıp tarayıcınıza yapıştırın.',
+    licence: 'Lisans',
+    licenceRead: 'Lisansın tamamını oku',
+    licenceTitle: 'GNU Genel Kamu Lisansı, sürüm 3',
+    licenceBack: '← Hakkında sayfasına dön',
+    motto: 'Built with Passion and Reason'
   },
 
   errors: {

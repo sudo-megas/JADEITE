@@ -14,7 +14,7 @@
 import type { ReactElement } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { JadeGlyph } from '../shell/JadeGlyph.js'
+import { BrandMark } from '../shell/BrandMark.js'
 import { RestoreFlow } from '../sections/backup/RestoreFlow.js'
 
 interface Props {
@@ -28,7 +28,7 @@ export function Restore({ onRestored, onCancel }: Props): ReactElement {
   return (
     <div className="panel panel--wide" data-testid="restore-screen">
       <p className="brand">
-        <JadeGlyph />
+        <BrandMark />
         <span>{t('common.brand')}</span>
       </p>
       <h1>{t('backup.restoreTitle')}</h1>

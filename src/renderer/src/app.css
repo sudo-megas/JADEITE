@@ -37,13 +37,24 @@
 .brand {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--brand-gap);
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--text-subtle);
   margin: 0 0 24px;
+}
+
+/*
+ * The mark is a raster, so it must be told not to grow when the flex line is
+ * tight and not to be dragged out of the window as an image. `block` kills the
+ * inline baseline gap that would otherwise sit the wordmark a pixel low.
+ */
+.brand-mark {
+  display: block;
+  flex: none;
+  user-select: none;
 }
 
 h1 {
@@ -126,6 +137,16 @@ button {
 
 .btn-link:hover {
   color: var(--text);
+}
+
+/*
+ * Two of these can sit on one line — the lock screen offers both "I forgot my
+ * password" and "restore from a backup" — and buttons are inline-block, so
+ * without this they touch. JSX drops the whitespace between elements written on
+ * separate lines, so the underlines ran together into one unreadable phrase.
+ */
+.btn-link + .btn-link {
+  margin-left: 20px;
 }
 
 .error {
@@ -219,7 +240,7 @@ button {
 .rail-brand {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--brand-gap);
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.18em;
@@ -245,6 +266,18 @@ button {
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+
+/*
+ * `.rail-item` pushes its children to opposite edges so the accelerator sits at
+ * the far side. Hakkında's mark belongs beside its word rather than at the other
+ * end of the row, so the pair is wrapped and travels as one child.
+ */
+.rail-item-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 .rail-item {
@@ -304,6 +337,135 @@ button {
 
 .settings {
   max-width: 720px;
+}
+
+/* --- Hakkında ------------------------------------------------------------ */
+
+/*
+ * A centred column rather than the left-aligned one every other page uses.
+ * `docs/conficon.md` asks for a fifth of the page as margin at each end; that is
+ * expressed as centring in the available height instead of as a percentage,
+ * because percentage padding resolves against *width* and would grow with the
+ * window rather than with the space it was meant to describe.
+ */
+.about {
+  min-height: 100%;
+  max-width: 460px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 2px;
+  padding: 16px 0;
+}
+
+/*
+ * 148px rather than the 160 the sketch starts from. `docs/conficon.md` says to
+ * step the hero down if it crowds, and at 160 the column ran past the fold on a
+ * 1080p laptop — the motto, which is the last line and the one the page ends on,
+ * was the part that fell off.
+ */
+.about-tile {
+  width: 148px;
+  height: 148px;
+  margin-bottom: 24px;
+  user-select: none;
+}
+
+.about-name {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.about-lede {
+  margin: 6px 0 30px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.about-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  font-size: 14px;
+}
+
+/* The two addresses are long enough to need the full column to themselves. */
+.about-line--stacked {
+  flex-direction: column;
+  gap: 1px;
+  margin-top: 18px;
+}
+
+.about-label {
+  color: var(--text-subtle);
+}
+
+.about-value {
+  color: var(--text);
+}
+
+/*
+ * Selectable on purpose. These are not links — nothing in this application opens
+ * one — so the only thing the owner can do with an address is copy it, and the
+ * monospace face is the cue that it is meant to be read character by character.
+ */
+.about-url {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  user-select: text;
+  overflow-wrap: anywhere;
+}
+
+.about-note {
+  margin: 10px 0 26px;
+  font-size: 12px;
+  color: var(--text-subtle);
+}
+
+.about-motto {
+  margin: 34px 0 0;
+  font-size: 13px;
+  font-style: italic;
+  color: var(--text-subtle);
+}
+
+/*
+ * The licence reads as a document, so it abandons the centred column: left
+ * aligned, monospaced, and scrolling inside its own box rather than pushing the
+ * page. `pre` keeps the GPL's fixed columns, which is why it may not wrap.
+ */
+.about--licence {
+  max-width: 760px;
+  align-items: stretch;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.about-back {
+  align-self: flex-start;
+  margin: 0 0 18px;
+}
+
+.about-licence-text {
+  margin: 16px 0 0;
+  padding: 20px;
+  max-height: 62vh;
+  overflow: auto;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  user-select: text;
 }
 
 .settings-heading {

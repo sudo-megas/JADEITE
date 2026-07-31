@@ -283,6 +283,38 @@ The precedent this must not become is the one v0.6c named: a letter is not a pla
 
 ---
 
+## Point revision v0.9b — the mark, and the page that names it
+
+**Goal:** the application wears the artwork it was drawn for, and can say what it is.
+
+Not a ladder rung. It amends Realisation II, which built the shell, and the v0.8b revision that drew the mark — both released — so it takes a letter per §17, and Realisation X still claims `v1.0`.
+
+**It advances no section and touches no figure, which is what qualifies it.** Nothing here reads or writes the vault, no channel crosses the bridge, and the schema does not move. The whole of it is chrome: an image where a drawing was, and a page in the rail's foot that reads out four facts a build already knows about itself. The brief is `docs/conficon.md`, filed by the owner between Realisations IX and X, and it comes into the repository with the work that answers it.
+
+The one thing that would make this a rung rather than a letter is the Hakkında page, and it is not one for a reason worth writing down: Realisation X already scopes *"Documentation inside the app: … licence notice"*, so the page is that item arriving early rather than a new one appearing. What X keeps is the first-run tour and the truth-table placement.
+
+**Scope**
+- **The mark is artwork, not a token** (§12.2, amended). `JadeGlyph` and `build/icon.svg` are retired. `build/innerAPP.png` stands beside the wordmark in the rail and on all six ceremony screens at 22px, and `build/outerAPP.png` becomes the icon electron-builder derives the pacman and deb sets from — so the launcher, the waybar, the desktop entry and the window all carry the tile. Both masters carry a real alpha channel; every square asset is trimmed and *padded* from them, never cropped or stretched.
+- **Hakkında** (§17.1, new). Third in the rail's foot, after Yedekleme and Ayarlar and above Kilitle, on `Ctrl+H` — a letter and the Turkish initial, by the rule `destinations.ts` already states. It shows the tile, the maker, the version, the release date, the two addresses, the licence and the motto.
+- **The version, the release date and the licence are compiled in**, by `electron.vite.config.ts`, from `package.json` and the repository's own `LICENSE`. The preload surface does not grow, and `hardening.spec.ts` passes unedited — which is the proof.
+- **The two addresses are text.** §3.3 is untouched: nothing in this application opens an external link, and the page says so rather than offering a control that would be refused.
+- **One defect found by looking.** On the lock screen, *Parolamı unuttum* and *Yedekten geri yükle* rendered as one run-together phrase — two inline-block links with the JSX whitespace between them dropped. Shipped in v0.9; fixed here.
+
+**Acceptance**
+- [ ] The mark renders in all ten palettes, in the rail and on the lock screen, with no grey fringe on light themes or dark ones.
+- [ ] Hakkında opens from the rail and on `Ctrl+H`, and states a version matching `package.json`.
+- [ ] The release date reads `GG/AA/YYYY` in both languages (§13).
+- [ ] The full GPL-3.0 text opens in place and returns; it is the repository's `LICENSE` and not a summary.
+- [ ] The page carries no anchor: the addresses are selectable text.
+- [ ] The page ships in Turkish and English, and `locale-parity` passes.
+- [ ] The installed package's launcher icon is the tile.
+- [ ] Both lock-screen links read as two links.
+- [ ] All previous Realisations' acceptance checks still pass, and the §3.4 cold-start budget is still met with the licence text in the bundle.
+- [ ] `package.json` reads `0.9.1` (§17).
+- [ ] Tag `v0.9b`, and `gh release create`.
+
+---
+
 ## Realisation X — Linux Finalisation · v1.0
 
 **Goal:** "the app became realized" — on Linux.

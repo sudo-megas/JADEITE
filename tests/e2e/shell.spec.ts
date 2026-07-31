@@ -212,6 +212,11 @@ test('the six destinations exist and the keyboard map reaches them', async () =>
   await session.page.keyboard.press('Control+b')
   await expect(session.page.getByTestId('backup-panel')).toBeVisible()
 
+  // Hakkında joined the foot at v0.9b, on the same argument and by the same
+  // rule: a letter, and the Turkish initial, since Turkish is primary (§13).
+  await session.page.keyboard.press('Control+h')
+  await expect(session.page.getByTestId('about-panel')).toBeVisible()
+
   await session.page.keyboard.press('Control+l')
   await expect(session.page.getByTestId('submit')).toBeVisible()
 })

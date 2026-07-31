@@ -4,7 +4,7 @@ import { useState, type FormEvent, type ReactElement } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { MIN_PASSWORD_LENGTH, type RecoveryKeyIssue } from '@shared/ipc-contract'
-import { JadeGlyph } from '../shell/JadeGlyph.js'
+import { BrandMark } from '../shell/BrandMark.js'
 
 interface Props {
   onCreated: (issue: RecoveryKeyIssue) => void
@@ -50,7 +50,7 @@ export function FirstRun({ onCreated, onRestore }: Props): ReactElement {
   return (
     <form className="panel" onSubmit={submit}>
       <p className="brand">
-        <JadeGlyph />
+        <BrandMark />
         <span>{t('common.brand')}</span>
       </p>
       <h1>{t('firstRun.title')}</h1>
