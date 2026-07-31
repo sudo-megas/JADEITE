@@ -28,6 +28,8 @@ release/
 *.swp
 .idea/
 .vscode/
+.claude/worktrees/
+.claude/settings.local.json
 
 # Test artefacts
 coverage/

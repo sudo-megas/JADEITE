@@ -267,7 +267,8 @@ The precedent this must not become is the one v0.6c named: a letter is not a pla
 - [ ] Restore with wrong credentials fails cleanly and informatively.
 - [ ] A corrupted or hand-edited `.jbk` is rejected without a crash and without partial application.
 - [ ] Truth-table page ships in Turkish and English.
-- [ ] Tag `v0.9`.
+- [ ] `package.json` reads `0.9.0` (§17).
+- [ ] Tag `v0.9`, and `gh release create`.
 
 ---
 
@@ -284,7 +285,8 @@ The precedent this must not become is the one v0.6c named: a letter is not a pla
 **Acceptance**
 - [ ] Fresh-machine install from the pacman package to working vault in under two minutes.
 - [ ] Zero known defects against XJADEITE; deviations either fixed or spec-amended consciously.
-- [ ] Tag `v1.0`.
+- [ ] `package.json` reads `1.0.0` (§17).
+- [ ] Tag `v1.0`, and `gh release create`.
 
 ---
 
@@ -299,7 +301,8 @@ The precedent this must not become is the one v0.6c named: a letter is not a pla
 **Acceptance**
 - [ ] All prior acceptance lists pass on Windows 10/11.
 - [ ] A vault created on Linux, moved as `.jbk`, opens on Windows (and back).
-- [ ] Tag `v1.1`. **The application is complete.**
+- [ ] `package.json` reads `1.1.0` (§17).
+- [ ] Tag `v1.1`, and `gh release create`. **The application is complete.**
 
 ---
 
