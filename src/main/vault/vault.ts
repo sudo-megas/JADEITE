@@ -248,6 +248,87 @@ export async function reset(
   }
 }
 
+/**
+ * Run `fn` with the live data-encryption key — XJADEITE §4.4, first row.
+ *
+ * "The app holds the DEK in memory and can open any backup of this vault
+ * regardless of the credentials in force when it was taken." That sentence is
+ * only implementable if something outside this module can use the key, so this
+ * is the one door in it, and its shape is the whole of its safety.
+ *
+ * `fn` is **synchronous by signature**, which is not a convenience. The idle
+ * timer calls `lock()`, and `lock()` zeroises this buffer; a caller that could
+ * hold the key across an `await` would be holding a wiped buffer, or worse, one
+ * reused for something else. A synchronous callback cannot be interleaved with
+ * the timer at all, so the key is either valid for the whole of `fn` or `fn`
+ * never runs. Sealing a backup is a checkpoint and a file read, both
+ * synchronous; nothing here needs more.
+ *
+ * Answers null when locked, which every caller must treat as `LOCKED` rather
+ * than as an empty result.
+ *
+ * Two things enforce the rule rather than merely stating it, both added in
+ * Realisation IX's hardening pass after a probe showed the original signature
+ * enforced neither. `NotThenable` makes an `async` callback a type error, so
+ * "synchronous by signature" is now true of the signature and not only of the
+ * sentence above it. And `fn` receives a **copy**, wiped when it returns: a
+ * callback that squirrels the buffer away into an outer variable — which
+ * compiles, and always will — is left holding thirty-two zero bytes rather than
+ * this vault's key.
+ */
+type NotThenable<T> = T extends PromiseLike<unknown> ? never : T
+
+export function useDek<T>(fn: (key: Buffer) => NotThenable<T>): T | null {
+  if (dek === null) return null
+  const lent = Buffer.from(dek)
+  try {
+    return fn(lent)
+  } finally {
+    zeroise(lent)
+  }
+}
+
+/**
+ * Prove a credential against an envelope that is not this vault's, and run
+ * `fn` with the key it yields — XJADEITE §4.4, second row.
+ *
+ * The disk-death path. There may be no vault on this machine at all, so the
+ * envelope comes from inside the container being restored and the credential is
+ * whatever was current when that backup was taken. §4.4 says "the password
+ * **or** recovery key", so both slots are tried.
+ *
+ * The recovery slot is tried first when the input parses as a recovery key,
+ * which saves one 256 MiB derivation in the case that matters most — a person
+ * reading a card off their desk after losing a disk. It is not a security
+ * decision: the checksum only distinguishes a well-formed key from a password,
+ * and a password that happens to carry a valid Crockford checksum in exactly
+ * twenty-four symbols would merely be tried against the wrong slot first.
+ *
+ * Using the recovery key here does **not** consume it. §4.3 consumes a key on
+ * *reset*, and this is not one: nothing is re-wrapped, no new key is issued, and
+ * the container's envelope is installed exactly as it was written. The owner who
+ * restores with a recovery key still holds it afterwards, and still has to run
+ * the reset ceremony to set a password they know.
+ */
+export async function useForeignDek<T>(
+  envelope: KeyEnvelope,
+  credential: string,
+  fn: (key: Buffer) => NotThenable<T>
+): Promise<{ ok: true; value: T } | { ok: false }> {
+  const parsed = parseRecoveryKey(credential)
+
+  let recovered: Buffer | null = null
+  if (parsed.ok) recovered = await unwrapWith(parsed.data, envelope, 'recovery')
+  if (!recovered) recovered = await unwrapWith(credential, envelope, 'password')
+  if (!recovered) return { ok: false }
+
+  try {
+    return { ok: true, value: fn(recovered) }
+  } finally {
+    zeroise(recovered)
+  }
+}
+
 export const VAULT_POLICY = {
   minPasswordLength: MIN_PASSWORD_LENGTH
 } as const

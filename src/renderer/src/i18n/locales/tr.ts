@@ -53,6 +53,7 @@ export const tr = {
     section4: 'Hesap Alanı',
     overview: 'Genel Bakış',
     altinEgrisi: 'Altın Eğrisi',
+    backup: 'Yedekleme',
     settings: 'Ayarlar',
     lock: 'Kilitle'
   },
@@ -488,6 +489,74 @@ export const tr = {
     formattingPreview: 'Biçim örneği'
   },
 
+  backup: {
+    title: 'Yedekleme',
+    lede: 'Yedek, mühürlü tek bir dosyadır. İçindeki hiçbir şey JADEITE ve bir kimlik bilgisi olmadan okunamaz.',
+    lastBackup: 'Son yedek',
+    never: 'Hiç alınmadı',
+    count: 'Alınan yedek sayısı',
+    overdueTitle: 'Yedek alma zamanı geldi.',
+    overdue: 'Seçtiğiniz aralıktan daha uzun süre geçti.',
+    create: 'Yedek al',
+    saved: 'Yedek yazıldı.',
+
+    reminder: 'Bana hatırlat',
+    reminderOff: 'Kapalı',
+    reminderDays: '{{days}} günde bir',
+
+    restoreTitle: 'Yedekten geri yükle',
+    restore: 'Yedek dosyası seç',
+    restoreEntry: 'Yedekten geri yükle',
+    restoreLede:
+      'Bu işlem bu makinedeki her şeyin yerine dosyadakileri koyar. İçinde ne olduğunu görmek için bir dosya seçin.',
+    back: 'Geri dön',
+
+    candidateCreatedAt: 'Alınma tarihi',
+    candidateApp: 'Yazan JADEITE sürümü',
+    candidateOrigin: 'Kaynak',
+    originSame: 'Bu kasa',
+    originOther: 'Başka bir kasa',
+    candidateGeneration: 'Kurtarma anahtarı numarası',
+    candidateSections: 'Son düzenlenme',
+    sectionUnknown: 'Kayıtlı değil',
+
+    confirmWarningTitle: 'Buradaki her şeyin yerine yenisi geçecek.',
+    confirmWarning:
+      'Bu makinedeki kasa önce veritabanının yanına kopyalanır, yani hiçbir şey yok edilmez — ama uygulama artık onu kullanmayacak.',
+
+    credentialLabel: 'Bu yedek alındığında geçerli olan parola veya kurtarma anahtarı',
+    credentialHint: 'İkisinden biri açar. Kurtarma anahtarını burada kullanmak onu tüketmez.',
+    noCredentialNeeded:
+      'Bu, şu anda açık olan kasanın yedeği; kimlik bilgisi gerekmez — alındığı sırada hangi parola geçerliyse fark etmez.',
+    confirm: 'Bu kasanın yerine koy',
+    cancel: 'Vazgeç',
+
+    promptTitle: 'Şimdi bir yedek alın',
+    promptLede: 'Kimlik bilgileriniz değişti; elinizdeki tüm yedekler artık eski kaldı.',
+    promptWarningTitle: 'Eski yedekler eski kimlik bilgilerini ister.',
+    promptWarning:
+      'Bir yedek, alındığı anda geçerli olan parolayı ve kurtarma anahtarını taşır. Az önce değiştirdiğiniz kurtarma anahtarı artık yok.',
+    promptSkip: 'Şimdi değil',
+
+    truthTitle: 'Kimlik bilgileri ve yedek',
+    truthLede: 'Neyi ne açar, ve hiçbir şeyin açmadığı durum.',
+    truthColCase: 'Durum',
+    truthColOutcome: 'Sonuç',
+    truthCase1: 'Bu makinedeki kasa sağlam ve parolasını biliyorsunuz.',
+    truthOutcome1:
+      'Şimdiye kadar aldığınız her yedek açılabilir. Anahtar JADEITE’in elindedir ve bu kasanın herhangi bir yedeğini, alındığı sırada hangi parola geçerli olursa olsun açabilir. Eski parolaların önemi yoktur.',
+    truthCase2: 'Kasa gitti — disk öldü — ve bir yedekten geri yüklüyorsunuz.',
+    truthOutcome2:
+      'O yedeğin alındığı anda geçerli olan parolaya veya kurtarma anahtarına ihtiyacınız var.',
+    truthCase3: 'Kasa gitti, yedeğin parolası unutuldu ve kurtarma anahtarı kayboldu.',
+    truthOutcome3: 'İçeri girmenin yolu yoktur. Bir arka kapı yoktur ve eklenemez.',
+    truthMandatedTitle: 'Her parola değişikliğinden sonra JADEITE yedek ister.',
+    truthMandated: 'En yeni yedeği en yeni kimlik bilgileriyle eşleşmiş tutan budur.',
+    truthLimitation:
+      'Dürüst bir sınır: bu kasayı mühürleyen anahtar hiç değişmez, bu yüzden çalınmış eski bir yedek, eski parolasıyla birlikte sonsuza dek okunabilir kalır. Parola değiştirmek başkasının elindeki kopyalara ulaşmaz. Bu, şifrelenmiş her dosya için geçerlidir ve burada kabul edilmiştir — korunulan tehlike hırsız değil, ölen disk ve unutan hafızadır.',
+    truthGeneration: 'Şu anda geçerli kurtarma anahtarı {{generation}} numaralıdır.'
+  },
+
   errors: {
     WRONG_CREDENTIAL: 'Kimlik bilgisi hatalı.',
     MALFORMED_RECOVERY_KEY: 'Kurtarma anahtarı geçersiz — yazımı kontrol edin.',
@@ -496,6 +565,15 @@ export const tr = {
     NO_VAULT: 'Kasa bulunamadı.',
     ENVELOPE_CORRUPT: 'Anahtar dosyası okunamıyor.',
     LOCKED: 'Kasa kilitli.',
+    CANCELLED: 'Hiçbir şey seçilmedi.',
+    NO_CANDIDATE: 'Seçili yedek kalmadı. Yeniden seçin.',
+    IO: 'Bu dosya okunamadı veya yazılamadı.',
+    NOT_A_BACKUP: 'Bu bir JADEITE yedeği değil.',
+    DAMAGED: 'Bu yedek zarar görmüş, güvenilmez. Başka bir kopya deneyin.',
+    FUTURE_FORMAT: 'Bu yedek daha yeni bir JADEITE ile yazılmış. Önce bunu güncelleyin.',
+    FUTURE_SCHEMA: 'Bu yedek daha yeni bir JADEITE’in verisini taşıyor. Önce bunu güncelleyin.',
+    CREDENTIAL_REQUIRED: 'Bu yedek, alındığı parolayı veya kurtarma anahtarını ister.',
+    PAYLOAD_UNREADABLE: 'Kimlik bilgisi dosyayı açtı, içindeki veri açılmıyor.',
     INTERNAL: 'Beklenmeyen bir hata oluştu.'
   },
 

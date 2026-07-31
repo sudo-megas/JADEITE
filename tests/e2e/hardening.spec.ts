@@ -5,9 +5,11 @@
  * rather than what the configuration claims.
  */
 
+import { chmodSync } from 'node:fs'
+import { dirname } from 'node:path'
 import { expect, test } from '@playwright/test'
 
-import { launchFresh, type Session } from './fixtures.js'
+import { createVaultAndEnter, launchFresh, type Session } from './fixtures.js'
 
 let session: Session
 
@@ -48,11 +50,13 @@ test('the bridge exposes the contract and nothing more', async () => {
       section1: Object.keys(api.section1).sort(),
       section2: Object.keys(api.section2).sort(),
       section3: Object.keys(api.section3).sort(),
-      section4: Object.keys(api.section4).sort()
+      section4: Object.keys(api.section4).sort(),
+      backup: Object.keys(api.backup).sort()
     }
   })
 
   expect(surface.top).toEqual([
+    'backup',
     'config',
     'section1',
     'section2',
@@ -137,6 +141,19 @@ test('the bridge exposes the contract and nothing more', async () => {
   // fetch them — and a grid of fixed boxes has nothing to add and no order to
   // rearrange, so the five channels that did are gone rather than renamed.
   expect(surface.section4).toEqual(['cells', 'clear', 'setCell'])
+
+  // Backup arrives with Realisation IX, enumerated for the same reason. It is
+  // the only top-level namespace added since Realisation II, and the only one
+  // whose methods answer while the vault is shut — §4.4's second row is the
+  // disk-death case, and a restore reachable only from an open vault would be a
+  // restore for the one situation that never needed it.
+  //
+  // What is *not* here is the point of the shape. There is no `create(path)`
+  // and no `selected()` returning one: both dialogues run in the main process,
+  // the chosen container waits there between `select` and `restore`, and the
+  // renderer is told what is in it and nothing about where it came from. The
+  // filesystem assertion below is what that buys.
+  expect(surface.backup).toEqual(['cancel', 'create', 'restore', 'select', 'status'])
 })
 
 test('Section 1 is unreachable while the vault is locked', async () => {
@@ -168,6 +185,42 @@ test('Section 2 is unreachable while the vault is locked', async () => {
 test('no key material or filesystem path is reachable through the bridge', async () => {
   const status = await session.page.evaluate(() => window.jadeite.vault.status())
   expect(Object.keys(status).sort()).toEqual(['exists', 'locked'])
+})
+
+test('backup answers while the vault is locked, and refuses what it has not been given', async () => {
+  const results = await session.page.evaluate(async () => ({
+    // Behind the lock, because the log and the reminder cadence live inside the
+    // vault like every other setting that is not appearance (§4.1).
+    status: await window.jadeite.backup.status(),
+    // Not behind it. This is the channel a dead disk uses, and there is no vault
+    // on this machine to open first — so it must be reachable, and it must
+    // refuse cleanly when nothing has been chosen rather than assume something
+    // has.
+    restore: await window.jadeite.backup.restore(null),
+    cancel: await window.jadeite.backup.cancel()
+  }))
+
+  expect(results.status).toEqual({ ok: false, error: 'LOCKED' })
+  expect(results.restore).toEqual({ ok: false, error: 'NO_CANDIDATE' })
+  expect(results.cancel).toEqual({ ok: true, value: null })
+})
+
+test('a malformed credential reaches the backup channel as a wrong one, not a crash', async () => {
+  const results = await session.page.evaluate(async () => {
+    const api = window.jadeite as unknown as {
+      backup: { restore(v: unknown): Promise<unknown>; create(v: unknown): Promise<unknown> }
+    }
+    return {
+      numberCredential: await api.backup.restore(12345),
+      objectCredential: await api.backup.restore({ evil: true }),
+      // A reason the contract does not name must not open a file dialogue.
+      badReason: await api.backup.create('exfiltrate')
+    }
+  })
+
+  expect(results.numberCredential).toEqual({ ok: false, error: 'WRONG_CREDENTIAL' })
+  expect(results.objectCredential).toEqual({ ok: false, error: 'WRONG_CREDENTIAL' })
+  expect(results.badReason).toEqual({ ok: false, error: 'INTERNAL' })
 })
 
 test('settings are refused while the vault is locked', async () => {
@@ -234,4 +287,117 @@ test('inline script injection is refused by the policy', async () => {
     return (window as unknown as Record<string, unknown>)['__jadeiteInjected']
   })
   expect(executed).toBe(false)
+})
+
+test('the renderer may write the settings it owns, and no others', async () => {
+  await createVaultAndEnter(session)
+
+  const results = await session.page.evaluate(async () => {
+    const api = window.jadeite
+    return {
+      // The three the interface actually changes.
+      autoLock: await api.settings.set('auto_lock_minutes', '15'),
+      priceRefresh: await api.settings.set('price_refresh_minutes', '30'),
+      reminder: await api.settings.set('backup_reminder_days', '30'),
+
+      // The vault's lineage names which vault a backup came from, and §4.4's
+      // first row rests on it: a renderer able to write it could make this
+      // vault's own backups demand a credential, which is the opposite of what
+      // the truth table promises. It is minted by a migration and by nothing
+      // else (`lineage.ts`).
+      lineage: await api.settings.set('vault_id', '0'.repeat(32)),
+      // The section stamps are kept by triggers, and a merge chooser will one
+      // day believe them.
+      stamp: await api.settings.set('s3_touched_at', '2099-01-01T00:00:00.000Z'),
+      // Written by Section 1 when a year is created, and never from here.
+      anchor: await api.settings.set('accent_anchor_year', '1900'),
+
+      // Reading is allow-listed too, and separately: the reminder cadence is
+      // written here and read back through `backup.status()`.
+      readAutoLock: await api.settings.get('auto_lock_minutes'),
+      readLineage: await api.settings.get('vault_id')
+    }
+  })
+
+  expect(results.autoLock).toEqual({ ok: true, value: null })
+  expect(results.priceRefresh).toEqual({ ok: true, value: null })
+  expect(results.reminder).toEqual({ ok: true, value: null })
+
+  expect(results.lineage).toEqual({ ok: false, error: 'INTERNAL' })
+  expect(results.stamp).toEqual({ ok: false, error: 'INTERNAL' })
+  expect(results.anchor).toEqual({ ok: false, error: 'INTERNAL' })
+
+  expect(results.readAutoLock).toEqual({ ok: true, value: '15' })
+  expect(results.readLineage).toEqual({ ok: false, error: 'INTERNAL' })
+
+  // The refusals are refusals and not silent no-ops: a backup taken now still
+  // knows it belongs to this vault, so §4.4 row 1 still applies to it.
+  const candidateOfThisVault = await session.page.evaluate(() =>
+    window.jadeite.backup.restore(null)
+  )
+  expect(candidateOfThisVault).toEqual({ ok: false, error: 'NO_CANDIDATE' })
+})
+
+test('a config write that fails carries no filesystem path back', async () => {
+  await createVaultAndEnter(session)
+
+  // Make the write fail for real, rather than asserting about a path that was
+  // never produced. `writeFileAtomic` rethrows, and an Electron handler's
+  // exception is serialised into the renderer's rejected `invoke()` — message
+  // included. This is the one handler in `ipc.ts` that had no guard.
+  const configDir = dirname(session.configPath)
+  chmodSync(configDir, 0o500)
+  try {
+    const outcome = await session.page.evaluate(async () => {
+      try {
+        const value = await window.jadeite.config.set({ palette: 'nord-dark' })
+        return { rejected: false, keys: Object.keys(value).sort(), text: JSON.stringify(value) }
+      } catch (error) {
+        return { rejected: true, keys: [], text: String(error) }
+      }
+    })
+
+    expect(outcome.rejected, 'the handler resolved rather than throwing').toBe(false)
+    expect(outcome.keys).toEqual(['format', 'language', 'palette'])
+    expect(outcome.text).not.toContain('/')
+    expect(outcome.text).not.toContain('EACCES')
+  } finally {
+    chmodSync(configDir, 0o700)
+  }
+})
+
+test('two credential ceremonies at once are queued, not run together', async () => {
+  await createVaultAndEnter(session)
+  await session.page.getByTestId('nav-lock').click()
+  await session.page.getByTestId('submit').waitFor()
+
+  // Argon2id is 256 MiB a derivation (§4.2). Eight at once were measured at
+  // 1268 MiB against 243 MiB for one, so the channels that run one are
+  // serialised. What must survive that queue is correctness: each attempt is
+  // answered on its own merits, and the wrong password does not become right
+  // by arriving beside a correct one.
+  const answers = await session.page.evaluate(async () => {
+    const attempts = [
+      window.jadeite.vault.unlock('not-the-password'),
+      window.jadeite.vault.unlock('kuyumcu-defteri-2026'),
+      window.jadeite.vault.unlock('also-not-the-password')
+    ]
+    return Promise.all(attempts)
+  })
+
+  expect(answers[0]).toEqual({ ok: false, error: 'WRONG_CREDENTIAL' })
+  expect(answers[1]).toEqual({ ok: true, value: null })
+  // The third arrives after the vault is already open and is still judged on
+  // its own credential. A failed attempt returns before it touches the session,
+  // so it neither succeeds by proximity nor closes what the second one opened.
+  expect(answers[2]).toEqual({ ok: false, error: 'WRONG_CREDENTIAL' })
+
+  // Asked of the main process rather than of the screen: these three crossings
+  // bypassed the lock screen's form, so the renderer has no reason to have
+  // moved on, and asserting that it had would be testing the wrong half.
+  const status = await session.page.evaluate(() => window.jadeite.vault.status())
+  expect(status, 'the correct password opened it, and the wrong ones did not shut it').toEqual({
+    exists: true,
+    locked: false
+  })
 })

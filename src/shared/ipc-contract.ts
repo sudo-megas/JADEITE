@@ -40,6 +40,13 @@ import type {
   CellPatch as Section4CellPatch,
   Section4ErrorCode
 } from './section4/types.js'
+import type {
+  BackupCandidate,
+  BackupErrorCode,
+  BackupReason,
+  BackupReceipt,
+  BackupStatus
+} from './backup/types.js'
 
 export const IPC = {
   vaultStatus: 'vault:status',
@@ -107,7 +114,31 @@ export const IPC = {
   // fixed boxes has nothing to add and no order to rearrange.
   s4Cells: 's4:cells',
   s4SetCell: 's4:set-cell',
-  s4Clear: 's4:clear'
+  s4Clear: 's4:clear',
+
+  /**
+   * Backup, restore and machine transfer (§15).
+   *
+   * A top-level namespace rather than a hanging-off of `vault`, unlike
+   * `s3:refresh-prices` which was hung off Section 3 deliberately. The rule
+   * that decided both is the same: a channel belongs where its subject lives.
+   * A live price is a fact about a valuable. A backup is not a fact about the
+   * vault — half of these channels must answer while the vault is **shut**,
+   * because §4.4's second row is the disk-death case and there is no vault left
+   * to hang them off.
+   *
+   * `select` and `restore` are two channels for one act on purpose. The picker
+   * runs in the main process and the container is verified there, so the
+   * renderer can show the owner what they are about to overwrite — §15 requires
+   * "explicit confirmation", and a confirmation that cannot describe what it is
+   * confirming is a formality. The chosen container waits in the main process
+   * between the two calls; its path never crosses.
+   */
+  backupStatus: 'backup:status',
+  backupCreate: 'backup:create',
+  backupSelect: 'backup:select',
+  backupRestore: 'backup:restore',
+  backupCancel: 'backup:cancel'
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]
@@ -195,12 +226,75 @@ export const SETTING_KEYS = {
    * later would repaint all the others — and the accent is exactly what the
    * owner navigates by after a month of use.
    */
-  accentAnchorYear: 'accent_anchor_year'
+  accentAnchorYear: 'accent_anchor_year',
+  /**
+   * This vault's lineage — sixteen random bytes, minted by the v5 migration
+   * and never rewritten (§15). Carried in every `.jbk` so a restore can tell a
+   * backup of *this* vault from another machine's before it touches anything.
+   */
+  vaultId: 'vault_id',
+  /**
+   * Days between backup reminders; absent is off (§15).
+   *
+   * No `DEFAULT_SETTINGS` entry, following `priceRefreshMinutes`: null already
+   * means off and seeding a row saying so writes a fact its absence states.
+   * Realisation IX ships with the reminder off and the choice on the Backup
+   * page, because a prompt the owner never asked for is a nag — the one
+   * mandated prompt is the credential-change one of §4.4, which is not this.
+   */
+  backupReminderDays: 'backup_reminder_days',
+  /**
+   * When each section was last edited, written by the v5 triggers.
+   *
+   * Read only when a backup is sealed. The literal strings are repeated in the
+   * migration's SQL, which cannot import them; the migration suite asserts the
+   * two homes agree.
+   */
+  sectionTouchedAt: {
+    s1: 's1_touched_at',
+    s2: 's2_touched_at',
+    s3: 's3_touched_at',
+    s4: 's4_touched_at'
+  }
 } as const
 
 export const DEFAULT_SETTINGS: Readonly<Record<string, string>> = {
   [SETTING_KEYS.autoLockMinutes]: '10'
 }
+
+/**
+ * Which settings the renderer may read, and which it may write.
+ *
+ * `settings:get` and `settings:set` were generic over any string key, which was
+ * true of the table and wrong as a contract. The vault holds rows the renderer
+ * has no business naming: `vault_id` is minted once by a migration and
+ * `s1_touched_at` … `s4_touched_at` are kept by triggers, and both are read
+ * when a backup is sealed (§15). A renderer able to write them could make this
+ * vault's own backups demand a credential — breaking §4.4's first row, which
+ * promises the opposite — or fabricate the edit times a merge chooser will
+ * one day believe.
+ *
+ * That was never exploitable from the interface. It did not need to be: the
+ * bridge is the boundary, and a boundary whose safety rests on the renderer
+ * asking only for what it happens to need today is not one. `lineage.ts` says
+ * of the vault id that "there is no write path to get wrong", and these two
+ * lists are what make that sentence true.
+ *
+ * **Readable is not writable.** `backup_reminder_days` is written here and read
+ * back through `backup.status()`, which reports it alongside the log it is
+ * judged against — one crossing for one screen, rather than a figure and its
+ * consequence fetched separately.
+ */
+export const RENDERER_READABLE_SETTINGS: readonly string[] = Object.freeze([
+  SETTING_KEYS.autoLockMinutes,
+  SETTING_KEYS.priceRefreshMinutes
+])
+
+export const RENDERER_WRITABLE_SETTINGS: readonly string[] = Object.freeze([
+  SETTING_KEYS.autoLockMinutes,
+  SETTING_KEYS.priceRefreshMinutes,
+  SETTING_KEYS.backupReminderDays
+])
 
 /**
  * The unencrypted application configuration — how the app looks and which
@@ -250,6 +344,43 @@ export interface JadeiteApi {
   section3: Section3Api
   /** Section 4 — Calculation Zone (§9). Everything here needs the vault open. */
   section4: Section4Api
+  /** Backup, restore and machine transfer (§15). Half of it answers while locked. */
+  backup: BackupApi
+}
+
+/**
+ * Backup, restore and machine transfer — XJADEITE §15, §4.4.
+ *
+ * Nothing on this surface carries a filesystem path in either direction. The
+ * picker runs in the main process, the chosen container waits there, and the
+ * renderer learns what is in it and nothing about where it came from. That is
+ * not decoration: `hardening.spec.ts` asserts that no path is reachable through
+ * the bridge, and a backup feature is the obvious place for one to leak.
+ */
+export interface BackupApi {
+  /** Needs the vault open — the log and the reminder setting live inside it. */
+  status(): Promise<Result<BackupStatus, BackupErrorCode>>
+  /** Ask where, seal the vault, write it, record it. Needs the vault open. */
+  create(reason: BackupReason): Promise<Result<BackupReceipt, BackupErrorCode>>
+  /**
+   * Choose a container and read it, without applying anything.
+   *
+   * Answers while the vault is locked, because the case this exists for is a
+   * dead disk (§4.4 row 2). The container stays in the main process until
+   * `restore` or `cancel`.
+   */
+  select(): Promise<Result<BackupCandidate, BackupErrorCode>>
+  /**
+   * Replace this machine's vault with the selected container.
+   *
+   * `credential` is the password **or** recovery key that was current when the
+   * backup was taken, and is required exactly when the candidate said it would
+   * be. Pass null when it said otherwise: an open vault restoring its own
+   * backup already holds the key (§4.4 row 1).
+   */
+  restore(credential: string | null): Promise<Result<null, BackupErrorCode>>
+  /** Forget the selected container. */
+  cancel(): Promise<Result<null, BackupErrorCode>>
 }
 
 /** What the year switcher needs before any workspace is loaded. */

@@ -466,11 +466,130 @@ INSERT INTO s4_cells (slot, value)
 DROP TABLE s4_lines;
 `
 
+/**
+ * Which tables count as an edit to which section (§15, merge).
+ *
+ * The three tables that are **absent** are the point of this list. `s3_prices_live`
+ * and `s3_price_fetch` are written by the provider on a timer (§14), so counting
+ * them would mark Section 3 as edited every fifteen minutes whether or not the
+ * owner had touched it — and the stamp exists to answer "which machine has the
+ * newer work", a question a background fetch has no opinion about.
+ * `valuable_types` is a closed seed list (§8.2) that only a migration writes.
+ *
+ * `years` belongs to Section 1: since v0.8b it parents that section's two
+ * tables alone.
+ */
+const TOUCHED_BY: readonly (readonly [string, string])[] = Object.freeze([
+  ['years', 's1'],
+  ['s1_categories', 's1'],
+  ['s1_entries', 's1'],
+  ['s2_banks', 's2'],
+  ['s2_cells', 's2'],
+  ['persons', 's3'],
+  ['s3_transactions', 's3'],
+  ['s3_prices_manual', 's3'],
+  ['s4_cells', 's4']
+])
+
+/**
+ * The stamp is written by a trigger rather than by the write paths.
+ *
+ * Nine tables are edited from four section modules through some forty
+ * functions, and a rule enforced in forty places is a rule that will be
+ * forgotten in the forty-first. SQLite is already watching every one of those
+ * writes; asking it to record the time costs one upsert per statement and
+ * cannot be bypassed by a future section module that did not know to call
+ * anything.
+ *
+ * The key strings are repeated literally here because SQL cannot import them.
+ * `SETTING_KEYS.sectionTouchedAt` is their other home, and the migration suite
+ * asserts the two agree rather than trusting that they do.
+ */
+function touchTriggers(): string {
+  const lines: string[] = []
+  for (const [table, section] of TOUCHED_BY) {
+    for (const [suffix, event] of [
+      ['ai', 'AFTER INSERT'],
+      ['au', 'AFTER UPDATE'],
+      ['ad', 'AFTER DELETE']
+    ] as const) {
+      lines.push(
+        `CREATE TRIGGER touch_${table}_${suffix} ${event} ON ${table} BEGIN\n` +
+          `  INSERT INTO settings (key, value)\n` +
+          `    VALUES ('${section}_touched_at', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))\n` +
+          `    ON CONFLICT(key) DO UPDATE SET value = excluded.value;\n` +
+          `END;`
+      )
+    }
+  }
+  return lines.join('\n\n')
+}
+
+/**
+ * Schema v5 — what a backup has to carry that a vault never needed.
+ *
+ * Realisation IX seals the vault into a `.jbk` container (§15), and two facts
+ * turn out to be missing from every vault that exists: which vault this is, and
+ * when each of its sections was last edited.
+ *
+ * **1. A vault has an identity.** Sixteen random bytes, minted once, never
+ * changed, and carried in every backup it produces. It is not a secret and not
+ * a credential — it answers exactly one question, and answers it before any
+ * data is touched: *is the container I am about to restore a backup of the
+ * vault on this machine, or of a different one?* Row 1 of §4.4 is only true of
+ * the first ("the app holds the DEK and can open any backup **of this
+ * vault**"); the second is a machine transfer and needs its own credential.
+ * Without the id those two cases are indistinguishable until a key fails to
+ * work, which is the wrong moment to find out.
+ *
+ * `randomblob(16)` rather than a value computed in JavaScript, so a vault that
+ * arrives at v5 through a migration and one created fresh get their id the same
+ * way, from the same statement. `INSERT OR IGNORE` because a vault restored
+ * from a backup already has one and must keep it: the id names the lineage, not
+ * the file.
+ *
+ * **2. A section records when it was last edited.** XJADEITE §20 Q2 asked what
+ * *merge* should mean for `.jbk` import, and required an answer before this
+ * container was designed rather than during it. The owner settled it on 31 July
+ * 2026: **per-section choice** — on import, the owner picks section by section
+ * which vault wins. Merge itself is not built in Realisation IX and §15 does
+ * not put it here.
+ *
+ * These stamps ship anyway, and that is the whole reason Q2 had to be answered
+ * first. A container format cannot grow a field retroactively: backups taken
+ * this year must still be answerable when the chooser is built, and a chooser
+ * that cannot say *"the laptop's Varlıklar is four days newer than the rig's"*
+ * is asking the owner to guess. The two rejected readings cost more or bought
+ * less. Row-level newest-wins would have needed an `updated_at` on every user
+ * table, every write path in four released sections changed to maintain it, and
+ * a backfilled timestamp on every row that exists today — a fabricated fact,
+ * carried forever, to support a rule that can discard an edit without showing
+ * anyone a screen. Replacement-only would have needed nothing at all, and
+ * reverses an owner ruling of 30 July that the importer's remit includes merge.
+ *
+ * **Nothing is backfilled.** A vault arriving at v5 has no stamps, and the
+ * container carries null for each — which is the honest reading of "nothing
+ * recorded an edit time before the triggers existed". A merge chooser shows
+ * that as *unknown* and lets the owner decide, which is what it does with a
+ * genuine tie anyway.
+ */
+const V5 = `
+-- The vault's lineage. Not a secret; it names which vault a backup came from.
+INSERT OR IGNORE INTO settings (key, value)
+  VALUES ('vault_id', lower(hex(randomblob(16))));
+
+${touchTriggers()}
+`
+
 export const MIGRATIONS: readonly Migration[] = Object.freeze([
   { version: 1, name: 'initial', sql: V1 },
   { version: 2, name: 'denomination-and-count', sql: V2 },
   { version: 3, name: 'live-provider', sql: V3 },
-  { version: 4, name: 'year-free-payments-and-boxes', sql: V4 }
+  { version: 4, name: 'year-free-payments-and-boxes', sql: V4 },
+  { version: 5, name: 'vault-identity-and-section-stamps', sql: V5 }
 ])
+
+/** The sections a `.jbk` stamps, and the tables whose edits stamp them. */
+export const TOUCH_SOURCES = TOUCHED_BY
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version

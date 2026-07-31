@@ -15,6 +15,7 @@ import { hardenSession, hardenWebContents } from './security/session.js'
 import { forwardLockEvents, registerIpcHandlers } from './security/ipc.js'
 import { startIdleWatch, stopIdleWatch } from './idle.js'
 import { startPriceRefresh } from './prices/schedule.js'
+import { completeInterruptedInstall } from './vault/backup/install.js'
 import * as vault from './vault/vault.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -117,7 +118,15 @@ app.on('second-instance', () => {
 app.whenReady().then(() => {
   hardenSession()
   hardenWebContents()
-  registerIpcHandlers()
+
+  // Before anything asks whether a vault exists. A restore that a power cut
+  // interrupted left a journal and one or two staged files behind; finishing it
+  // here means `vault.status()` never sees the half-applied state, and a
+  // half-applied state is the one thing §15's replacement must never produce.
+  const recovery = completeInterruptedInstall()
+  if (recovery !== 'none') console.info(`[restore] interrupted install: ${recovery}`)
+
+  registerIpcHandlers(() => mainWindow)
   forwardLockEvents(() => mainWindow)
   startIdleWatch()
   // §14's optional auto-refresh. Off by default, and every tick is a no-op

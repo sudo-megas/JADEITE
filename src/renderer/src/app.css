@@ -2701,3 +2701,107 @@ input.s4-box {
   font-size: 11px;
   color: var(--text-subtle);
 }
+
+/* --- Backup (§15) ------------------------------------------------------- */
+
+/*
+ * The overdue mark.
+ *
+ * A dot rather than a badge with a number: there is only ever one thing being
+ * said here — a backup is due — and a count would imply a queue. It sits before
+ * the accelerator hint so the rail's right edge stays a column of keys.
+ * `--danger` is the token the warning bar already uses, so overdue looks the
+ * same wherever it is said.
+ */
+.rail-dot {
+  width: 6px;
+  height: 6px;
+  margin-left: auto;
+  border-radius: 50%;
+  background: var(--danger);
+  flex: 0 0 auto;
+}
+
+.backup-facts {
+  margin: 0 0 20px;
+}
+
+/* `.status-row` is a flex row of two spans in Settings; here the two children
+   are a `dt` and a `dd`, which carry a browser default margin the spans do
+   not. */
+.backup-facts dt,
+.backup-facts dd {
+  margin: 0;
+}
+
+/* `.status-row span:last-child` gives the value its mono face; the definition
+   list's value is a `dd`, so it has to be named too or the two kinds of fact
+   row would disagree about what a figure looks like. */
+.backup-facts dd,
+.status-row dd {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+/*
+ * A full-width primary button is right on a 460px ceremony panel and wrong on a
+ * 720px page, where it reads as a banner rather than as something to press. The
+ * distinction is already in the markup — a ceremony is a `.panel`, a destination
+ * is a `.settings` — so no component needs a variant prop to say it again.
+ */
+.settings .btn-primary {
+  width: auto;
+  min-width: 200px;
+}
+
+.backup-hint {
+  margin: 8px 0 20px;
+  font-size: 12px;
+  color: var(--text-subtle);
+  line-height: 1.6;
+}
+
+/*
+ * The truth table.
+ *
+ * Two columns, and the left one is a row header rather than a cell — the
+ * situation names the row, and a screen reader reading the outcome aloud should
+ * hear which situation it belongs to. `table-layout: fixed` keeps the situation
+ * column from collapsing under the much longer outcomes.
+ */
+.truth {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  margin: 0 0 20px;
+  font-size: 13px;
+}
+
+.truth th,
+.truth td {
+  text-align: left;
+  vertical-align: top;
+  padding: 12px 14px 12px 0;
+  border-bottom: 1px solid var(--border);
+  line-height: 1.6;
+}
+
+.truth thead th {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+  border-bottom-color: var(--border-strong);
+}
+
+.truth tbody th {
+  width: 38%;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.truth tbody td {
+  color: var(--text-muted);
+}

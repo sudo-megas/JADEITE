@@ -65,3 +65,20 @@ export const DESTINATIONS: readonly Destination[] = Object.freeze([
 ])
 
 export const SETTINGS_DESTINATION_ID = 'settings'
+
+/**
+ * Backup, restore and the credentials truth table (§15, §4.4).
+ *
+ * In the rail's foot beside Settings rather than in the numbered list above it,
+ * and the reason is the same one that keeps Settings out of that list: the six
+ * destinations are the owner's money, and this is the machine that holds it.
+ * Sitting Yedekleme between Hesap Alanı and Genel Bakış would put a page about
+ * disks and passwords in a row of pages about figures.
+ */
+export const BACKUP_DESTINATION_ID = 'backup'
+
+/** The destinations that live in the rail's foot, in the order they appear. */
+export const FOOT_DESTINATION_IDS: readonly string[] = Object.freeze([
+  BACKUP_DESTINATION_ID,
+  SETTINGS_DESTINATION_ID
+])

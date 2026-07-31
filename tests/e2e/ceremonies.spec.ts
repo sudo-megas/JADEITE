@@ -135,6 +135,14 @@ test('the reset ceremony consumes the old key and issues the next', async () => 
 
   await session.page.getByTestId('recovery-ack').check()
   await session.page.getByTestId('recovery-continue').click()
+
+  // Realisation IX puts §4.4's mandated backup prompt here, between the new
+  // recovery key and the shell. It prompts and does not compel — declining is
+  // one button — but it is on the path, because the interval between a reset
+  // and the next backup is the only one in which this vault's disaster recovery
+  // depends on a card that has just been destroyed.
+  await expect(session.page.getByTestId('backup-prompt')).toBeVisible()
+  await session.page.getByTestId('prompt-skip').click()
   await expect(session.page.getByTestId('shell')).toBeVisible()
 
   // The old password is dead.

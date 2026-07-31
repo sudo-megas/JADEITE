@@ -206,6 +206,12 @@ test('the six destinations exist and the keyboard map reaches them', async () =>
   await session.page.keyboard.press('Control+Comma')
   await expect(session.page.getByTestId('settings-panel')).toBeVisible()
 
+  // The rail's foot gained Yedekleme at Realisation IX. It takes a letter and
+  // not a seventh digit, because the digits are the owner's money and this is
+  // the machine that holds it (§15, destinations.ts).
+  await session.page.keyboard.press('Control+b')
+  await expect(session.page.getByTestId('backup-panel')).toBeVisible()
+
   await session.page.keyboard.press('Control+l')
   await expect(session.page.getByTestId('submit')).toBeVisible()
 })

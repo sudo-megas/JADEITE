@@ -8,9 +8,18 @@ import { JadeGlyph } from '../shell/JadeGlyph.js'
 
 interface Props {
   onCreated: (issue: RecoveryKeyIssue) => void
+  /**
+   * There is a vault, and it is on a drive rather than on this machine.
+   *
+   * A disk death and a new laptop both land here — on the screen that offers to
+   * create a vault — and neither wants one. §4.4's second row and §15's machine
+   * transfer are the same door, and it has to be on this screen or the owner
+   * has to create a vault they intend to throw away to reach it.
+   */
+  onRestore: () => void
 }
 
-export function FirstRun({ onCreated }: Props): ReactElement {
+export function FirstRun({ onCreated, onRestore }: Props): ReactElement {
   const { t } = useTranslation()
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -78,6 +87,10 @@ export function FirstRun({ onCreated }: Props): ReactElement {
 
       <button className="btn-primary" type="submit" disabled={busy} data-testid="submit">
         {busy ? t('common.working') : t('firstRun.submit')}
+      </button>
+
+      <button className="btn-link" type="button" onClick={onRestore} data-testid="restore-entry">
+        {t('backup.restoreEntry')}
       </button>
     </form>
   )

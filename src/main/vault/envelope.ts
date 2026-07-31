@@ -7,8 +7,8 @@
  * database that the app manages.
  */
 
-import { closeSync, fsyncSync, openSync, readFileSync, renameSync, unlinkSync, writeSync } from 'node:fs'
-import { dirname } from 'node:path'
+import { readFileSync } from 'node:fs'
+import { writeFileAtomic } from './atomic.js'
 import { BASELINE_KDF, validateKdfParams, type KdfParams } from './kdf.js'
 import type { WrappedKey } from './dek.js'
 import { envelopePath } from './paths.js'
@@ -91,36 +91,9 @@ export function readEnvelope(path = envelopePath()): KeyEnvelope | null {
  * A password reset rewrites both slots. If that write were interrupted
  * half-done the vault would become unopenable with either credential, so the
  * new content is written to a sibling, flushed, and then renamed over the
- * original — on POSIX the rename is atomic, and the directory is flushed too
- * so the rename itself survives a power cut.
+ * original — the four-step sequence now lives in `atomic.ts`, because a
+ * database and a restore journal need exactly the same guarantee.
  */
 export function writeEnvelope(envelope: KeyEnvelope, path = envelopePath()): void {
-  const tmp = `${path}.tmp`
-  const payload = `${JSON.stringify(envelope, null, 2)}\n`
-
-  const fd = openSync(tmp, 'w', 0o600)
-  try {
-    writeSync(fd, payload, 0, 'utf8')
-    fsyncSync(fd)
-  } finally {
-    closeSync(fd)
-  }
-
-  try {
-    renameSync(tmp, path)
-  } catch (e) {
-    try {
-      unlinkSync(tmp)
-    } catch {
-      /* the temp file is already gone or unreachable; the original stands */
-    }
-    throw e
-  }
-
-  const dirFd = openSync(dirname(path), 'r')
-  try {
-    fsyncSync(dirFd)
-  } finally {
-    closeSync(dirFd)
-  }
+  writeFileAtomic(path, `${JSON.stringify(envelope, null, 2)}\n`)
 }

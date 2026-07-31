@@ -53,6 +53,7 @@ export const en = {
     section4: 'Calculation Zone',
     overview: 'Overview',
     altinEgrisi: 'Altın Eğrisi',
+    backup: 'Backup',
     settings: 'Settings',
     lock: 'Lock'
   },
@@ -483,6 +484,74 @@ export const en = {
     formattingPreview: 'Formatting sample'
   },
 
+  backup: {
+    title: 'Backup',
+    lede: 'A backup is one sealed file. Nothing in it is readable without JADEITE and a credential.',
+    lastBackup: 'Last backup',
+    never: 'Never',
+    count: 'Backups taken',
+    overdueTitle: 'A backup is due.',
+    overdue: 'More time has passed than the interval you chose.',
+    create: 'Take a backup',
+    saved: 'Backup written.',
+
+    reminder: 'Remind me',
+    reminderOff: 'Off',
+    reminderDays: 'Every {{days}} days',
+
+    restoreTitle: 'Restore from a backup',
+    restore: 'Choose a backup file',
+    restoreEntry: 'Restore from a backup',
+    restoreLede:
+      'This replaces everything on this machine with what is in the file. Choose one to see what it holds.',
+    back: 'Go back',
+
+    candidateCreatedAt: 'Taken on',
+    candidateApp: 'Written by JADEITE',
+    candidateOrigin: 'Origin',
+    originSame: 'This vault',
+    originOther: 'Another vault',
+    candidateGeneration: 'Recovery key number',
+    candidateSections: 'Last edited',
+    sectionUnknown: 'Not recorded',
+
+    confirmWarningTitle: 'Everything here will be replaced.',
+    confirmWarning:
+      'The vault on this machine is copied aside first, beside the database, so nothing is destroyed — but this application will stop using it.',
+
+    credentialLabel: 'Password or recovery key from when this backup was taken',
+    credentialHint: 'Either one opens it. Using the recovery key here does not use it up.',
+    noCredentialNeeded:
+      'This is a backup of the vault that is open, so no credential is needed — whatever password was in force when it was taken.',
+    confirm: 'Replace this vault',
+    cancel: 'Never mind',
+
+    promptTitle: 'Take a backup now',
+    promptLede: 'Your credentials have changed, so every backup you already hold is out of date.',
+    promptWarningTitle: 'Older backups need the old credentials.',
+    promptWarning:
+      'A backup carries the password and recovery key that were current when it was taken. The recovery key you just replaced no longer exists.',
+    promptSkip: 'Not now',
+
+    truthTitle: 'Credentials & backup',
+    truthLede: 'What opens what, and when nothing does.',
+    truthColCase: 'Situation',
+    truthColOutcome: 'Outcome',
+    truthCase1: 'The vault on this machine is healthy and you know its password.',
+    truthOutcome1:
+      'Every backup you have ever made is openable. JADEITE holds the key and can open any backup of this vault, whatever password was in force when it was taken. Old passwords do not matter.',
+    truthCase2: 'The vault is gone — a dead disk — and you are restoring from a backup.',
+    truthOutcome2:
+      'You need the password or the recovery key that was current at the moment that backup was made.',
+    truthCase3: 'The vault is gone, the backup’s password is forgotten, and its recovery key is lost.',
+    truthOutcome3: 'There is no way in. No bypass exists, and none can be added.',
+    truthMandatedTitle: 'After every password change, JADEITE asks for a backup.',
+    truthMandated: 'That is what keeps the newest backup matched to the newest credentials.',
+    truthLimitation:
+      'One honest limitation: the key that seals this vault never changes, so a stolen old backup plus its old password stays readable forever. Changing a password does not reach copies someone already holds. That is true of any encrypted file, and it is accepted here — the danger this guards against is a dead disk and a bad memory, not a thief.',
+    truthGeneration: 'The recovery key in force now is number {{generation}}.'
+  },
+
   errors: {
     WRONG_CREDENTIAL: 'That credential is not correct.',
     MALFORMED_RECOVERY_KEY: 'That recovery key is not valid — check what you typed.',
@@ -491,6 +560,15 @@ export const en = {
     NO_VAULT: 'No vault was found.',
     ENVELOPE_CORRUPT: 'The key file cannot be read.',
     LOCKED: 'The vault is locked.',
+    CANCELLED: 'Nothing was chosen.',
+    NO_CANDIDATE: 'No backup is selected any more. Choose one again.',
+    IO: 'That file could not be read or written.',
+    NOT_A_BACKUP: 'That is not a JADEITE backup.',
+    DAMAGED: 'That backup is damaged and cannot be trusted. Try another copy.',
+    FUTURE_FORMAT: 'That backup was written by a newer JADEITE. Update this one first.',
+    FUTURE_SCHEMA: 'That backup holds data from a newer JADEITE. Update this one first.',
+    CREDENTIAL_REQUIRED: 'This backup needs the password or recovery key it was taken with.',
+    PAYLOAD_UNREADABLE: 'That credential opened the file, and the data inside it will not open.',
     INTERNAL: 'Something unexpected went wrong.'
   },
 

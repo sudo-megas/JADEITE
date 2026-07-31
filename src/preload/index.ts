@@ -11,6 +11,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import {
   IPC,
   type AppConfig,
+  type BackupApi,
   type JadeiteApi,
   type LockReason,
   type RecoveryKeyIssue,
@@ -56,6 +57,13 @@ import type {
   CellPatch as Section4CellPatch,
   Section4ErrorCode
 } from '../shared/section4/types.js'
+import type {
+  BackupCandidate,
+  BackupErrorCode,
+  BackupReason,
+  BackupReceipt,
+  BackupStatus
+} from '../shared/backup/types.js'
 
 type S1<T> = Promise<Result<T, Section1ErrorCode>>
 
@@ -139,6 +147,23 @@ const section4: Section4Api = {
   clear: (): S4<null> => ipcRenderer.invoke(IPC.s4Clear)
 }
 
+type Bk<T> = Promise<Result<T, BackupErrorCode>>
+
+/**
+ * Backup is a pass-through too, and the interesting thing about it is what it
+ * does *not* carry: `create` takes no path and `select` returns none. The
+ * dialogs run in the main process, which is the only reason the renderer can be
+ * given this capability at all without also being given the filesystem.
+ */
+const backup: BackupApi = {
+  status: (): Bk<BackupStatus> => ipcRenderer.invoke(IPC.backupStatus),
+  create: (reason: BackupReason): Bk<BackupReceipt> => ipcRenderer.invoke(IPC.backupCreate, reason),
+  select: (): Bk<BackupCandidate> => ipcRenderer.invoke(IPC.backupSelect),
+  restore: (credential: string | null): Bk<null> =>
+    ipcRenderer.invoke(IPC.backupRestore, credential),
+  cancel: (): Bk<null> => ipcRenderer.invoke(IPC.backupCancel)
+}
+
 const api: JadeiteApi = {
   vault: {
     status: (): Promise<VaultStatus> => ipcRenderer.invoke(IPC.vaultStatus),
@@ -172,7 +197,8 @@ const api: JadeiteApi = {
   section1,
   section2,
   section3,
-  section4
+  section4,
+  backup
 }
 
 contextBridge.exposeInMainWorld('jadeite', api)

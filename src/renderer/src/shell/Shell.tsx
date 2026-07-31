@@ -8,9 +8,10 @@
 import { useCallback, useEffect, useState, type ReactElement } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { DESTINATIONS, SETTINGS_DESTINATION_ID } from './destinations.js'
+import { BACKUP_DESTINATION_ID, DESTINATIONS, SETTINGS_DESTINATION_ID } from './destinations.js'
 import { JadeGlyph } from './JadeGlyph.js'
 import { SectionStub } from './SectionStub.js'
+import { Backup } from '../sections/backup/Backup.js'
 import { Overview } from '../sections/overview/Overview.js'
 import { focusYearIn } from '../sections/overview/navigate.js'
 import { SettingsPanel } from './SettingsPanel.js'
@@ -22,10 +23,29 @@ import { AltinEgrisi } from '../sections/altin/AltinEgrisi.js'
 
 interface Props {
   onLock: () => void
+  /** A restore replaced the vault; the session it belonged to is over. */
+  onRestored: () => void
 }
 
-export function Shell({ onLock }: Props): ReactElement {
+export function Shell({ onLock, onRestored }: Props): ReactElement {
   const { t } = useTranslation()
+
+  /**
+   * Whether a backup is due (§15's periodic reminder).
+   *
+   * Read once, here, so the rail can carry the mark wherever the owner is —
+   * a reminder that only appears on the page about reminders is not one. The
+   * Backup page hands back a fresh answer whenever it changes the figure, which
+   * is the whole of the coupling: no store, because the value is one boolean
+   * read once per session and dropped with the window.
+   */
+  const [overdue, setOverdue] = useState(false)
+
+  useEffect(() => {
+    void window.jadeite.backup.status().then((result) => {
+      if (result.ok) setOverdue(result.value.overdue)
+    })
+  }, [])
   /**
    * Which destination is on screen.
    *
@@ -73,6 +93,11 @@ export function Shell({ onLock }: Props): ReactElement {
       if (event.key === ',') {
         event.preventDefault()
         setActive(SETTINGS_DESTINATION_ID)
+        return
+      }
+      if (event.key === 'b' || event.key === 'B') {
+        event.preventDefault()
+        setActive(BACKUP_DESTINATION_ID)
         return
       }
       const digit = Number.parseInt(event.key, 10)
@@ -125,6 +150,21 @@ export function Shell({ onLock }: Props): ReactElement {
           <button
             type="button"
             className="rail-item"
+            aria-current={active === BACKUP_DESTINATION_ID ? 'page' : undefined}
+            data-active={active === BACKUP_DESTINATION_ID ? 'true' : undefined}
+            data-testid="nav-backup"
+            onClick={() => setActive(BACKUP_DESTINATION_ID)}
+          >
+            <span>{t('nav.backup')}</span>
+            {/* The mark is decorative and the sentence is on the button, so the
+                dot carries no text of its own — a screen reader hearing
+                "Yedekleme, bekliyor" would be told twice. */}
+            {overdue ? <i className="rail-dot" data-testid="backup-overdue" aria-hidden="true" /> : null}
+            <kbd className="rail-key">B</kbd>
+          </button>
+          <button
+            type="button"
+            className="rail-item"
             aria-current={active === SETTINGS_DESTINATION_ID ? 'page' : undefined}
             data-active={active === SETTINGS_DESTINATION_ID ? 'true' : undefined}
             data-testid="nav-settings"
@@ -141,23 +181,29 @@ export function Shell({ onLock }: Props): ReactElement {
       </nav>
 
       <main className="content" data-testid="content">
-        {!destination ? (
+        {/* The two foot destinations are matched by name before the list is
+            consulted. Falling through to `!destination` was how Settings used
+            to be reached, and with a second foot entry that fallback would
+            answer for *any* unknown id — including a typo. */}
+        {active === SETTINGS_DESTINATION_ID ? (
           <SettingsPanel />
-        ) : destination.id === 'section1' ? (
+        ) : active === BACKUP_DESTINATION_ID ? (
+          <Backup onStatusChanged={setOverdue} onRestored={onRestored} />
+        ) : destination?.id === 'section1' ? (
           <Section1 />
-        ) : destination.id === 'section2' ? (
+        ) : destination?.id === 'section2' ? (
           <Section2 />
-        ) : destination.id === 'section3' ? (
+        ) : destination?.id === 'section3' ? (
           <Section3 />
-        ) : destination.id === 'section4' ? (
+        ) : destination?.id === 'section4' ? (
           <Section4 />
-        ) : destination.id === 'altinEgrisi' ? (
+        ) : destination?.id === 'altinEgrisi' ? (
           <AltinEgrisi />
-        ) : destination.id === 'overview' ? (
+        ) : destination?.id === 'overview' ? (
           <Overview navigate={navigate} />
-        ) : (
+        ) : destination ? (
           <SectionStub destination={destination} />
-        )}
+        ) : null}
       </main>
     </div>
   )

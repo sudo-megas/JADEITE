@@ -255,18 +255,29 @@ The precedent this must not become is the one v0.6c named: a letter is not a pla
 
 **Goal:** the data can survive disks, moves, and audits.
 
+**Settled first, per §20.** Q2 — what *merge* means for `.jbk` import — was closed by the owner on 31 July 2026 as **per-section choice**, before the container was designed rather than during it. Merge is not built here; §15 puts only full replacement in this rung. What the ruling bought is the container's shape, and that is the whole reason it had to come first: a `.jbk` written this year must still be answerable when the chooser arrives, and a format cannot grow a field retroactively.
+
 **Scope**
 - `.jbk` container: envelope header + database + checksums; create/restore ceremonies with credential verification; backup log.
+- **Schema v5** — no new table. `backup_log` has waited since v1 and is finally written to. A `vault_id` names the lineage so a restore can tell this vault's backup from another machine's *before* it touches anything, and per-section edit stamps are kept by triggers rather than by forty write paths (§5.3, §15).
 - Post-credential-change backup prompt (mandated, XJADEITE §4.4); periodic reminder setting.
 - **Import-database** (machine transfer): full replacement after explicit confirmation. This is JADEITE reading its own sealed container and is **the only import in the application** (XJADEITE §15, §16.2) — no foreign format is parsed here or anywhere.
+- **The restore door sits outside the lock** — on the lock screen and on first-run. §4.4's second row is a dead disk, and a restore reachable only from a vault you can open is a restore for the one situation that never needed it.
 - In-app "Credentials & Backup Truth Table" page — the §4.4 contract, readable in thirty seconds by future-owner.
 - Hardening pass: dependency audit, IPC surface review, **fuzz the `.jbk` container parser** (malformed header, truncated body, bad checksum, wrong format version — the only untrusted input the app has), WAL/crash-recovery torture, cold-start re-verify on both machines.
 
 **Acceptance**
-- [ ] Backup → wipe → restore = byte-equivalent data; old-credential backup opens per the truth table (live-vault path and dead-vault path both demonstrated).
-- [ ] Restore with wrong credentials fails cleanly and informatively.
+- [ ] Backup → wipe → restore = equivalent data; old-credential backup opens per the truth table (live-vault path and dead-vault path both demonstrated).
+- [ ] §4.4 row 1 proved against a backup taken *before* a password reset: no credential asked for, and the vault still opens with the **new** password afterwards.
+- [ ] §4.4 row 2 proved with the password **and** with the recovery key, and the recovery key still works for a reset afterwards — restoring does not consume it.
+- [ ] Restore with wrong credentials fails cleanly and informatively, and leaves the vault on disk untouched.
 - [ ] A corrupted or hand-edited `.jbk` is rejected without a crash and without partial application.
+- [ ] A container claiming a newer schema than this build knows is refused rather than silently misread.
+- [ ] An install interrupted between its two renames is completed at the next start.
 - [ ] Truth-table page ships in Turkish and English.
+- [ ] No filesystem path crosses the bridge — the enumerated preload surface proves it, and a config write made to fail for real proves the failure path too.
+- [ ] The renderer can write the three settings it owns and none of the others; the vault's lineage and its section stamps are refused.
+- [ ] Three concurrent unlock attempts are each answered on their own credential.
 - [ ] `package.json` reads `0.9.0` (§17).
 - [ ] Tag `v0.9`, and `gh release create`.
 

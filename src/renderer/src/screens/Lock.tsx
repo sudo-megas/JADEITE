@@ -10,9 +10,11 @@ interface Props {
   reason: LockReason | null
   onUnlocked: () => void
   onForgotPassword: () => void
+  /** Open a `.jbk` instead — §4.4's second row, and §15's machine transfer. */
+  onRestore: () => void
 }
 
-export function Lock({ reason, onUnlocked, onForgotPassword }: Props): ReactElement {
+export function Lock({ reason, onUnlocked, onForgotPassword, onRestore }: Props): ReactElement {
   const { t } = useTranslation()
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -68,6 +70,10 @@ export function Lock({ reason, onUnlocked, onForgotPassword }: Props): ReactElem
 
       <button className="btn-link" type="button" onClick={onForgotPassword} data-testid="forgot">
         {t('lock.forgot')}
+      </button>
+
+      <button className="btn-link" type="button" onClick={onRestore} data-testid="restore-entry">
+        {t('backup.restoreEntry')}
       </button>
     </form>
   )
