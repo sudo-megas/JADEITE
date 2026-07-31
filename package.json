@@ -4,7 +4,10 @@
   "version": "0.9.1",
   "releaseDate": "2026-07-31",
   "description": "Secure personal wealth and possessions tracker",
-  "author": "sudo-megas",
+  "author": {
+    "name": "sudo-megas",
+    "email": "halil@namli.xyz"
+  },
   "license": "GPL-3.0-only",
   "private": true,
   "type": "module",
