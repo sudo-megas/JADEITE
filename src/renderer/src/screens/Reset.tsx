@@ -48,7 +48,7 @@ export function Reset({ onReset, onCancel }: Props): ReactElement {
   return (
     <form className="panel panel--wide" onSubmit={submit}>
       <p className="brand">
-        <BrandMark />
+        <BrandMark size={66} />
         <span>{t('common.brand')}</span>
       </p>
       <h1>{t('reset.title')}</h1>

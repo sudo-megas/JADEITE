@@ -45,8 +45,23 @@ const SOCKET_ORIGIN = 'wss://hrmsocketonly.haremaltin.com'
  */
 const PROTOCOL_VERSIONS = [4, 3] as const
 
-/** Long enough for a slow handshake, short enough that a hung socket gives up. */
-const FRAME_DEADLINE_MS = 6_000
+/**
+ * Long enough for a slow handshake, short enough that a hung socket gives up.
+ *
+ * Raised from 6s at v0.9c, against measurement rather than caution. The socket
+ * itself is quick — 298ms from construction to the first price frame once the
+ * name is resolved — but `getaddrinfo` is not always quick, and it is counted
+ * inside this window. On the machine this was found on it returned a flat 5.2
+ * seconds for *every* host, router-side DNS answering in 26ms; the resolver
+ * stall was systemic and had nothing to do with this source. Six seconds left
+ * about eight hundred milliseconds for the connection, so every refresh timed
+ * out and the section reported a healthy provider as unreachable.
+ *
+ * A ceiling costs nothing when the network is well: this resolves in under a
+ * second on a normal machine and the deadline is never approached. It is only
+ * ever spent by someone who would otherwise have been told a lie.
+ */
+const FRAME_DEADLINE_MS = 15_000
 
 function socketUrl(eio: number): string {
   return `${SOCKET_ORIGIN}/socket.io/?EIO=${eio}&transport=websocket`

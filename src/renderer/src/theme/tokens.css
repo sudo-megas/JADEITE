@@ -16,12 +16,22 @@
   --gap: 16px;
   --rail-width: 232px;
   /*
-   * Between the mark and the wordmark, in the rail and on every ceremony panel.
-   * `docs/conficon.md` asks for three characters of space; at 13px with 0.18em
-   * of tracking a character advances about 8px, so three of them is 24. One
-   * token rather than two literals, because the two placements must not drift.
+   * Between the mark and the wordmark. Two tokens rather than one, because the
+   * two placements stopped being the same problem when the mark tripled.
+   *
+   * The rail has 187px of usable width — 232 less its border, its own padding
+   * and the brand block's — and "JADEITE" at 28px is already 162px of that. So
+   * the rail stacks, and its gap is vertical, where nothing competes for it.
+   * A ceremony panel has 394px at its narrowest, which is room for the
+   * side-by-side row `docs/conficon.md` asks for: 66 + 72 + 226 = 364.
+   *
+   * 72px is that brief's "three characters of space", measured rather than
+   * assumed this time — at 39px with 0.18em of tracking a character advances
+   * about 24px, so three of them is 72. The old 24px value claimed the same
+   * derivation at 13px and was about 20% short of it.
    */
-  --brand-gap: 24px;
+  --brand-gap-rail: 18px;
+  --brand-gap-panel: 72px;
   --font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
 

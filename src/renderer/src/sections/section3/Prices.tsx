@@ -67,6 +67,8 @@ interface Props {
   refreshing?: boolean
   /** A `PriceErrorCode` from the last attempt, shown as a sentence and never as a stack. */
   liveError?: string | null
+  /** Seconds until the limiter will ask again, when it has just refused to (§14). */
+  liveRetryAfter?: number | null
   onRefresh?: () => void
 }
 
@@ -189,6 +191,7 @@ export function Prices({
   lastFetch = null,
   refreshing = false,
   liveError = null,
+  liveRetryAfter = null,
   onRefresh
 }: Props): ReactElement {
   const { t } = useTranslation()
@@ -235,7 +238,27 @@ export function Prices({
               ? t('section3.lastChecked', { when: formatStamp(lastFetch.attemptedAt, language) })
               : t('section3.neverChecked')}
         </span>
+
+        {/*
+          Which source answered. Holdings has said this per row since Realisation
+          VII and this page never did — so an unpackaged build, which uses the
+          mock provider by design, refreshed to a full set of invented figures
+          with a fresh timestamp over them and nothing anywhere to say they were
+          not real. The value is already on every fetch record; only the printing
+          was missing.
+        */}
+        {!refreshing && lastFetch ? (
+          <span className="s3-live-status" data-testid="s3-live-provider">
+            {t('section3.liveSource', { provider: lastFetch.provider })}
+          </span>
+        ) : null}
       </div>
+
+      {liveRetryAfter !== null ? (
+        <p className="s3-live-held" role="status" data-testid="s3-live-skipped">
+          {t('section3.refreshTooSoon', { seconds: liveRetryAfter })}
+        </p>
+      ) : null}
 
       {lastFetch && lastFetch.outcome !== 'ok' && lastFetch.succeededAt !== null ? (
         <p className="s3-live-held" data-testid="s3-live-last-good">

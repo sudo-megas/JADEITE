@@ -24,11 +24,19 @@ import { loadProvider, selectedProviderId } from './registry.js'
  * How long a single-shot snapshot may take.
  *
  * §14.1 measured the real thing at about a second and a half — connect, take the
- * first unsolicited frame, disconnect. Eight seconds is generous enough to
- * absorb a slow handshake and short enough that a hung socket does not leave the
- * button spinning while the owner wonders.
+ * first unsolicited frame, disconnect. Generous enough to absorb a slow
+ * handshake and short enough that a hung socket does not leave the button
+ * spinning while the owner wonders.
+ *
+ * Raised from 8s at v0.9c, and it has to move with `FRAME_DEADLINE_MS` in
+ * `haremaltin/socket.ts` rather than independently: this abort is the ceiling
+ * over *both* protocol attempts, so an 8s abort over a 6s frame deadline meant
+ * the second attempt could never finish and the retry at the other engine.io
+ * version was decorative. It is now twice the per-attempt deadline, which is
+ * what makes that retry real. See that constant for why 15s, and for the
+ * resolver measurement behind it.
  */
-const SNAPSHOT_TIMEOUT_MS = 8_000
+const SNAPSHOT_TIMEOUT_MS = 30_000
 
 /**
  * Limiter state lives in module scope and dies with the process.

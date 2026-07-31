@@ -310,6 +310,8 @@ export const en = {
     checkingLive: 'Asking the provider…',
     lastChecked: 'Last checked {{when}}',
     neverChecked: 'The provider has not been asked yet.',
+    refreshTooSoon:
+      'Just checked — the provider can be asked again in {{seconds}} seconds. The prices on screen are the last ones received.',
     lastGood: 'Last good figure held from {{when}}',
     liveSkipped: 'The provider was asked a moment ago; try again in {{seconds}}s.',
 
@@ -554,7 +556,7 @@ export const en = {
   },
 
   about: {
-    tagline: 'Secure personal wealth and possessions tracking.',
+    tagline: 'Economy Journal',
     creator: 'Created by',
     version: 'Version',
     released: 'Released',
@@ -566,7 +568,7 @@ export const en = {
     licenceRead: 'Read the full licence',
     licenceTitle: 'GNU General Public License, version 3',
     licenceBack: '← Back to About',
-    motto: 'Built with Passion and Reason'
+    motto: 'Built with Reason and Passion'
   },
 
   errors: {

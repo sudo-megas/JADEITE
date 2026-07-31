@@ -22,14 +22,21 @@
  * tree and carries an empty `alt`: a screen reader that announced it would say
  * "JADEITE" twice.
  *
- * **Twenty-two pixels**, against thirteen-pixel wordmarks. Eighteen was the
- * glyph's size and was chosen for a drawing; rendered at eighteen, the shield is
- * a green dot with the lock lost inside it. The lock only resolves near
- * twenty-eight, which overpowers the wordmark. Twenty-two is where the stone
- * reads as a stone without the mark becoming the headline.
+ * **Sixty-six pixels** — three times the twenty-two this shipped at in v0.9b,
+ * at the owner's judgement that the mark read as an afterthought. Four times was
+ * asked for first and is not available: the rail has 187px of usable width, and
+ * an 88px mark with a wordmark scaled to match needs 382–486px. Three times fits
+ * both placements, though only because the rail head stops being a row — see
+ * `.rail-brand` in `app.css` for that arithmetic.
  *
- * The file is 128 px so the same asset stays sharp if the size is ever raised or
- * the app meets a scaled display; at twenty-two that is nearly six times over.
+ * The size is passed explicitly at both call sites rather than left to this
+ * default, because the two placements each pair the mark with a differently
+ * sized wordmark and a silent divergence between them is exactly the bug this
+ * component exists to prevent. The default matches them; it is not relied upon.
+ *
+ * The file is 256px, raised from 128 when the render size tripled. 128 is sharp
+ * to 64 CSS px on a 2× display and this asks for 66 — and the recovery-key sheet
+ * is printable, where a 128px source at 66 CSS px would be upscaled on paper.
  * It is derived from `build/innerAPP.png`, whose alpha is genuine — see
  * `electron-builder.yml` for how the square assets are cut from the masters.
  */
@@ -38,7 +45,7 @@ import type { ReactElement } from 'react'
 
 import markSrc from '../assets/mark.png'
 
-export function BrandMark({ size = 22 }: { size?: number }): ReactElement {
+export function BrandMark({ size = 66 }: { size?: number }): ReactElement {
   return (
     <img
       className="brand-mark"

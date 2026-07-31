@@ -314,6 +314,8 @@ export const tr = {
     checkingLive: 'Sağlayıcıya bakılıyor…',
     lastChecked: 'Son bakış: {{when}}',
     neverChecked: 'Sağlayıcıya henüz bakılmadı.',
+    refreshTooSoon:
+      'Az önce bakıldı — sağlayıcıya {{seconds}} saniye sonra yeniden sorulabilir. Ekrandaki fiyatlar en son alınanlardır.',
     lastGood: 'Elde tutulan son geçerli fiyat: {{when}}',
     liveSkipped: 'Sağlayıcıya az önce soruldu; {{seconds}} sn sonra yeniden deneyebilirsiniz.',
 
@@ -559,7 +561,7 @@ export const tr = {
   },
 
   about: {
-    tagline: 'Güvenli kişisel varlık ve mülk takibi.',
+    tagline: 'Ekonomi Defteri',
     creator: 'Yapımcı',
     version: 'Sürüm',
     released: 'Yayın tarihi',
@@ -571,7 +573,7 @@ export const tr = {
     licenceRead: 'Lisansın tamamını oku',
     licenceTitle: 'GNU Genel Kamu Lisansı, sürüm 3',
     licenceBack: '← Hakkında sayfasına dön',
-    motto: 'Built with Passion and Reason'
+    motto: 'Built with Reason and Passion'
   },
 
   errors: {

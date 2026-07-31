@@ -260,3 +260,36 @@ test('unlock reaches the shell inside the §3.4 budget, excluding Argon2id', asy
   )
   expect(interactive).toBeLessThanOrEqual(1000)
 })
+
+test('the rail head fits the rail, at every size the mark has ever been', async () => {
+  session = await launchFresh()
+  await createVaultAndEnter(session)
+
+  // The guard that did not exist when the mark tripled at v0.9c, and whose
+  // absence would have let the whole change ship visibly broken.
+  //
+  // `.rail` is a fixed 232px grid track, so it never widens for its content;
+  // `.rail-brand` has no `flex-wrap`, the mark is `flex: none`, and JADEITE is
+  // one unbreakable word whose min-content width is its full width. Nothing
+  // wraps, shrinks or ellipsises — an oversized brand simply paints across the
+  // content pane, and `.rail` declares no `overflow`, so no scrollbar appears
+  // to say so. The suite's only other overflow check is scoped to `.content`,
+  // which is the rail's *sibling*: the spill lands on top of it without ever
+  // touching its scrollWidth.
+  const fit = await session.page.locator('.rail-brand').evaluate((el) => {
+    const rail = el.parentElement!
+    return {
+      scrollWidth: el.scrollWidth,
+      clientWidth: el.clientWidth,
+      brandRight: Math.round(el.getBoundingClientRect().right),
+      railRight: Math.round(rail.getBoundingClientRect().right)
+    }
+  })
+
+  expect(fit.scrollWidth, 'the brand block overflows its own box').toBeLessThanOrEqual(
+    fit.clientWidth
+  )
+  expect(fit.brandRight, 'the brand block reaches past the rail').toBeLessThanOrEqual(
+    fit.railRight
+  )
+})

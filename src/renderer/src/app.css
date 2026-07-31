@@ -34,16 +34,29 @@
  * letters with this much tracking, and centring it is one line instead of a
  * hand-tuned vertical-align that would need retuning at every font size.
  */
+/*
+ * A ceremony panel is 394px wide at its narrowest, which is enough for the mark
+ * and the wordmark side by side at three times their old size: 66 + 72 + 226 =
+ * 364. This is the placement where `docs/conficon.md`'s row survives the mark
+ * growing; the rail's could not, and stacks instead.
+ *
+ * The bottom margin came down from 24px to 10px, and that is not tidying. The
+ * recovery-key screen is the tallest ceremony and had about 14px of clearance
+ * above the fold at the 640px minimum window height. A 44px taller mark spends
+ * that several times over, and the thing that would have dropped below the fold
+ * is the acknowledge checkbox — on the one screen the owner cannot return to,
+ * because the key is shown exactly once.
+ */
 .brand {
   display: flex;
   align-items: center;
-  gap: var(--brand-gap);
-  font-size: 13px;
+  gap: var(--brand-gap-panel);
+  font-size: 39px;
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--text-subtle);
-  margin: 0 0 24px;
+  margin: 0 0 10px;
 }
 
 /*
@@ -237,17 +250,44 @@ button {
   padding: 24px 12px 16px;
 }
 
+/*
+ * The rail head stacks, and it is the arithmetic that decided that rather than
+ * a preference. The rail is a fixed 232px grid track; less its border, its
+ * 12px padding either side and this block's own 10px, the brand has **187px**
+ * and no more — a fixed track does not widen for its content.
+ *
+ * Side by side, a 66px mark and a wordmark scaled to match needs 293–364px.
+ * It would not have degraded gracefully either: there is no `flex-wrap` here,
+ * the mark is `flex: none`, and JADEITE is one unbreakable word whose
+ * min-content width is its full width, so nothing wraps, shrinks or ellipsises.
+ * It would simply have painted over the content pane, and `.rail` declares no
+ * `overflow`, so no scrollbar would have appeared to say so.
+ *
+ * Stacking removes the mark and the gap from the horizontal sum, but the word
+ * still has to fit 187px alone — which caps it near 32px whatever the layout.
+ * 28px leaves 25px of clearance; the tracking is what makes seven letters wide.
+ */
 .rail-brand {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: var(--brand-gap);
-  font-size: 13px;
+  gap: var(--brand-gap-rail);
+  font-size: 28px;
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--text-subtle);
   margin: 0 0 22px;
   padding: 0 10px;
+}
+
+/*
+ * The tracking is applied after the last letter too, so a centred wordmark sits
+ * half a space left of true. Pulling the trailing space back off the end is the
+ * one-line fix; `text-indent` would move the first letter instead.
+ */
+.rail-brand > span {
+  margin-right: -0.18em;
 }
 
 .rail-list {

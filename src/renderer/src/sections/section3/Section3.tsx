@@ -140,6 +140,7 @@ export function Section3(): ReactElement {
               lastFetch={data.lastFetch}
               refreshing={store.refreshing}
               liveError={store.liveError}
+              liveRetryAfter={store.liveRetryAfter}
               language={language}
               onSet={(typeCode, value) => void store.setManualPrice(typeCode, value)}
               onClear={(typeCode) => void store.clearManualPrice(typeCode)}

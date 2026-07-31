@@ -55,7 +55,7 @@ export function BackupPrompt({ onDone }: Props): ReactElement {
   return (
     <div className="panel" data-testid="backup-prompt">
       <p className="brand">
-        <BrandMark />
+        <BrandMark size={66} />
         <span>{t('common.brand')}</span>
       </p>
       <h1>{t('backup.promptTitle')}</h1>

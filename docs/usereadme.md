@@ -28,6 +28,9 @@
     <Install via git clone method instructions> 18px
     <Install via AUR> 18px
 
+    3.C "Debian" 22px
+    <Install via git clone and run .deb> (WARNING! I am not sure the app would be compatible for Debian; if yes include this and make windows "3.D", otherwise ignore this and make windows one "3.C") 18px
+
     3.C "Windows" 22px
     <Windows installation instructions and steps> 18px
 

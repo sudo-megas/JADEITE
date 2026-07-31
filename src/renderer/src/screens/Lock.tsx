@@ -41,7 +41,7 @@ export function Lock({ reason, onUnlocked, onForgotPassword, onRestore }: Props)
   return (
     <form className="panel" onSubmit={submit}>
       <p className="brand">
-        <BrandMark />
+        <BrandMark size={66} />
         <span>{t('common.brand')}</span>
       </p>
       <h1>{t('lock.title')}</h1>

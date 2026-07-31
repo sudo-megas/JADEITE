@@ -131,12 +131,14 @@ export function Shell({ onLock, onRestored }: Props): ReactElement {
   return (
     <div className="shell-frame" data-testid="shell">
       <nav className="rail" aria-label={t('common.brand')}>
-        {/* The mark leads the wordmark. The `nav` above already carries the
-            brand as its accessible name, so the glyph is decorative here in the
-            strict sense — hiding it from the accessibility tree says the name
-            once rather than twice. */}
+        {/* The mark sits above the wordmark rather than beside it — the rail is
+            232px and cannot hold both at this size on one line; `.rail-brand`
+            carries the arithmetic. The `nav` above already carries the brand as
+            its accessible name, so the mark is decorative here in the strict
+            sense — hiding it from the accessibility tree says the name once
+            rather than twice. */}
         <p className="rail-brand">
-          <BrandMark />
+          <BrandMark size={66} />
           <span>{t('common.brand')}</span>
         </p>
 

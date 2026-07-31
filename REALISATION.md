@@ -315,6 +315,42 @@ The one thing that would make this a rung rather than a letter is the Hakkında 
 
 ---
 
+## Point revision v0.9c — the mark at the size it was drawn for
+
+**Goal:** answer what the owner found when they looked at v0.9b on their own screen.
+
+Not a rung. It amends v0.9b, released the same day, so it takes the next letter per §17 and Realisation X still claims `v1.0`. No schema, no channel, no figure — and the one thing it adds to a section is a sentence naming something the vault already recorded.
+
+**It is a letter because everything in it was already built and is merely wrong.** The mark shipped at 22px and read as an afterthought. The motto shipped with its two nouns the wrong way round. Section 3 has been able to name its price source since Realisation VII and simply never printed it. Nothing here is a capability the application did not have yesterday.
+
+**The mark is three times larger, and the rail head stacks to allow it.** Four times was asked for first and does not exist: the rail is a fixed 232px track and the brand block has 187px inside it, against the 382–486px an 88px mark and a matching wordmark need. Nor would it have failed loudly — there is no `flex-wrap` there, the mark is `flex: none`, and JADEITE is one unbreakable word, so it would have painted across the content pane with no scrollbar to admit it. Stacking buys the height back; the wordmark is capped at 28px because 187px is the ceiling for seven tracked letters whatever the layout. The ceremony panels keep `docs/conficon.md`'s side-by-side row, because 394px is room for it.
+
+**Scope**
+- **The mark at 66px**, in the rail and on all six ceremony screens, passed explicitly at every call site. `mark.png` re-exported at 256px, since 128 is sharp only to 64 CSS px on a 2× display and the recovery sheet is printable. `--brand-gap` splits in two: the placements stopped being the same problem.
+- **The rail head stacks**; the ceremony wordmark goes to 39px beside its mark. The ceremony brand's bottom margin drops 24px → 10px, which is not tidying: the recovery-key screen had ~14px above the fold at the 640px minimum window, and it is the one screen the owner cannot return to. Measured after: 550px needed against ~605px available.
+- **The application calls itself *Ekonomi Defteri* / *Economy Journal*** on the About page. The outward strings — the launcher tooltip, the package listing, the specification's `Project:` line — are deliberately left for Realisation X, which is when the public reads them.
+- **The motto reads *Built with Reason and Passion***.
+- **Section 3 says which source answered.** 3c printed the attempt time, the last good time and any error, and never the provider — so an unpackaged build, which uses the mock by design, refreshed to ten invented figures under a fresh timestamp with nothing anywhere to say so. It cost the owner a false defect report. The value was on every fetch record already.
+- **A refused refresh says it was refused.** The limiter backs off to a thirty-minute ceiling and returned `skipped` before recording the attempt, so for half an hour the button was indistinguishable from a dead one. `retryAfterSeconds` was computed all along and read by nothing.
+- **The snapshot deadline was too thin to survive a slow resolver**, and that is why the owner's first look at the real provider returned nothing at all. Measured rather than guessed: the socket reaches its first price frame **298ms** after construction once the name is resolved, and the frame that arrives is complete and correct — every instrument, the shape §14.1 recorded, no fault anywhere in the parser, the mapping or the units. But `getaddrinfo` is inside that window, and on the machine this was found on it returned a flat **5.2 seconds for every host in the world** while the router itself answered in 26ms. Six seconds left eight hundred milliseconds for the connection. The frame deadline goes to 15s and the service abort to 30s — and they move together, because an 8s abort over a 6s per-attempt deadline meant the retry at the other engine.io version could never run.
+- **Six things a review found that no test would have.** The locale floor sat at exactly the pre-v0.9b count, so the whole About namespace could have been deleted from both catalogues and every parity check would have passed. The version was asserted by shape and never against the manifest, so a stale `out/` shipped green. The licence *identifier* on screen was bound to nothing, so a relicence would keep printing `GPL-3.0-only`. The no-anchor check was scoped to the About view and missed the licence view entirely. `Date.parse` on an ISO date is UTC while `Date.now()` is absolute, which fails for three hours every morning at UTC+3. And the motto's "same in both catalogues" claim was only ever asserted in English.
+- **`FOOT_DESTINATION_IDS` is removed.** Exported at Realisation IX, extended at v0.9b, read by nothing, and its comment claimed to govern an order that lives in the markup.
+- **A guard for the thing that could not be seen.** Nothing in the suite measured the rail: the only overflow assertion is scoped to `.content`, the rail's *sibling*, so a brand block spilling on top of it changes no number the suite reads. `.rail-brand`'s `scrollWidth` now has to fit its `clientWidth`.
+
+**Acceptance**
+- [ ] The rail head fits the rail, asserted rather than eyeballed, and the six destinations are still reachable at the minimum window size.
+- [ ] The recovery-key ceremony still shows its acknowledgement and its button above the fold at 640px.
+- [ ] The mark is 66px in the rail and on all six ceremony screens, and sharp on a 2× display.
+- [ ] Hakkında reads *Ekonomi Defteri* in Turkish and *Economy Journal* in English, and the motto reads *Built with Reason and Passion* in both.
+- [ ] 3c names its provider, and a refused refresh says when it will ask again.
+- [ ] A snapshot survives a five-second name resolution, and the two protocol attempts both fit inside the abort.
+- [ ] Deleting the `about` namespace from both catalogues fails `locale-parity`; a stale build fails `about.spec.ts`.
+- [ ] All previous Realisations' acceptance checks still pass, and §3.4's cold start is still met.
+- [ ] `package.json` reads `0.9.2` (§17).
+- [ ] Tag `v0.9c`, and `gh release create`.
+
+---
+
 ## Realisation X — Linux Finalisation · v1.0
 
 **Goal:** "the app became realized" — on Linux.
@@ -322,11 +358,14 @@ The one thing that would make this a rung rather than a letter is the Hakkında 
 **Scope**
 - Full-pass QA of every acceptance list above on CachyOS (main rig) **and** Arch/Niri (laptop).
 - Packaging: electron-builder **pacman** package (primary, installer-grade) + deb; install/uninstall/upgrade-in-place verified; desktop entry, icon set.
+- **The outward description follows the one on screen.** The application began calling itself *Ekonomi Defteri* / *Economy Journal* at v0.9c, on the About page only. The strings the public reads were deliberately left behind until this rung, because they are what a launcher and a package listing show: `package.json`'s `description` (which is what reaches the `.desktop` `Comment=`, not `synopsis`), `electron-builder.yml`'s `synopsis`, and the specification's own `Project:` line, which is a definition and therefore an amendment. Two things to settle while there: the deb's Description field currently prints the same sentence twice, because fpm concatenates `synopsis` and `description` and both hold it; and `Comment=` is written after the `desktop.entry` merge, so only `linux.description` or the manifest can change it — though a locale-suffixed `Comment[tr]` may survive, which would give a Turkish launcher tooltip.
+- Whether one 512px icon is enough. electron-builder derives a single-size hicolor set from `build/icon.png`, so a 32px launcher slot downsamples 16:1 in one step — the muddiest path, and the one that costs the tile's wordmark first. A `build/icons/` directory of prepared sizes is the alternative.
 - Performance polish to budgets; final visual sweep across all ten palettes; string freeze TR/EN.
 - Documentation inside the app: first-run tour (skippable), the truth table, licence notice.
 
 **Acceptance**
 - [ ] Fresh-machine install from the pacman package to working vault in under two minutes.
+- [ ] The launcher entry, the package listing and the specification all say *Ekonomi Defteri* / *Economy Journal*, and the deb prints it once rather than twice.
 - [ ] Zero known defects against XJADEITE; deviations either fixed or spec-amended consciously.
 - [ ] `package.json` reads `1.0.0`, and `releaseDate` beside it is the day this ships (§17, §17.1).
 - [ ] Tag `v1.0`, and `gh release create`.

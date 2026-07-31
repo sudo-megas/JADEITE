@@ -50,7 +50,7 @@ export function FirstRun({ onCreated, onRestore }: Props): ReactElement {
   return (
     <form className="panel" onSubmit={submit}>
       <p className="brand">
-        <BrandMark />
+        <BrandMark size={66} />
         <span>{t('common.brand')}</span>
       </p>
       <h1>{t('firstRun.title')}</h1>

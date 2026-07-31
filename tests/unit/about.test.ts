@@ -26,6 +26,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const manifest = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8')) as {
   version: string
   releaseDate: string
+  license: string
 }
 
 describe('the release date the About page prints', () => {
@@ -46,15 +47,22 @@ describe('the release date the About page prints', () => {
   })
 
   it('is not in the future', () => {
-    expect(Date.parse(manifest.releaseDate)).toBeLessThanOrEqual(Date.now())
+    // Parsed the way `formatDate` parses it — `new Date('YYYY-MM-DD')` is UTC
+    // midnight while `Date.now()` is absolute, so a bare `Date.parse` fails for
+    // three hours every morning at UTC+3 on a date that is perfectly correct.
+    expect(new Date(`${manifest.releaseDate}T00:00:00`).getTime()).toBeLessThanOrEqual(Date.now())
   })
 })
 
 describe('the licence the About page offers to show', () => {
   const licence = readFileSync(resolve(root, 'LICENSE'), 'utf8')
 
-  it('is the GPL-3.0 text the manifest claims', () => {
-    expect(manifest).toMatchObject({ version: expect.any(String) })
+  it('is the GPL-3.0 the manifest declares, by name as well as by text', () => {
+    // Both halves matter. The file proves the *text* is the GPL; `license`
+    // proves the identifier the About page prints beside it still agrees. Check
+    // only the file and a relicence passes silently once the file is swapped,
+    // leaving `GPL-3.0-only` printed over the top of some other licence.
+    expect(manifest.license).toBe('GPL-3.0-only')
     expect(licence).toContain('GNU GENERAL PUBLIC LICENSE')
     expect(licence).toContain('Version 3, 29 June 2007')
   })

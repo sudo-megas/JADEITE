@@ -58,6 +58,19 @@ interface Section3State {
    */
   liveError: LivePriceErrorCode | null
 
+  /**
+   * Seconds until the limiter will ask the provider again, when it just refused
+   * to (§14). Null whenever the last refresh actually reached the source.
+   *
+   * This exists because a refused refresh used to be completely invisible. The
+   * limiter's floor is 60 seconds, but after a run of failures it backs off to a
+   * thirty-minute ceiling, and `refreshPrices` returns `skipped` *before* it
+   * records the attempt — so the timestamp did not move either. For half an hour
+   * the button was indistinguishable from a dead one, and the figure on screen
+   * was last month's with nothing to say so.
+   */
+  liveRetryAfter: number | null
+
   load(): Promise<void>
   setView(view: Section3View): void
 
@@ -108,7 +121,8 @@ function emptyState(): Omit<Section3State, Actions> {
     view: 'ledger',
     commitToken: 0,
     refreshing: false,
-    liveError: null
+    liveError: null,
+    liveRetryAfter: null
   }
 }
 
@@ -197,14 +211,16 @@ export const useSection3Store = create<Section3State>((set, get) => ({
    * because that blanks the section and the owner is looking at prices they
    * already have while this happens. It does not treat `skipped` as a failure —
    * the limiter refusing a too-soon request is politeness working, and the
-   * timestamp already on screen stays correct. And it does not care that
+   * timestamp already on screen stays correct — but it does now *say* so,
+   * through `liveRetryAfter`, because silent politeness and a dead button are
+   * the same thing from the other side of the screen. And it does not care that
    * `written` is often zero: a snapshot is stored only when a figure moves, so
    * a good refresh on a quiet day writes nothing at all, and reporting that as
    * failure would make a working provider look broken.
    */
   async refreshPrices() {
     if (get().refreshing) return
-    set({ refreshing: true, liveError: null })
+    set({ refreshing: true, liveError: null, liveRetryAfter: null })
 
     try {
       const result = await api().refreshPrices()
@@ -215,8 +231,12 @@ export const useSection3Store = create<Section3State>((set, get) => ({
         return
       }
 
-      const { status } = result.value
-      set({ liveError: status === 'ok' || status === 'skipped' ? null : status })
+      const { status, retryAfterSeconds } = result.value
+      set({
+        liveError: status === 'ok' || status === 'skipped' ? null : status,
+        // Only `skipped` carries it, and only `skipped` should show it.
+        liveRetryAfter: status === 'skipped' ? (retryAfterSeconds ?? null) : null
+      })
 
       // The vault is the authority on what was actually stored, exactly as it
       // is for every other write in this store.

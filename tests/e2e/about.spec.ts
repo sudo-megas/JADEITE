@@ -18,9 +18,12 @@
  * text instead, and this asserts there is no anchor to click.
  */
 
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+
 import { expect, test } from '@playwright/test'
 
-import { createVaultAndEnter, launchFresh, type Session } from './fixtures.js'
+import { createVaultAndEnter, launchFresh, projectRoot, type Session } from './fixtures.js'
 
 let session: Session
 
@@ -38,10 +41,16 @@ test('the about page opens from the rail and states the build', async () => {
   await expect(session.page.getByTestId('about-creator')).toHaveText('sudo-megas')
   await expect(session.page.getByTestId('about-licence-name')).toHaveText('GPL-3.0-only')
 
-  // The version is the manifest's, substituted at build time. Two digits and a
-  // patch, never the literal token.
-  const version = await session.page.getByTestId('about-version').textContent()
-  expect(version).toMatch(/^\d+\.\d+\.\d+$/)
+  // The version is the manifest's, substituted at build time — and this is the
+  // only layer that can say so. Reading `package.json` here is not the
+  // self-comparison the unit test declines to make: that one would compare two
+  // reads of the same file, while this compares the file against a string that
+  // travelled through `define`, the bundler and a render. A stale `out/` shows
+  // up here and nowhere else.
+  const manifest = JSON.parse(readFileSync(resolve(projectRoot, 'package.json'), 'utf8')) as {
+    version: string
+  }
+  await expect(session.page.getByTestId('about-version')).toHaveText(manifest.version)
 
   // §13: dates read GG/AA/YYYY in both languages, and this one is no exception
   // for being a fact about the build rather than about money.
@@ -60,8 +69,16 @@ test('the addresses are text, because nothing here opens an external link', asyn
   await expect(session.page.getByTestId('about-readme')).toContainText('#readme')
 
   // No anchor anywhere on the page: a link the window handler would refuse is
-  // worse than no link, because it looks like it should work.
-  expect(await session.page.locator('[data-testid="about-panel"] a').count()).toBe(0)
+  // worse than no link, because it looks like it should work. Unscoped rather
+  // than confined to `about-panel`, because the licence opens into a *different*
+  // subtree — `about-licence` — and a `<a href="https://gnu.org/licenses/">`
+  // added there would have satisfied a scoped assertion while contradicting
+  // §17.1 exactly as loudly.
+  expect(await session.page.locator('a').count()).toBe(0)
+
+  await session.page.getByTestId('about-licence-open').click()
+  await expect(session.page.getByTestId('about-licence')).toBeVisible()
+  expect(await session.page.locator('a').count()).toBe(0)
 })
 
 test('the licence opens in place and carries the real GPL text', async () => {
@@ -89,6 +106,16 @@ test('the page speaks Turkish and English', async () => {
   await session.page.getByTestId('nav-about').click()
   await expect(session.page.getByTestId('nav-about')).toContainText('Hakkında')
   await expect(session.page.getByTestId('about-panel')).toContainText('Yapımcı')
+  await expect(session.page.getByTestId('about-panel')).toContainText('Ekonomi Defteri')
+
+  // Asserted on *this* side too. The claim is that the motto is the same string
+  // in both catalogues, and a check that only ever ran after switching to
+  // English could never have observed the Turkish one — `locale-parity`
+  // compares keys and placeholders, never values, so a translated motto would
+  // have passed everything.
+  await expect(session.page.getByTestId('about-panel')).toContainText(
+    'Built with Reason and Passion'
+  )
 
   await session.page.getByTestId('nav-settings').click()
   await session.page.getByTestId('language-en').click()
@@ -96,10 +123,9 @@ test('the page speaks Turkish and English', async () => {
   await session.page.getByTestId('nav-about').click()
   await expect(session.page.getByTestId('nav-about')).toContainText('About')
   await expect(session.page.getByTestId('about-panel')).toContainText('Created by')
+  await expect(session.page.getByTestId('about-panel')).toContainText('Economy Journal')
 
-  // The motto is deliberately the same string in both catalogues — it is the
-  // owner's own phrasing, and translating it would be inventing a second one.
   await expect(session.page.getByTestId('about-panel')).toContainText(
-    'Built with Passion and Reason'
+    'Built with Reason and Passion'
   )
 })

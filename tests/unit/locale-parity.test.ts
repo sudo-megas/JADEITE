@@ -138,9 +138,15 @@ describe('the Turkish and English catalogues carry the same keys', () => {
     // A floor rather than an equality, because keys are added to both files as
     // the app grows and an exact count would turn every new string into a
     // failing test. It only ever moves up, and only deliberately.
-    // 430 leaf strings in each catalogue when this was written, during
-    // Realisation IX. Raise it when a Realisation lands, never lower it.
-    expect(english.size).toBeGreaterThanOrEqual(430)
-    expect(turkish.size).toBeGreaterThanOrEqual(430)
+    //
+    // 430 when this was written at Realisation IX; 443 from v0.9b, which added
+    // the twelve `about` strings and `nav.about`. **Raising it is the whole
+    // point.** Left at 430 the floor was exactly the pre-v0.9b count, so the
+    // entire About namespace could have been deleted from *both* catalogues and
+    // every check here would still have passed — parity holds when both sides
+    // lose the same keys, and 430 ≥ 430. The page would have rendered its raw
+    // dotted key names with nothing to say so.
+    expect(english.size).toBeGreaterThanOrEqual(443)
+    expect(turkish.size).toBeGreaterThanOrEqual(443)
   })
 })

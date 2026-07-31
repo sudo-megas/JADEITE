@@ -28,7 +28,7 @@ export function Restore({ onRestored, onCancel }: Props): ReactElement {
   return (
     <div className="panel panel--wide" data-testid="restore-screen">
       <p className="brand">
-        <BrandMark />
+        <BrandMark size={66} />
         <span>{t('common.brand')}</span>
       </p>
       <h1>{t('backup.restoreTitle')}</h1>

@@ -23,7 +23,7 @@ export function RecoveryKeyPanel({ recoveryKey, generation, onAcknowledged }: Pr
   return (
     <div className="panel panel--wide">
       <p className="brand">
-        <BrandMark />
+        <BrandMark size={66} />
         <span>{t('common.brand')}</span>
       </p>
       <h1>{t('recovery.title')}</h1>

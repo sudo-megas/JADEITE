@@ -91,9 +91,16 @@ export const BACKUP_DESTINATION_ID = 'backup'
  */
 export const ABOUT_DESTINATION_ID = 'about'
 
-/** The destinations that live in the rail's foot, in the order they appear. */
-export const FOOT_DESTINATION_IDS: readonly string[] = Object.freeze([
-  BACKUP_DESTINATION_ID,
-  SETTINGS_DESTINATION_ID,
-  ABOUT_DESTINATION_ID
-])
+/*
+ * There was a `FOOT_DESTINATION_IDS` here, frozen, exported, and read by
+ * nothing. It arrived unused at Realisation IX and was carefully extended at
+ * v0.9b — while `Shell.tsx` went on hard-coding the same three buttons in JSX,
+ * because each carries different content: Yedekleme has the overdue dot, and
+ * Kilitle is an action rather than a destination.
+ *
+ * Its doc comment said "in the order they appear", which was the problem. A
+ * constant that claims to govern something it cannot reach is worse than no
+ * constant: reorder it and the rail does not move, and the next reader has to
+ * discover that the hard way. The three ids above are each used on their own;
+ * the order lives in the markup, which is the only thing that decides it.
+ */
