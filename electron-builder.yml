@@ -54,15 +54,73 @@ linux:
   target:
     - pacman
     - deb
+  # A prepared set rather than one 512px file, and the difference is visible.
+  #
+  # `LinuxTargetHelper.computeDesktopIcons` builds its source list as
+  # `[linux.icon, config.icon]` and takes the first that resolves, so this key —
+  # and not the top-level `icon:` — decides what lands in hicolor. (The
+  # `buildResources/icons` fallback below it is only consulted when neither is
+  # set, which is why the directory alone was not enough.) The top-level `icon:`
+  # stays, because the main process still hands that one file to BrowserWindow.
+  #
+  # The gain is *not* resampling quality, and it was measured before it was
+  # claimed: a 32px file cut from the master and a 32px Lanczos reduction of the
+  # 512 are near indistinguishable, because both start from something large.
+  # The gain is that hicolor gets an exact match at every size a launcher asks
+  # for, so nothing is scaled at display time by whatever filter that particular
+  # toolkit happens to use. Given one 512px file, electron-builder installs one
+  # 512px file, and every waybar and application grid rescales it on its own
+  # terms. Each file here is resampled from `build/outerAPP.png` directly:
+  #
+  #     for n in 16 24 32 48 64 96 128 256 512; do
+  #       magick build/outerAPP.png -channel A -level 2%,100% +channel -trim +repage \
+  #         -set option:side "%[fx:max(w,h)]" -background none -gravity center \
+  #         -extent "%[side]x%[side]" -filter Lanczos -resize ${n}x${n} \
+  #         -define png:color-type=6 -strip "build/icons/${n}x${n}.png"
+  #     done
+  #
+  # The filenames carry the size because that is how electron-builder reads a
+  # set. Committed rather than generated at pack time, for the reason the whole
+  # of this file gives: packaging must not need ImageMagick on the machine
+  # cutting the release.
+  icon: build/icons
   # Both the main category and the additional one, here rather than under
   # `desktop.entry`. LinuxTargetHelper assigns Categories from this key *after*
   # merging the entry map, so an entry-level Categories is silently discarded —
   # which is how the shipped v0.9b packages came to read `Categories=Office;`
   # while this file appeared to ask for Finance as well.
+  #
+  # `Comment` is the same story — assigned after the merge, so only the manifest
+  # can reach it. `Comment[tr]` is a *different* key and does survive, which is
+  # where the Turkish tooltip below lives.
   category: Office;Finance;
-  synopsis: Secure personal wealth and possessions tracker
+
+  # The whole of what an Arch user sees. fpm hands `--description` the synopsis,
+  # a newline and the manifest's description; deb.erb splits that into a short
+  # line and an indented continuation, but pacman.erb writes `pkgdesc = <%=
+  # description %>` on one line, so the second line becomes an orphan with no
+  # `=` and pacman drops it. Verified against the shipped artefact: `.PKGINFO`
+  # carries both lines and `pacman -Qip` prints only this one. So this string
+  # must stand alone, and it is the one that has to carry the name.
+  #
+  # An em dash rather than a colon on purpose: `: ` inside a plain YAML scalar
+  # would end the key.
+  synopsis: Economy Journal — an encrypted record of income, payments and valuables
+
   desktop:
     entry:
       Name: JADEITE
+      # Name is the application, GenericName is what kind of thing it is —
+      # "Mozilla" and "Web Browser" in the spec's own example. This is the pair
+      # a launcher shows and indexes, so it is where the rename actually lands.
+      # `Name[tr]` is deliberately absent: `common.brand` is JADEITE in both
+      # catalogues, and localising the brand here would contradict the app.
+      GenericName: Economy Journal
+      GenericName[tr]: Ekonomi Defteri
+      # The tooltip, in the application's own section vocabulary (§13's Gelir &
+      # Gider, Ödemeler, Varlıklar) so the launcher and the rail agree. §13 binds
+      # what *JADEITE* may read; a desktop environment choosing this key is the
+      # environment reading its own locale, which is not the same thing.
+      Comment[tr]: Gelir, gider, ödeme ve varlıkları tek bir şifreli dosyada tutar
       Terminal: false
       Type: Application

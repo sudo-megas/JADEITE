@@ -55,7 +55,7 @@
 
 **Acceptance**
 - [ ] All ten palettes render the shell with no hard-coded colour anywhere (audit script greps for hex literals in components).
-- [ ] Language switches only by hand; OS locale demonstrably ignored (run under `LANG=en_US.UTF-8`, app stays Turkish).
+- [ ] Language switches only by hand; OS locale demonstrably ignored (run under `LANG=en_US.UTF-8`, app stays Turkish). *(Machine-checked: `tests/e2e/shell.spec.ts` launches under a foreign `LANG` and asserts the app stays Turkish; `scripts/audit-locale.mjs` bans the reads statically.)*
 - [ ] Launch → lock ≤ 1.5 s; unlock → shell ≤ 1 s on the main rig.
 - [ ] The lock screen already wears the chosen palette and language, before any password is typed (§4.1 configuration split).
 - [ ] Tag `v0.2`.
@@ -80,7 +80,7 @@
 - [ ] A category retired in year N+1 leaves year N untouched.
 - [ ] Refund renders distinctly and sums correctly.
 - [ ] A full 12-month year can be entered **without touching the mouse**.
-- [ ] Workspace switch is smooth on the 280 Hz main display and acceptable on the laptop.
+- [ ] Workspace switch is smooth on the 280 Hz main display and acceptable on the laptop. **Owner-observed**, on both machines — `frame-stats.ts` derives the budget from the display's own median interval and the suite asserts only that the switch does not jank outright, which is the most a headless runner can honestly claim.
 - [ ] Tag `v0.3`.
 
 ---
@@ -98,7 +98,7 @@
 **Acceptance**
 - [ ] Typed by hand from the owner's known state (6 banks, counter columns Sayaç A/Sayaç B/Sayaç C), the engine reproduces grand total debt **₺48,271.63** and total remaining limit **₺1,240,596.08** — computed, not formula-copied.
 - [ ] Adding a December value in *any* bank updates every dependent total (the F-column bug is impossible).
-- [ ] Rollover archives are read-only and lossless.
+- [ ] ~~Rollover archives are read-only and lossless.~~ **Struck at v0.9d.** Point revision v0.8b deleted the year, the rollover and the frozen archive from Section 2 (§7.3 as amended), so this box tests a capability the application no longer has. It is not a check that fails; it is a check with no subject, and it was the one box that made Realisation X's "every list above still passes" literally unsatisfiable.
 - [ ] Tag `v0.4`.
 
 ---
@@ -212,7 +212,7 @@ The source's real shape is now known rather than assumed — §14.1 records it, 
 
 **Acceptance**
 - [ ] Every Overview number equals its section source (automated cross-check).
-- [ ] Renders beautifully in all ten palettes, both densities (1440p rig, 1080p laptop).
+- [ ] Renders beautifully in all ten palettes, both densities (1440p rig, 1080p laptop). **Owner-observed** — "beautifully" has no mechanical criterion and is not given a false one.
 - [ ] `package.json` reads `0.8.0` (§17).
 - [ ] Tag `v0.8`, and `gh release create`.
 
@@ -244,7 +244,7 @@ The precedent this must not become is the one v0.6c named: a letter is not a pla
 - [ ] The Overview's debt and remaining-limit tiles equal Ödemeler's own figures and deep-link to it.
 - [ ] A hundred and twenty figures go into Hesap Alanı from the keyboard alone, the grid growing as they land, with TOTAL / ORTALAMA / ORTANCA correct at the end.
 - [ ] `15/03/2026` is accepted, `31/02/2026` is refused at the cell, and every date on screen reads `GG/AA/YYYY` in both languages.
-- [ ] The glyph renders in all ten palettes and on the lock screen; the window and taskbar carry the app icon.
+- [ ] ~~The glyph renders in all ten palettes and on the lock screen;~~ the window and taskbar carry the app icon. **First clause struck at v0.9d**: the palette-tinted glyph it names was retired at v0.9b and the mark is fixed artwork now (§12.2 as amended). The second clause is untouched and still holds. Superseded by v0.9c's own box, which asserts the mark renders in all ten palettes without claiming it changes colour in them.
 - [ ] All previous Realisations' acceptance checks still pass, and a run with no network is still silent.
 - [ ] `package.json` reads `0.8.1` (§17).
 - [ ] Tag `v0.8b`, and `gh release create`.
@@ -283,6 +283,23 @@ The precedent this must not become is the one v0.6c named: a letter is not a pla
 
 ---
 
+## Point revision v0.8c — two grid rules that had never applied
+
+*Recorded retrospectively at v0.9d.* It was tagged and released on 31 July 2026 with no entry here, and three tags — `v0.2b`, `v0.6b`, `v0.8c` — reached `origin` the same way. The other two are covered by tests that arrived with them; this one is not, and a released change with neither a checklist nor a test is outside the reach of the sentence Realisation X opens with. Written down now so that it is not.
+
+**Goal:** make two CSS rules do what they had always said they did.
+
+`.s2-cell-input` and `.s3-cell-input` declared 13px type and tight padding, and none of it had ever reached the screen: the global `input[type='text']` rule near the top of `app.css` is an attribute selector and outranks a plain class, so both lost every declaration to a rule written for a standalone form field. Found while fixing the Section 4 box in v0.8b, which needed `input.s4-box` for the same reason.
+
+**Acceptance**
+- [ ] The Section 2 and Section 3 cells compute to the 13px type and the padding their authors wrote, measured rather than eyeballed.
+- [ ] Both grids read as grids — a table's own borders delimit its cells, rather than every cell drawing a second border inside the first.
+- [ ] The Payments grid shows its three bottom-bar rows without scrolling, and the ledger fits one more column at the same width.
+- [ ] `package.json` reads `0.8.2` (§17).
+- [ ] Tag `v0.8c`, and `gh release create`.
+
+---
+
 ## Point revision v0.9b — the mark, and the page that names it
 
 **Goal:** the application wears the artwork it was drawn for, and can say what it is.
@@ -291,7 +308,7 @@ Not a ladder rung. It amends Realisation II, which built the shell, and the v0.8
 
 **It advances no section and touches no figure, which is what qualifies it.** Nothing here reads or writes the vault, no channel crosses the bridge, and the schema does not move. The whole of it is chrome: an image where a drawing was, and a page in the rail's foot that reads out four facts a build already knows about itself. The brief is `docs/conficon.md`, filed by the owner between Realisations IX and X, and it comes into the repository with the work that answers it.
 
-The one thing that would make this a rung rather than a letter is the Hakkında page, and it is not one for a reason worth writing down: Realisation X already scopes *"Documentation inside the app: … licence notice"*, so the page is that item arriving early rather than a new one appearing. What X keeps is the first-run tour and the truth-table placement.
+The one thing that would make this a rung rather than a letter is the Hakkında page, and it is not one for a reason worth writing down: Realisation X already scopes *"Documentation inside the app: … licence notice"*, so the page is that item arriving early rather than a new one appearing. What X keeps is the first-run tour and the truth-table placement. *(The tour was struck at v0.9d; the placement is still X's.)*
 
 **Scope**
 - **The mark is artwork, not a token** (§12.2, amended). `JadeGlyph` and `build/icon.svg` are retired. `build/innerAPP.png` stands beside the wordmark in the rail and on all six ceremony screens at 22px, and `build/outerAPP.png` becomes the icon electron-builder derives the pacman and deb sets from — so the launcher, the waybar, the desktop entry and the window all carry the tile. Both masters carry a real alpha channel; every square asset is trimmed and *padded* from them, never cropped or stretched.
@@ -351,23 +368,65 @@ Not a rung. It amends v0.9b, released the same day, so it takes the next letter 
 
 ---
 
+## Point revision v0.9d — what the outside world reads, and a ladder that can be finished
+
+**Goal:** stop the application contradicting itself, and give Realisation X an acceptance list that covers Realisation X.
+
+Not a rung. It amends v0.9c and, in the ladder, Realisations II through IX — all released — so it takes the next letter per §17, and X still claims `v1.0`. It builds no feature.
+
+**Two of its three parts were scheduled for X and are done here instead, for the same reason in both cases: they are defects, not tasks.** v0.9c taught the application to call itself *Ekonomi Defteri* on the About page while every launcher on the machine went on saying something else — that is a contradiction the moment it ships, not a scheduled improvement. And a hicolor set with one entry is not a decision anyone made; it is what happens when a single PNG is handed to a packager. What X keeps is confirming both on an installed system, which is the part only an installed system can answer.
+
+**Scope**
+- **The outward strings follow the on-screen name.** `package.json`'s `description` becomes the launcher's `Comment=`; `electron-builder.yml`'s `synopsis` becomes the whole of what an Arch user sees. They are deliberately *different* sentences, because the freedesktop specification asks that a `Comment` not restate `Name` or `GenericName` — JADEITE is the Mozilla to Economy Journal's Web Browser — and because fpm concatenates the two and each surface takes a different part. The name pair moves to `GenericName`, in both languages, which is the key a launcher shows and indexes. `Comment[tr]` gives a Turkish tooltip: it survives the `desktop.entry` merge where a bare `Comment` does not, because `LinuxTargetHelper` overwrites exactly one key and a locale suffix makes a different one.
+- **A measurement that corrected the ladder.** X recorded that "the deb prints the same sentence twice". Measured against the built artefact, it is worse and elsewhere: `pacman.erb` writes `pkgdesc` on one line, so fpm's second line becomes an orphan with no `=` and pacman drops it silently. `pacman -Qip` on the shipped v0.9.2 package printed `synopsis` alone. On the primary target, `package.json`'s `description` had never been read by anything but the desktop entry.
+- **Nine icon sizes instead of one.** `build/icons/` holds 16 through 512, each cut from `build/outerAPP.png` rather than from the 512. `linux.icon` points at the directory, because `computeDesktopIcons` reads `[linux.icon, config.icon]` and the top-level key was never what decided hicolor's contents. The gain is *not* resampling quality — that was measured and the difference is invisible — it is that a launcher asking for 32px gets 32px instead of rescaling 512 on its own terms.
+- **The ladder can be finished now.** X's regression line was unsatisfiable: one box tested a feature v0.8b deleted, and twenty are one-time release gates that record a version rather than check a behaviour. The impossible box is struck, the stale half of another is struck, three subjective boxes are marked owner-observed rather than given false criteria, and X's acceptance list is rebuilt to cover X's own scope — it had five boxes against eight scope items, so uninstall, upgrade-in-place, the laptop's cold-start ceiling, the palette sweep and the icon set could each have been done without ever being declarable.
+- **The first-run tour is struck**, at the owner's ruling: unspecified anywhere in `XJADEITE.md`, refused in shape by Global rule 7, and answered better by the repository's README, which Realisation XI owns.
+- **v0.8c is recorded**, three weeks late. It shipped tagged and released with no entry and no test — a CSS-only revision that the sentence opening Realisation X could not reach.
+
+**Acceptance**
+- [ ] `pacman -Qip` on the built package prints one description, and it names *Economy Journal*.
+- [ ] The generated `.desktop` carries `GenericName` and `GenericName[tr]`, a `Comment` that restates neither, and `Comment[tr]` in Turkish.
+- [ ] The installed hicolor set holds all nine sizes, each byte-identical to `build/icons/`.
+- [ ] No tracked file says *"Secure personal wealth and possessions tracker"*.
+- [ ] Realisation X's acceptance list has a box for every item in Realisation X's scope.
+- [ ] All previous Realisations' *behavioural* acceptance checks still pass.
+- [ ] `package.json` reads `0.9.3` (§17).
+- [ ] Tag `v0.9d`, and `gh release create`.
+
+---
+
 ## Realisation X — Linux Finalisation · v1.0
 
 **Goal:** "the app became realized" — on Linux.
 
 **Scope**
-- Full-pass QA of every acceptance list above on CachyOS (main rig) **and** Arch/Niri (laptop).
+- Full-pass QA of every acceptance list above on CachyOS (main rig) **and** Arch/Niri (laptop). **The regression line means the *behavioural* boxes.** Twenty of the boxes above this rung are one-time release gates — `` `package.json` reads `0.7.0` ``, `` Tag `v0.8` `` — and six of them are already false, because the manifest has moved on. A gate records that a version shipped; it is not a check that can be re-run. Read literally the line was unsatisfiable, which is worth stating rather than resolving by everyone quietly knowing.
 - Packaging: electron-builder **pacman** package (primary, installer-grade) + deb; install/uninstall/upgrade-in-place verified; desktop entry, icon set.
-- **The outward description follows the one on screen.** The application began calling itself *Ekonomi Defteri* / *Economy Journal* at v0.9c, on the About page only. The strings the public reads were deliberately left behind until this rung, because they are what a launcher and a package listing show: `package.json`'s `description` (which is what reaches the `.desktop` `Comment=`, not `synopsis`), `electron-builder.yml`'s `synopsis`, and the specification's own `Project:` line, which is a definition and therefore an amendment. Two things to settle while there: the deb's Description field currently prints the same sentence twice, because fpm concatenates `synopsis` and `description` and both hold it; and `Comment=` is written after the `desktop.entry` merge, so only `linux.description` or the manifest can change it — though a locale-suffixed `Comment[tr]` may survive, which would give a Turkish launcher tooltip.
-- Whether one 512px icon is enough. electron-builder derives a single-size hicolor set from `build/icon.png`, so a 32px launcher slot downsamples 16:1 in one step — the muddiest path, and the one that costs the tile's wordmark first. A `build/icons/` directory of prepared sizes is the alternative.
-- Performance polish to budgets; final visual sweep across all ten palettes; string freeze TR/EN.
-- Documentation inside the app: first-run tour (skippable), the truth table, licence notice.
+- ~~The outward description follows the one on screen.~~ **Done early, at v0.9d** — the application was contradicting itself, saying *Ekonomi Defteri* on the About page and the old sentence in every launcher, and that is a defect rather than a scheduled task. What remains for this rung is only to confirm it on an installed system.
+- **The installed package is about three times the size it needs to be**, measured at v0.9c: `app.asar` holds **98.2 MB across 1510 files**, and the four largest entries are not runtime code. `better-sqlite3-multiple-ciphers` ships the SQLite C amalgamation **twice** — `deps/sqlite3/sqlite3.c` and `build/Release/obj/gen/sqlite3/sqlite3.c`, 12.7 MB each — which is the source the native module was compiled *from*; the app runs the `.node` binary beside it. And the whole of `node_modules/echarts` is there, roughly 35 MB of source maps and alternate builds, despite `externalizeDepsPlugin` being applied to main and preload only — so Vite already bundles echarts into the renderer chunk and the copy in the asar is never loaded. The same holds for `@tanstack/react-table`. This is a `files:` exclusion list in `electron-builder.yml`, and it must be verified by *running* the packaged app rather than by reading the config, since an over-broad exclusion breaks a native module in a way no unit test sees.
+- Performance polish to budgets; final visual sweep across all ten palettes; string freeze TR/EN. **The freeze is the event that turns the locale floor into an equality** — `locale-parity`'s count assertion is a floor precisely because keys keep arriving, and after the freeze they stop.
+- Documentation inside the app: ~~first-run tour (skippable),~~ the truth table, licence notice. **The tour is struck** *(v0.9d, owner's ruling)*. It was named twice in this document and specified nowhere in `XJADEITE.md` — no behaviour, no strings, no trigger, no skip semantics — and Global rule 7 refuses exactly its shape: shown once per install, carried forever. What it would have said belongs in the repository's `README.md`, which Realisation XI already owns. The licence notice shipped at v0.9b and the truth table at Realisation IX; what remains here is the truth table's *placement*, since §15 scoped a page and what was built is a component inside Yedekleme.
 
 **Acceptance**
-- [ ] Fresh-machine install from the pacman package to working vault in under two minutes.
-- [ ] The launcher entry, the package listing and the specification all say *Ekonomi Defteri* / *Economy Journal*, and the deb prints it once rather than twice.
-- [ ] Zero known defects against XJADEITE; deviations either fixed or spec-amended consciously.
+
+*Machine-checked.*
+- [ ] The launcher entry, the package listing and the specification all say *Ekonomi Defteri* / *Economy Journal*; `pacman -Qip` shows one description and `apt show` shows a synopsis and a distinct extended line, neither repeating the other.
+- [ ] The installed hicolor set carries every size `build/icons/` holds, and each installed file is byte-identical to its source.
+- [ ] The `.desktop` entry reads `StartupWMClass=jadeite` — the app_id the running window actually reports — with `GenericName` in both languages and `Categories=Office;Finance;`.
 - [ ] `package.json` reads `1.0.0`, and `releaseDate` beside it is the day this ships (§17, §17.1).
+- [ ] The packaged application starts, unlocks and opens every section after the `files:` slimming, on a machine that never built it.
+
+*Owner-observed, on both named machines.*
+- [ ] Fresh-machine install from the pacman package to working vault in under two minutes.
+- [ ] Uninstall removes the application, its launcher entry and its icons, and leaves the vault where it is — a package manager must never take the owner's data with it.
+- [ ] Upgrade-in-place over an earlier version keeps the vault openable with the same password.
+- [ ] Cold start inside §3.4 on **both** rigs: ≤ 1.5 s on CachyOS, ≤ 3 s on the Arch/Niri laptop. The laptop ceiling has never been asserted anywhere.
+- [ ] The visual sweep: all ten palettes at 1440p and at 1080p.
+- [ ] Every *behavioural* acceptance box above still passes, release gates excepted.
+
+*Judged.*
+- [ ] Zero known defects against XJADEITE; deviations either fixed or spec-amended consciously.
 - [ ] Tag `v1.0`, and `gh release create`.
 
 ---
