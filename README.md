@@ -1,7 +1,7 @@
 <h1>JADEITE</h1>
 
 <p>
-  <img alt="Version"           src="https://img.shields.io/badge/version-1.1.0-00A86B?style=for-the-badge">
+  <img alt="Version"           src="https://img.shields.io/badge/version-v1.1-00A86B?style=for-the-badge">
   <img alt="Release date"      src="https://img.shields.io/badge/released-2026--08--01-00A86B?style=for-the-badge">
   <img alt="Licence"           src="https://img.shields.io/badge/licence-GPL--3.0--only-6E7B8B?style=for-the-badge">
 </p>
