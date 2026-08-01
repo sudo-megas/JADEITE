@@ -158,6 +158,20 @@ pacman:
     - gtk3
     - nss
     - alsa-lib
+  # Realisation XI, closing a box carried from X. electron-builder passes fpm
+  # `--after-install` and `--after-remove` and nothing else, which is whole for
+  # the deb — dpkg runs `postinst configure` on an upgrade too — and short for
+  # pacman, which calls `post_install` only on a first install and
+  # `post_upgrade` when one version replaces another. Without this, `pacman -U`
+  # over an installed JADEITE ran no scriptlet at all and the SUID bit
+  # `post_install` puts on `chrome-sandbox` was silently lost, on precisely the
+  # machines that need the helper. `pacman.fpm` is passed through verbatim, so
+  # the file is read relative to the directory packaging runs from — the
+  # project root, which is where npm puts a script's cwd. The scriptlet says
+  # the rest.
+  fpm:
+    - --after-upgrade
+    - build/pacman-post-upgrade.sh
 
 # Realisation XI. The second platform, and the first one whose installer this
 # project actually gets to choose the shape of.
@@ -201,7 +215,7 @@ win:
   icon: build/icon.ico
   # `jadeite`, not `JADEITE`: the executable name is a filename, and every other
   # filename this project ships is lowercase — `jadeite.db`, `jadeite.keys`,
-  # `jadeite-1.0.0.pacman`, `/opt/JADEITE/jadeite`. `productName` still carries
+  # `jadeite-<version>.pacman`, `/opt/JADEITE/jadeite`. `productName` still carries
   # the capitals wherever a human reads it.
   executableName: jadeite
 
@@ -223,7 +237,8 @@ nsis:
 
   # Per-user, so no UAC prompt and no administrator.
   #
-  # The vault lives in `%APPDATA%\jadeite` (§5.1) and is per-user by
+  # The vault lives in `%LOCALAPPDATA%\jadeite` (§5.1, as amended by Realisation
+  # XI — configuration stays in `%APPDATA%\jadeite`) and is per-user by
   # construction; a machine-wide install would put the binary somewhere every
   # account can reach while the data stayed in exactly one profile, which
   # promises a sharing that does not exist. It also means an owner without
@@ -239,14 +254,15 @@ nsis:
 
   # Removing the application must not remove the vault — the same rule the pacman
   # side is held to, and the one Realisation X called the rule that matters.
-  # `%APPDATA%\jadeite` is outside `$INSTDIR`, so NSIS does not touch it; this key
+  # `%LOCALAPPDATA%\jadeite` is outside `$INSTDIR`, so NSIS does not touch it —
+  # nor is `%APPDATA%\jadeite`, where the configuration is; this key
   # only stops electron-builder from volunteering to delete the Electron profile
   # beside it.
   deleteAppDataOnUninstall: false
 
-  # `jadeite-1.0.0-setup.exe`, matching the lowercase, hyphenated shape of
-  # `jadeite-1.0.0.pacman` rather than electron-builder's default
-  # `JADEITE Setup 1.0.0.exe`, which carries spaces into every download
+  # `jadeite-<version>-setup.exe`, matching the lowercase, hyphenated shape of
+  # `jadeite-<version>.pacman` rather than electron-builder's default
+  # `JADEITE Setup <version>.exe`, which carries spaces into every download
   # directory and every command line that ever names it.
   artifactName: ${name}-${version}-setup.${ext}
 

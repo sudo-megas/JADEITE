@@ -366,7 +366,21 @@ test('a config write that fails carries no filesystem path back', async () => {
     expect(outcome.rejected, 'the handler resolved rather than throwing').toBe(false)
     expect(outcome.keys).toEqual(['format', 'language', 'palette'])
     expect(outcome.text).not.toContain('/')
-    expect(outcome.text).not.toContain('EACCES')
+    // Not `EACCES` by name. That was the errno the chmod mechanism produced, at
+    // `openSync`; the occupying directory fails one step later at the rename,
+    // which is EISDIR on Linux and a different code again on Windows. Naming
+    // any one of them ties the assertion to a mechanism it is not about — the
+    // property is that no errno crosses the bridge, whichever one it was.
+    expect(outcome.text).not.toMatch(/\bE[A-Z]{3,}\b/)
+    // And the write really did fail. Without this the test cannot tell a
+    // swallowed failure from a success: both branches of the handler return an
+    // `AppConfig` with these three keys and no path in it, so every assertion
+    // above would hold if the mechanism ever stopped failing. The requested
+    // palette coming back would mean the write landed.
+    expect(
+      (JSON.parse(outcome.text) as { palette: string }).palette,
+      'the write was supposed to fail, and the requested palette came back'
+    ).not.toBe('nord-dark')
   } finally {
     rmSync(occupied, { recursive: true, force: true })
   }

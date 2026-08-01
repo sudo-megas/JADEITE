@@ -37,6 +37,10 @@ It opens in **Turkish** and speaks **English** if you prefer, and it works fully
 - **Windows needs no Visual Studio and no Python.** This is worth saying plainly, because it
   is the part people expect to be false: both native pieces ship ready-built binaries for
   Windows, so nothing is compiled on your machine.
+- **Arch Linux needs one more package to *build the installer*: `libxcrypt-compat`.** Only for
+  `npm run package`, never to run the app. The packaging tool downloads its own Ruby, and that
+  Ruby is linked against `libcrypt.so.1`, which Arch stopped installing by default. Without it
+  packaging stops at `fpm process failed 127`. `sudo pacman -S libxcrypt-compat`.
 
 ---
 

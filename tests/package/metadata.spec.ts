@@ -207,6 +207,47 @@ test.describe('removal cannot reach the owner’s data', () => {
     }
   })
 
+  /**
+   * The other half of the scriptlet question, and the one that had no answer
+   * until Realisation XI: what runs when a version *replaces* a version.
+   *
+   * pacman calls `post_install` on a first install and `post_upgrade` on an
+   * upgrade — never both — and electron-builder passes fpm neither
+   * `--before-upgrade` nor `--after-upgrade`. So every release up to and
+   * including v1.0 shipped an `.INSTALL` with two functions in it, and
+   * `pacman -U` over an installed JADEITE ran none of them. The cost is the
+   * SUID bit on `chrome-sandbox`: laid down at 0755 by the payload, raised to
+   * 4755 by `post_install` on machines without working user namespaces, and
+   * not raised again by an upgrade. The application then fails to start on
+   * exactly the machines that need the sandbox helper, and only after an
+   * upgrade — which is why no fresh-install test could ever have found it.
+   *
+   * Asserted against the built package rather than against the config, because
+   * the config is three lines of YAML and the question is whether fpm did
+   * anything with them.
+   */
+  test('an upgrade runs a scriptlet, and it restores the sandbox bit', () => {
+    const scriptlets = member(mustExist(pacmanPath, 'pacman package'), '.INSTALL')
+
+    expect(scriptlets, 'the package has no post_upgrade, so pacman -U runs nothing').toContain(
+      'post_upgrade()'
+    )
+
+    // Bounded at the closing brace rather than sliced to the end of the file:
+    // `post_install` carries the same two lines, and an unbounded slice would
+    // pass on its text if fpm ever ordered the functions the other way round.
+    const match = /^post_upgrade\(\) \{\n([\s\S]*?)\n\}$/m.exec(scriptlets)
+    expect(match, 'post_upgrade is not a function this file can read').not.toBeNull()
+
+    const body = match![1]
+    expect(body, 'post_upgrade does not test for working user namespaces').toContain(
+      'unshare --user true'
+    )
+    expect(body, 'post_upgrade does not restore the SUID bit').toContain(
+      "chmod 4755 '/opt/JADEITE/chrome-sandbox'"
+    )
+  })
+
   test('the payload installs only under /opt and /usr', () => {
     // A file laid down anywhere else is removed from anywhere else, and the
     // package has no business outside these two prefixes.

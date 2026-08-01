@@ -11,8 +11,9 @@
 # `text=auto eol=lf` settles it in the repository itself: Git decides what is text
 # by inspecting it, normalises to LF on commit, and checks LF back out on every
 # platform. This project is Linux-native and its build is scripted for a shell;
-# `install.sh`, the `.desktop` entry and the pacman scriptlets all read their line
-# endings as content. Since Windows 10 1809 even Notepad reads LF, so there is no
+# `build/pacman-post-upgrade.sh`, the `.desktop` entry and the audit scripts all
+# read their line endings as content — a CRLF in the scriptlet is a scriptlet
+# `/bin/bash` refuses. Since Windows 10 1809 even Notepad reads LF, so there is no
 # longer anything on the Windows side asking for the other convention.
 * text=auto eol=lf
 
