@@ -180,7 +180,27 @@ export function create(destination: string, reason: BackupReason, appVersion: st
   } catch {
     return { ok: false, error: 'IO' }
   } finally {
-    rmSync(workDir, { recursive: true, force: true })
+    // The argument immediately above, one line lower down and one platform over.
+    //
+    // A throw from a `finally` *replaces* the value the `try` was returning, and
+    // it escapes past this function's own `catch` — so an exception here does
+    // not answer `IO`, it propagates to `guarded()` and the owner is told
+    // `INTERNAL` about a backup that was written, verified and logged.
+    //
+    // On Linux that could not happen: unlinking an open file always succeeds.
+    // On Windows it is a live case — `snapshot.db` was closed moments earlier,
+    // which is exactly when Defender opens a newly written file to scan it, and
+    // a delete against another process's handle is `EBUSY`. `maxRetries` is the
+    // answer Node provides for precisely this, and the catch is the guarantee
+    // that cleanup can never be the thing that fails the operation. A leaked
+    // temp directory is a worse day for the disk, not for the owner — but it
+    // holds a SQLCipher copy of the whole vault, so it is worth the retries
+    // rather than merely worth ignoring.
+    try {
+      rmSync(workDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
+    } catch {
+      console.warn('[backup] the working directory could not be removed', workDir)
+    }
   }
 }
 

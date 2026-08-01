@@ -25,22 +25,39 @@ let home: string
 beforeEach(() => {
   home = mkdtempSync(join(tmpdir(), 'jadeite-config-'))
   process.env['XDG_CONFIG_HOME'] = home
+  process.env['JADEITE_CONFIG_HOME'] = home
 })
 
 afterEach(() => {
   rmSync(home, { recursive: true, force: true })
   delete process.env['XDG_CONFIG_HOME']
+  delete process.env['JADEITE_CONFIG_HOME']
 })
 
 describe('where it lives', () => {
-  it('sits under the XDG config home, not beside the vault', () => {
+  it('sits under the config home, not beside the vault', () => {
     expect(configDirectory()).toBe(join(home, 'jadeite'))
     expect(configPath()).toBe(join(home, 'jadeite', 'config.json'))
   })
 
-  it('honours XDG_CONFIG_HOME when it changes', () => {
+  it('honours the override when it changes', () => {
+    process.env['JADEITE_CONFIG_HOME'] = join(home, 'elsewhere')
+    expect(configDirectory()).toBe(join(home, 'elsewhere', 'jadeite'))
+  })
+
+  // XDG is the POSIX branch's own convention and the win32 branch never consults
+  // it. Asserting it on every platform is what let this suite address the
+  // owner's real configuration when it ran on Windows.
+  it.skipIf(process.platform === 'win32')('honours XDG_CONFIG_HOME where XDG applies', () => {
+    delete process.env['JADEITE_CONFIG_HOME']
     process.env['XDG_CONFIG_HOME'] = join(home, 'elsewhere')
     expect(configDirectory()).toBe(join(home, 'elsewhere', 'jadeite'))
+  })
+
+  it.runIf(process.platform === 'win32')('takes APPDATA on Windows, and ignores XDG', () => {
+    delete process.env['JADEITE_CONFIG_HOME']
+    process.env['XDG_CONFIG_HOME'] = join(home, 'ignored')
+    expect(configDirectory()).toBe(join(process.env['APPDATA'] as string, 'jadeite'))
   })
 })
 
@@ -95,6 +112,11 @@ describe('a file someone edited by hand', () => {
     expect(Object.keys(readAppConfig()).sort()).toEqual(['format', 'language', 'palette'])
   })
 
+  it('survives a byte-order mark, which is what a Windows editor leaves behind', () => {
+    write(`\uFEFF${JSON.stringify({ format: 1, palette: 'nord', language: 'en' })}`)
+    expect(readAppConfig()).toEqual({ format: CONFIG_FORMAT, palette: 'nord', language: 'en' })
+  })
+
   it('survives nulls in every field', () => {
     write(JSON.stringify({ format: null, palette: null, language: null }))
     expect(readAppConfig()).toEqual({ ...DEFAULT_APP_CONFIG, format: CONFIG_FORMAT })
@@ -113,7 +135,11 @@ describe('writing', () => {
     expect(existsSync(`${configPath()}.tmp`)).toBe(false)
   })
 
-  it('is owner-only on disk', () => {
+  // POSIX mode bits only. Windows reports 0o666 from `mode & 0o777` whatever the
+  // ACL underneath says, and the mode argument to `openSync` is ignored there;
+  // what keeps this file the owner's business on Windows is the profile ACL on
+  // %APPDATA%, which no chmod of ours would improve.
+  it.skipIf(process.platform === 'win32')('is owner-only on disk', () => {
     writeAppConfig({ format: CONFIG_FORMAT, palette: 'nord', language: 'tr' })
     // 0o600: this is not secret, but it is nobody else's business either.
     expect(statSync(configPath()).mode & 0o777).toBe(0o600)

@@ -16,8 +16,36 @@
 import { closeSync, fsyncSync, openSync, renameSync, unlinkSync, writeSync } from 'node:fs'
 import { dirname } from 'node:path'
 
-/** Flush a directory entry, so a rename into it survives a power cut. */
+/**
+ * Flush a directory entry, so a rename into it survives a power cut.
+ *
+ * **Nothing on Windows, deliberately, and it must stay that way.** There is no
+ * directory-sync primitive there. libuv opens the handle happily — `fs__open`
+ * sets `FILE_FLAG_BACKUP_SEMANTICS`, so `openSync(dir, 'r')` succeeds — but the
+ * handle it returns carries `GENERIC_READ` alone, and `fs__fsync` is a bare
+ * `FlushFileBuffers`, which wants `GENERIC_WRITE` and answers a directory with
+ * `ERROR_ACCESS_DENIED`. Node raises that as `EACCES: permission denied, fsync`.
+ *
+ * This is the last statement of `writeFileAtomic`, *after* the rename has already
+ * happened, so without the guard every atomic write on Windows would do its work
+ * correctly and then throw — and the callers all read a throw as failure. A vault
+ * could never be created there: `vault.create()` would leave `jadeite.keys` on
+ * disk with no database beside it, report `INTERNAL`, and fail identically on
+ * every retry for as long as the machine stood.
+ *
+ * The durability the module header argues for still holds, by a different route.
+ * The file's own bytes were flushed before the rename, and NTFS journals the
+ * `MoveFileEx` metadata transaction that the rename compiles to — so the entry
+ * pointing at those bytes is as crash-ordered as the flush would have made it.
+ * SQLite reaches the same conclusion in its own `os_win.c`, where the directory
+ * sync is a no-op for exactly this reason.
+ *
+ * A guard rather than a `try`/`catch`: on Linux this flush is load-bearing, and
+ * swallowing an `EIO` there would quietly give up the property the whole module
+ * exists to provide.
+ */
 export function fsyncDirectory(path: string): void {
+  if (process.platform === 'win32') return
   const fd = openSync(path, 'r')
   try {
     fsyncSync(fd)

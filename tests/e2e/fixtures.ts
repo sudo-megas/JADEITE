@@ -38,14 +38,26 @@ async function launchIn(
   // With one, it runs a built application: its own Electron binary, its own
   // asar, and — the reason the packaged suite exists at all — whatever survived
   // the `files:` exclusions in electron-builder.yml.
+  // `--no-sandbox` is a Linux flag and belongs only there, where it is what lets
+  // a development Electron start without a SUID `chrome-sandbox` helper beside
+  // it. On Windows it is not merely unnecessary: `src/main/index.ts` calls
+  // `app.enableSandbox()`, and asking Chromium to enforce and disable the
+  // sandbox in the same launch kills the process with an access violation
+  // (0xC0000005) before any window is created — which arrives here as a
+  // `beforeAll` timeout, and reads as an application that hangs rather than one
+  // that was mis-invoked. Given the flag it needs, the packaged application
+  // reaches its lock screen in under half a second.
+  const sandboxArgs = process.platform === 'win32' ? [] : ['--no-sandbox']
   const app = await electron.launch({
-    args: executablePath ? ['--no-sandbox'] : ['--no-sandbox', projectRoot],
+    args: executablePath ? sandboxArgs : [...sandboxArgs, projectRoot],
     ...(executablePath ? { executablePath } : {}),
     cwd: executablePath ? dirname(executablePath) : projectRoot,
     env: {
       ...process.env,
       XDG_DATA_HOME: dataHome,
       XDG_CONFIG_HOME: join(dataHome, 'config'),
+      JADEITE_DATA_HOME: dataHome,
+      JADEITE_CONFIG_HOME: join(dataHome, 'config'),
       ELECTRON_DISABLE_SECURITY_WARNINGS: '1',
       ...extraEnv
     }
@@ -92,8 +104,19 @@ export async function launchFresh(env: NodeJS.ProcessEnv = {}): Promise<Session>
   return launchIn(mkdtempSync(join(tmpdir(), 'jadeite-e2e-')), true, env)
 }
 
-/** Where `electron-builder --linux --dir` leaves the built application. */
-export const packagedBinary = resolve(projectRoot, 'release/linux-unpacked/jadeite')
+/**
+ * Where `electron-builder --dir` leaves the built application, per target.
+ *
+ * `executableName: jadeite` in electron-builder.yml gives the same lowercase
+ * stem on both platforms; Windows adds the extension it needs to be launchable,
+ * and puts it under `win-unpacked` rather than `linux-unpacked`.
+ */
+export const packagedBinary = resolve(
+  projectRoot,
+  process.platform === 'win32'
+    ? 'release/win-unpacked/jadeite.exe'
+    : 'release/linux-unpacked/jadeite'
+)
 
 /**
  * The same fresh-vault launch, against the *built* application.

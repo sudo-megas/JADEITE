@@ -83,6 +83,22 @@ files:
   - '!**/node_modules/better-sqlite3-multiple-ciphers/src/**/*'
 
 # Native modules must stay outside the asar so their .node binaries are loadable.
+#
+# **The Windows package must be built on Windows. This is not a preference.**
+# `node-gyp-build` resolves in the order `build/Release`, `build/Debug`,
+# `prebuilds` — the prebuild is a *fallback*, not a preference. Nothing under
+# `argon2/` is pruned by the `files:` block above (better-sqlite3's build output
+# is, at lines 81-83; the asymmetry is accidental), so whatever sits in
+# `build/Release` at pack time is what ships. On this machine that file is an
+# `ELF 64-bit LSB shared object`. Cross-pack a Windows installer from a Linux
+# checkout and the packaged application will load that ELF in preference to
+# `prebuilds/win32-x64/argon2.glibc.node`, and die with "%1 is not a valid Win32
+# application" — *at first unlock*, after the vault UI has already painted,
+# because `argon2` is only required inside the KDF. A green build, a shipped
+# installer, and a failure the packaging never sees.
+#
+# Realisation XI therefore builds `--win` from a Windows checkout and `--linux`
+# from a Linux one. `npm run package:win` exists to be run there.
 asar: true
 asarUnpack:
   - "**/node_modules/better-sqlite3-multiple-ciphers/**"
@@ -142,6 +158,97 @@ pacman:
     - gtk3
     - nss
     - alsa-lib
+
+# Realisation XI. The second platform, and the first one whose installer this
+# project actually gets to choose the shape of.
+#
+# **The icon split promised at the top of this file becomes expressible here.**
+# `docs/conficon.md` asks for two marks with different jobs — `innerAPP.png`, the
+# bare shield, on installers, and `outerAPP.png`, the tile, in launchers. Linux
+# could not honour it: `linuxOptions` exposes a single `icon` and `FpmTarget`
+# builds both packages from it. NSIS takes four, so the shield goes on `setup.exe`
+# and its uninstaller while the tile goes on the application, which is what the
+# Start menu and the taskbar show. Both `.ico` files are committed rather than
+# generated at pack time, for the reason the rest of this file gives — packaging
+# must not need ImageMagick on the machine cutting the release — and both are cut
+# with the same recipe as the hicolor set, so no mark is ever stretched:
+#
+#     for src in outerAPP:icon innerAPP:installerIcon; do
+#       magick "build/${src%%:*}.png" -channel A -level 2%,100% +channel -trim +repage \
+#         -set option:side "%[fx:max(w,h)]" -background none -gravity center \
+#         -extent "%[side]x%[side]" -filter Lanczos \
+#         -define icon:auto-resize=256,128,64,48,32,24,16 "build/${src##*:}.ico"
+#     done
+#
+# Seven sizes in each, because Windows picks its own and rescales whatever it is
+# given if the size it wants is absent. `uninstallerIcon` points at the same file
+# as `installerIcon` instead of a second identical copy: the two are the same
+# mark doing the same job, and a duplicated 372 KB in the repository would say
+# they were not.
+#
+# **Unsigned, and that is a decision rather than an omission.** There is no code
+# signing certificate, so SmartScreen will interpose a "Windows protected your
+# PC" panel on first run until the download earns reputation. The alternative is
+# an EV certificate rented annually from a vendor, for an application whose whole
+# premise is that it phones nobody and belongs to its owner. The panel is
+# dismissible; the dependency would not be.
+win:
+  target:
+    - nsis
+  # The tile — the mark a launcher shows, per conficon.md's ICON 2. This also
+  # becomes the window and taskbar icon, which is the same surface by another
+  # name.
+  icon: build/icon.ico
+  # `jadeite`, not `JADEITE`: the executable name is a filename, and every other
+  # filename this project ships is lowercase — `jadeite.db`, `jadeite.keys`,
+  # `jadeite-1.0.0.pacman`, `/opt/JADEITE/jadeite`. `productName` still carries
+  # the capitals wherever a human reads it.
+  executableName: jadeite
+
+nsis:
+  # The shield — conficon.md's ICON 1, the mark for installers.
+  installerIcon: build/installerIcon.ico
+  uninstallerIcon: build/installerIcon.ico
+  installerHeaderIcon: build/installerIcon.ico
+
+  # Assisted rather than one-click, which is not electron-builder's default.
+  #
+  # A one-click installer picks a directory, installs and launches, with no page
+  # in between. That is right for something disposable. This application holds
+  # the owner's financial record and asks for a password before it will show
+  # anything, and the install is a thing they should be able to see the shape of
+  # — where it is going, and that it is going somewhere they chose.
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+
+  # Per-user, so no UAC prompt and no administrator.
+  #
+  # The vault lives in `%APPDATA%\jadeite` (§5.1) and is per-user by
+  # construction; a machine-wide install would put the binary somewhere every
+  # account can reach while the data stayed in exactly one profile, which
+  # promises a sharing that does not exist. It also means an owner without
+  # administrator rights on their own machine can still install this.
+  perMachine: false
+
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  # What the shortcut is called. `productName` would give the same string today;
+  # naming it here means a later change to `productName` cannot silently rename
+  # every existing shortcut on an upgrade.
+  shortcutName: JADEITE
+
+  # Removing the application must not remove the vault — the same rule the pacman
+  # side is held to, and the one Realisation X called the rule that matters.
+  # `%APPDATA%\jadeite` is outside `$INSTDIR`, so NSIS does not touch it; this key
+  # only stops electron-builder from volunteering to delete the Electron profile
+  # beside it.
+  deleteAppDataOnUninstall: false
+
+  # `jadeite-1.0.0-setup.exe`, matching the lowercase, hyphenated shape of
+  # `jadeite-1.0.0.pacman` rather than electron-builder's default
+  # `JADEITE Setup 1.0.0.exe`, which carries spaces into every download
+  # directory and every command line that ever names it.
+  artifactName: ${name}-${version}-setup.${ext}
 
 linux:
   target:

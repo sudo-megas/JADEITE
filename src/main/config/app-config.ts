@@ -36,10 +36,19 @@ export const CONFIG_FORMAT = 1
 const APP_DIR_NAME = 'jadeite'
 
 /**
- * Linux: `~/.config/jadeite/` — configuration, per the XDG convention, kept
- * separate from `~/.local/share/jadeite/` where the vault lives.
+ * Linux:   `~/.config/jadeite/` — configuration, per the XDG convention, kept
+ *          separate from `~/.local/share/jadeite/` where the vault lives.
+ * Windows: `%APPDATA%\jadeite\` — the roaming half of the same split, with the
+ *          vault in `%LOCALAPPDATA%`. Chromium's own profile lands here too,
+ *          exactly as it does in `~/.config/jadeite/` on Linux; §4.1 constrains
+ *          the *data* directory, and that one still holds its two files.
+ *
+ * `JADEITE_CONFIG_HOME` overrides both, and is how the suites stay off the
+ * owner's real configuration — `XDG_CONFIG_HOME` never reached the win32 branch.
  */
 export function configDirectory(): string {
+  const override = process.env['JADEITE_CONFIG_HOME']
+  if (override && override.length > 0) return join(override, APP_DIR_NAME)
   if (process.platform === 'win32') {
     const appData = process.env['APPDATA']
     if (appData) return join(appData, APP_DIR_NAME)
@@ -69,7 +78,15 @@ function ensureConfigDirectory(): void {
 export function readAppConfig(): AppConfig {
   let parsed: unknown
   try {
-    parsed = JSON.parse(readFileSync(configPath(), 'utf8'))
+    // A byte-order mark decodes to a leading U+FEFF, and `JSON.parse` rejects
+    // it — which would land in the catch below and answer with defaults, so a
+    // hand edit would look like it had been ignored and the owner's palette and
+    // language would silently revert. This file is hand-editable by
+    // construction, and on Windows the editors most likely to do the editing add
+    // a BOM without being asked: PowerShell's `Set-Content` and Notepad's
+    // "UTF-8 with BOM" both do. Stripping it is the difference between honouring
+    // the edit and quietly discarding it.
+    parsed = JSON.parse(readFileSync(configPath(), 'utf8').replace(/^\uFEFF/, ''))
   } catch {
     return { ...DEFAULT_APP_CONFIG }
   }

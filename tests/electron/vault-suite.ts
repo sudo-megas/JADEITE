@@ -4,8 +4,7 @@
  * These run headlessly because nothing in the vault layer imports Electron.
  */
 
-import { execFileSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
+import { chmodSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from './harness.js'
@@ -24,7 +23,12 @@ let dataHome: string
 
 beforeEach(() => {
   dataHome = mkdtempSync(join(tmpdir(), 'jadeite-vault-'))
+  // Both, and the pair is not redundant: XDG_DATA_HOME is what the POSIX branch
+  // of paths.ts reads, and JADEITE_DATA_HOME is what every platform reads first.
+  // On Windows only the second one lands, and without it this suite would run
+  // against the owner's real vault rather than a temporary directory.
   process.env['XDG_DATA_HOME'] = dataHome
+  process.env['JADEITE_DATA_HOME'] = dataHome
   vault.lock()
 })
 
@@ -55,6 +59,34 @@ describe('first run', () => {
     await createVault()
     vault.lock()
     expect(readdirSync(vaultDirectory()).sort()).toEqual(['jadeite.db', 'jadeite.keys'])
+  })
+
+  // Both files, not just the envelope. The database was world-readable through
+  // v1.0 because SQLite creates it at its own 0644 and nothing narrowed it, and
+  // nothing was watching: this suite asserted the directory's contents but never
+  // its modes. Found by reading the live-session install transcript.
+  //
+  // POSIX only. `tightenPermissions` returns early on win32 and `mode & 0o777`
+  // reads 0o666 there regardless of the ACL, so this asserts nothing on Windows;
+  // %LOCALAPPDATA% is inside the user profile, whose ACL is what excludes others.
+  it.skipIf(process.platform === 'win32')('leaves both files owner-only', async () => {
+    await createVault()
+    vault.lock()
+    expect(statSync(databasePath()).mode & 0o777).toBe(0o600)
+    expect(statSync(envelopePath()).mode & 0o777).toBe(0o600)
+  })
+
+  // A vault created by an earlier version is already 0644 on disk, so the fix
+  // has to repair rather than only prevent — which is why it sits in
+  // openDatabase and not in create(). POSIX only, for the reason above: on
+  // Windows the chmodSync that sets the scene is itself close to a no-op.
+  it.skipIf(process.platform === 'win32')('repairs a database left world-readable by an earlier version', async () => {
+    await createVault()
+    vault.lock()
+    chmodSync(databasePath(), 0o644)
+
+    expect(await vault.unlock(PASSWORD)).toEqual({ ok: true, value: null })
+    expect(statSync(databasePath()).mode & 0o777).toBe(0o600)
   })
 
   it('refuses to create a second vault over the first', async () => {
@@ -232,8 +264,36 @@ describe('the reset ceremony — §4.3, verbatim', () => {
   })
 })
 
+/**
+ * What `strings(1)` does, without needing it to be installed.
+ *
+ * Runs of printable ASCII at least `minimum` long, which is binutils' own
+ * default and its whole definition of a string. The byte scan beside the call
+ * site already proves the sentinels are absent verbatim; this is the second
+ * question — whether anything word-shaped survived encryption at all — and it is
+ * what would notice a header or a table name in the clear.
+ *
+ * Written out rather than shelled out because binutils is not on a stock Windows
+ * install, and that single call was the only thing keeping a §3 acceptance from
+ * being asked on the platform Realisation XI is about.
+ */
+function printableRuns(bytes: Buffer, minimum = 4): string {
+  const runs: string[] = []
+  let current = ''
+  for (const byte of bytes) {
+    if (byte >= 0x20 && byte <= 0x7e) {
+      current += String.fromCharCode(byte)
+      continue
+    }
+    if (current.length >= minimum) runs.push(current)
+    current = ''
+  }
+  if (current.length >= minimum) runs.push(current)
+  return runs.join('\n')
+}
+
 describe('acceptance: nothing legible reaches the disk', () => {
-  it('yields no user data to strings(1)', async () => {
+  it('yields no user data to a strings sweep', async () => {
     await createVault()
     const db = vault.database()!
     setSetting(db, 'sentinel', 'ZIYNET-KUYUMCU-SENTINEL-9F3A')
@@ -247,7 +307,7 @@ describe('acceptance: nothing legible reaches the disk', () => {
     expect(bytes.includes('PERSON-A-PERSON-B-TEST')).toBe(false)
     expect(bytes.subarray(0, 15).toString('latin1')).not.toBe('SQLite format 3')
 
-    const strings = execFileSync('strings', [databasePath()], { encoding: 'utf8' })
+    const strings = printableRuns(bytes)
     expect(strings).not.toContain('ZIYNET-KUYUMCU-SENTINEL-9F3A')
     expect(strings).not.toContain('PERSON-A-PERSON-B-TEST')
     expect(strings).not.toContain('valuable_types')

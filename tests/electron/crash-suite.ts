@@ -25,6 +25,7 @@ let dataHome: string
 beforeEach(() => {
   dataHome = mkdtempSync(join(tmpdir(), 'jadeite-crash-'))
   process.env['XDG_DATA_HOME'] = dataHome
+  process.env['JADEITE_DATA_HOME'] = dataHome
   vault.lock()
 })
 
@@ -33,22 +34,37 @@ afterEach(() => {
   rmSync(dataHome, { recursive: true, force: true })
 })
 
-/** Relaunch this same bundle in the role of a process that dies mid-session. */
+/**
+ * Relaunch this same bundle in the role of a process that dies mid-session.
+ *
+ * Answers 9 for "killed outright", which is the shape a POSIX signal gives.
+ *
+ * Windows has no signals. Node implements `process.kill(pid, 'SIGKILL')` there
+ * as `TerminateProcess`, which is the same abruptness the test is about — no
+ * handlers, no flush, no chance to checkpoint — but it surfaces as exit status 1
+ * with no signal at all. The writer's own failure paths exit 2 and it reaches
+ * `process.exit` nowhere else, so on win32 a bare 1 means what SIGKILL means on
+ * Linux: it got as far as the uncommitted transaction and was cut down there.
+ */
 function runDoomedWriter(): number | null {
   const bundle = process.env['JADEITE_TEST_BUNDLE']
   if (!bundle) throw new Error('JADEITE_TEST_BUNDLE not set by the test runner')
 
-  const result = spawnSync(process.execPath, ['--no-sandbox', bundle], {
+  const sandboxArgs = process.platform === 'win32' ? [] : ['--no-sandbox']
+  const result = spawnSync(process.execPath, [...sandboxArgs, bundle], {
     stdio: 'inherit',
     env: {
       ...process.env,
       XDG_DATA_HOME: dataHome,
+      JADEITE_DATA_HOME: dataHome,
       JADEITE_TEST_ROLE: 'crash-writer',
       JADEITE_TEST_PASSWORD: PASSWORD,
       JADEITE_TEST_ROWS: String(COMMITTED_ROWS)
     }
   })
-  return result.signal === 'SIGKILL' ? 9 : result.status
+  if (result.signal === 'SIGKILL') return 9
+  if (process.platform === 'win32' && result.signal === null && result.status === 1) return 9
+  return result.status
 }
 
 describe('surviving a kill mid-session', () => {

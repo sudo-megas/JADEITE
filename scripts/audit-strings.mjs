@@ -9,7 +9,8 @@
  * exist precisely because a string in one file stopped agreeing with a string in
  * another and no test could see it.
  *
- * Three rules, each the mechanical half of a box that had none.
+ * Four rules, each the mechanical half of a box that had none. *(A fourth was
+ * added at Realisation XI, when the port gave rule 3 a Windows counterpart.)*
  *
  * **1. A retired sentence stays retired.** v0.9d's box reads "No tracked file
  * says *Secure personal wealth and possessions tracker*". A box phrased as an
@@ -28,6 +29,14 @@
  * comment is the only thing that has ever enforced it, and a comment is not an
  * enforcement. This is the one rule here that guards a *behaviour*: the other
  * two guard sentences.
+ *
+ * **4. `AppUserModelID` matches `appId`.** Rule 3 on the other platform, and the
+ * same failure with a different symptom. Windows pairs a pinned shortcut with a
+ * running window by AppUserModelID and nothing else; NSIS stamps the shortcut
+ * from `electron-builder.yml`'s `appId`, and the window reports whatever
+ * `app.setAppUserModelId(...)` was given. When they disagree, pinning the
+ * application yields a second, dead icon beside the live one — a coupling
+ * between a YAML key and a call site with nothing between them to notice.
  *
  * Scanning is over `git ls-files`, so the subject is what the repository ships
  * rather than what happens to be lying in the working tree. `node_modules/` and
@@ -222,6 +231,28 @@ if (appId === null) {
   findings.push({
     where: 'package.json',
     why: `desktopName is "${manifest.desktopName}" (→ "${desktopName}") but app.setName is "${appId}". electron-builder writes StartupWMClass from desktopName, and Electron derives the window's app_id from the same field, so a mismatch means the entry claims a class no window ever reports`
+  })
+}
+
+// --- 4. The Windows taskbar identity -----------------------------------------
+
+const builderAppId = /^appId:\s*(\S+)\s*$/m.exec(builderYml)?.[1] ?? null
+const userModelId = /app\.setAppUserModelId\(\s*['"]([^'"]+)['"]\s*\)/.exec(mainSource)?.[1] ?? null
+
+if (builderAppId === null) {
+  findings.push({
+    where: 'electron-builder.yml',
+    why: 'no appId — NSIS has nothing to stamp a shortcut with, and the Windows half of rule 3 cannot be checked'
+  })
+} else if (userModelId === null) {
+  findings.push({
+    where: 'src/main/index.ts',
+    why: `no app.setAppUserModelId(...) call found. Windows pairs a pinned shortcut with a running window by AppUserModelID alone, and NSIS stamps the shortcut with "${builderAppId}" — without the matching call the window reports something else and pinning produces a second, dead icon`
+  })
+} else if (userModelId !== builderAppId) {
+  findings.push({
+    where: 'src/main/index.ts',
+    why: `app.setAppUserModelId is "${userModelId}" but electron-builder.yml's appId is "${builderAppId}". NSIS writes the shortcut from appId and Windows matches the window against the AppUserModelID, so a mismatch unpins the application from its own icon`
   })
 }
 

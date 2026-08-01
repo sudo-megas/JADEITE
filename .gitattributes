@@ -1,0 +1,35 @@
+# Line endings are a property of this repository, not of the machine that cloned
+# it.
+#
+# Git for Windows ships `core.autocrlf=true` in its *system* configuration, so
+# every Windows clone inherits it unless something says otherwise. Until
+# Realisation XI nothing did, and the only thing standing between this tree and a
+# wholesale CRLF rewrite was an untracked `core.autocrlf=false` set by hand in one
+# working copy's `.git/config` — which no fresh clone gets, and which nobody
+# reviewing a pull request would ever see was missing.
+#
+# `text=auto eol=lf` settles it in the repository itself: Git decides what is text
+# by inspecting it, normalises to LF on commit, and checks LF back out on every
+# platform. This project is Linux-native and its build is scripted for a shell;
+# `install.sh`, the `.desktop` entry and the pacman scriptlets all read their line
+# endings as content. Since Windows 10 1809 even Notepad reads LF, so there is no
+# longer anything on the Windows side asking for the other convention.
+* text=auto eol=lf
+
+# Images are the only binaries tracked here — the hicolor set, the two marks the
+# renderer imports, and the icons packaging cuts from. Declared so Git never
+# inspects them for text, never diffs them as lines, and never rewrites a byte.
+*.png binary
+*.ico binary
+*.icns binary
+*.svg text eol=lf
+
+# The vault's own formats, in case a fixture is ever committed: an encrypted
+# database and a backup container are ciphertext, and a single "corrected" byte
+# is the difference between a restore and a loss.
+*.db binary
+*.jbk binary
+*.keys binary
+
+# Compiled native addons, if one is ever vendored deliberately.
+*.node binary

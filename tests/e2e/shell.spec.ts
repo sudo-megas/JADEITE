@@ -2,7 +2,8 @@
  * Realisation II acceptance, driven through the real application.
  */
 
-import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { dirname } from 'node:path'
 import { expect, test } from '@playwright/test'
 
 import { PALETTES } from '../../src/shared/theme/palettes/index.js'
@@ -126,6 +127,14 @@ test('a hand-edited config falls back rather than propagating nonsense', async (
   await createVaultAndEnter(session)
   await session.app.close()
 
+  // The directory has to be made rather than assumed. `config.json` is written
+  // only when a setting changes, and this test deliberately changes none. On
+  // Linux it existed anyway, because `XDG_CONFIG_HOME` is also where Electron
+  // puts `userData`, so Chromium had created the directory on its way past. On
+  // Windows `userData` is `%APPDATA%\jadeite`, nowhere near the temporary config
+  // home this session was given, so nothing had made it and the write below
+  // failed with ENOENT — a test resting on a coincidence of the Linux layout.
+  mkdirSync(dirname(session.configPath), { recursive: true })
   writeFileSync(
     session.configPath,
     JSON.stringify({ format: 1, palette: 'not-a-palette', language: 'klingon' })

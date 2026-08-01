@@ -14,6 +14,8 @@
  * container rather than to this machine.
  */
 
+import { join } from 'node:path'
+
 import { app, dialog, ipcMain, type BrowserWindow } from 'electron'
 
 import { IPC } from '../../shared/ipc-contract.js'
@@ -72,7 +74,9 @@ export function registerBackupHandlers(getWindow: () => BrowserWindow | null): v
       const window = getWindow()
       const options = {
         title: 'JADEITE',
-        defaultPath: `${app.getPath('home')}/${suggestedName()}`,
+        // join(), not a template with a forward slash: the dialog is handed this
+        // as a native path, and C:\Users\x/JADEITE-....jbk is not one.
+        defaultPath: join(app.getPath('home'), suggestedName()),
         filters: FILTERS
       }
       const chosen = window

@@ -36,6 +36,21 @@ import { expect, test } from '@playwright/test'
 
 import { projectRoot } from '../e2e/fixtures.js'
 
+/**
+ * Linux packages only, and the whole file at once.
+ *
+ * Every assertion below reads a member of a `.pacman` or a `.deb`, which is what
+ * `--linux` produces; `--win` produces an NSIS installer that has no such
+ * members, and neither `bsdtar` nor `pacman` exists on Windows to read one with.
+ * Skipped rather than deleted, because the Linux release still has to answer all
+ * of it — and skipped loudly, so a Windows run reports these as not-asked rather
+ * than as passed.
+ */
+test.skip(
+  process.platform === 'win32',
+  'reads .pacman and .deb members, which a Windows build does not produce'
+)
+
 const manifest = JSON.parse(readFileSync(resolve(projectRoot, 'package.json'), 'utf8')) as {
   version: string
   description: string

@@ -110,6 +110,7 @@ function newTemporary(prefix: string): string {
  */
 function useHome(dir: string): void {
   process.env['XDG_DATA_HOME'] = dir
+  process.env['JADEITE_DATA_HOME'] = dir
 }
 
 beforeEach(() => {

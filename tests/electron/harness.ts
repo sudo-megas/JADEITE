@@ -15,6 +15,7 @@ interface TestCase {
   fn: TestFn
   before: TestFn | null
   after: TestFn | null
+  skip: boolean
 }
 
 const cases: TestCase[] = []
@@ -27,11 +28,40 @@ export function describe(name: string, body: () => void): void {
   currentSuite = previous
 }
 
-export function it(name: string, fn: TestFn): void {
+function register(name: string, fn: TestFn, skip: boolean): void {
   // Hooks are captured per test as it is registered, so two suite files loaded
   // into the same process keep their own setup instead of the last one winning.
-  cases.push({ suite: currentSuite, name, fn, before: beforeEachFn, after: afterEachFn })
+  cases.push({ suite: currentSuite, name, fn, before: beforeEachFn, after: afterEachFn, skip })
 }
+
+interface Registrar {
+  (name: string, fn: TestFn): void
+  skipIf(condition: boolean): (name: string, fn: TestFn) => void
+  runIf(condition: boolean): (name: string, fn: TestFn) => void
+}
+
+/**
+ * `it`, plus the two conditional forms Vitest spells the same way, so a suite
+ * reads alike whichever runner it belongs to.
+ *
+ * Realisation XI needed them: a POSIX mode assertion cannot hold on Windows and
+ * `strings(1)` is not there to be called. A skip that is counted and printed is
+ * an honest statement that the platform was asked and answered — which is not
+ * what deleting the test, or leaving it knowingly red, would say.
+ */
+export const it: Registrar = Object.assign(
+  (name: string, fn: TestFn): void => register(name, fn, false),
+  {
+    skipIf:
+      (condition: boolean) =>
+      (name: string, fn: TestFn): void =>
+        register(name, fn, condition),
+    runIf:
+      (condition: boolean) =>
+      (name: string, fn: TestFn): void =>
+        register(name, fn, !condition)
+  }
+)
 
 function render(value: unknown): string {
   if (typeof value === 'bigint') return `${value}n`
@@ -172,6 +202,7 @@ export function resetHooks(): void {
 
 export async function run(title: string): Promise<number> {
   let passed = 0
+  let skipped = 0
   const failures: { name: string; error: unknown }[] = []
   const startedAt = Date.now()
 
@@ -182,6 +213,11 @@ export async function run(title: string): Promise<number> {
     if (test.suite !== lastSuite) {
       console.log(`\n  ${test.suite}`)
       lastSuite = test.suite
+    }
+    if (test.skip) {
+      skipped++
+      console.log(`    SKIP  ${test.name}`)
+      continue
     }
     try {
       if (test.before) await test.before()
@@ -212,8 +248,9 @@ export async function run(title: string): Promise<number> {
   }
 
   const seconds = ((Date.now() - startedAt) / 1000).toFixed(1)
+  const skipNote = skipped > 0 ? `, ${skipped} skipped` : ''
   console.log(
-    `\n  ${passed} passed, ${failures.length} failed, ${cases.length} total  (${seconds}s)\n`
+    `\n  ${passed} passed, ${failures.length} failed${skipNote}, ${cases.length} total  (${seconds}s)\n`
   )
   return failures.length
 }

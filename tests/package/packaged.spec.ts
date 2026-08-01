@@ -49,7 +49,17 @@ import {
   type Session
 } from '../e2e/fixtures.js'
 
-const unpackedRoot = resolve(projectRoot, 'release/linux-unpacked')
+/**
+ * electron-builder names the unpacked tree after the target it built: `--linux`
+ * leaves `release/linux-unpacked`, `--win` leaves `release/win-unpacked`. The
+ * Linux name was written in here directly, so on Windows this suite looked for a
+ * directory that a Windows build never produces and could say nothing at all.
+ * The layout inside is the same on both, which is why only the root moves.
+ */
+const unpackedRoot = resolve(
+  projectRoot,
+  process.platform === 'win32' ? 'release/win-unpacked' : 'release/linux-unpacked'
+)
 const asarPath = resolve(unpackedRoot, 'resources/app.asar')
 
 /**
@@ -177,7 +187,17 @@ function asarEntries(): string[] {
         `No packaged application at ${asarPath}. Run \`npm run verify:package\` first.`
       )
     }
-    cachedEntries = listPackage(asarPath, { isPack: false })
+    // Normalised to forward slashes, because `listPackage` answers in the
+    // platform's own separator: `/build/icon.png` on Linux, `\build\icon.png` on
+    // Windows. Both assertions below compare against a `/`-rooted string, so on
+    // Windows the required-file check failed for every entry — and, far worse,
+    // the *exclusion* check passed for every entry, since a `startsWith('/…')`
+    // that can never match reports an empty survivor list whether or not echarts
+    // is sitting in the archive. A test that cannot fail is the one kind of
+    // green that means nothing.
+    cachedEntries = listPackage(asarPath, { isPack: false }).map((entry) =>
+      entry.replace(/\\/g, '/')
+    )
   }
   return cachedEntries
 }

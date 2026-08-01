@@ -6,6 +6,7 @@
  use CaskaydiaCove Nerd Font globally if applicable
  use colors nature of reading things easy.
  you can use mini images - icons under the text like the other users. Icons can show us "Latest Version" "Release Date" "Package in MB" "Arch Linux amblem" "Windows amblem"
+ the following maximums doesnt apply for "image-descriptions" we can embed as many image as we needed.
 
 
 
@@ -15,7 +16,7 @@
 <you can insert here the mini-images/icons descripted above>
 
 1. "DESCRIPTION" 26px
-<give short description here> <maximum of 3 lines> 18px
+<give short description here what is app about> <maximum of 3 lines> 18px
 
 2. DEPENDENCIES 26px
 <list needed dependencies in fuzzy list format here> 18px
@@ -35,7 +36,7 @@
     <Windows installation instructions and steps> 18px
 
 4. HOW TO USE? WHAT IS THE APPLICATION SECTIONS?
-<give explanation about every section in the app><maximum of 2 lines> 22px.
+<give explanation about every section in the app><maximum of 5 lines for each section> 22px.
 
 5. LICENCE SUMMARY
 -----------------------------

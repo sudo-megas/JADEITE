@@ -5,8 +5,8 @@
  * rather than what the configuration claims.
  */
 
-import { chmodSync } from 'node:fs'
-import { dirname } from 'node:path'
+import { mkdirSync, rmSync } from 'node:fs'
+import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 
 import { createVaultAndEnter, launchFresh, type Session } from './fixtures.js'
@@ -345,8 +345,14 @@ test('a config write that fails carries no filesystem path back', async () => {
   // never produced. `writeFileAtomic` rethrows, and an Electron handler's
   // exception is serialised into the renderer's rejected `invoke()` — message
   // included. This is the one handler in `ipc.ts` that had no guard.
-  const configDir = dirname(session.configPath)
-  chmodSync(configDir, 0o500)
+  // The mechanism has to fail on both platforms, and a read-only directory does
+  // not: on Windows `chmod` reaches only the read-only attribute of a file, so
+  // 0o500 against a directory changes nothing at all and the write this test is
+  // about would quietly succeed — leaving the assertions to pass for the wrong
+  // reason. A non-empty directory standing where `config.json` belongs refuses
+  // the rename on either system, at the same point of the same function.
+  const occupied = session.configPath
+  mkdirSync(join(occupied, 'not-a-config-file'), { recursive: true })
   try {
     const outcome = await session.page.evaluate(async () => {
       try {
@@ -362,7 +368,7 @@ test('a config write that fails carries no filesystem path back', async () => {
     expect(outcome.text).not.toContain('/')
     expect(outcome.text).not.toContain('EACCES')
   } finally {
-    chmodSync(configDir, 0o700)
+    rmSync(occupied, { recursive: true, force: true })
   }
 })
 

@@ -8,6 +8,7 @@
  * out from under a vault that already exists.
  */
 
+import { chmodSync } from 'node:fs'
 import Database from 'better-sqlite3-multiple-ciphers'
 import type { Database as DatabaseType } from 'better-sqlite3-multiple-ciphers'
 import { MIGRATIONS } from './schema.js'
@@ -33,6 +34,38 @@ function applyKey(db: DatabaseType, dek: Buffer): void {
     // The hex string is an unavoidable copy of the key outside a Buffer.
     // Nothing further can be done about it in JavaScript; it is at least
     // short-lived and never leaves this function.
+  }
+}
+
+/**
+ * Narrow the database file to owner-only, the way every other file this
+ * application writes already is.
+ *
+ * SQLite creates the database itself, at its compiled-in
+ * `SQLITE_DEFAULT_FILE_PERMISSIONS` of 0644 masked by the umask, and no code
+ * downstream ever narrowed it — so a freshly created vault's database was
+ * world-readable while its envelope, `config.json`, the restore journal and an
+ * exported `.jbk` were all 0600. The restore path made the inconsistency plain:
+ * it stages the database through `writeFileAtomic` at 0600 and renames it into
+ * place, so the same file had two different modes depending on whether it was
+ * created or restored.
+ *
+ * Called on every open rather than only at creation, because a vault made by an
+ * earlier version is already 0644 on disk and would otherwise stay that way for
+ * its whole life. It runs *before* `journal_mode = WAL`: SQLite gives the -wal
+ * and -shm sidecars whatever the database file's permissions are at the moment
+ * it creates them, so tightening afterwards would leave those two behind.
+ *
+ * A failure here is deliberately not fatal. The bytes are SQLCipher ciphertext
+ * inside a 0700 directory either way, and refusing to open a vault because a
+ * permission could not be narrowed would be the worse outcome by some distance.
+ */
+function tightenPermissions(path: string): void {
+  if (process.platform === 'win32') return
+  try {
+    chmodSync(path, 0o600)
+  } catch {
+    /* read-only mount, exotic filesystem, foreign owner — see above */
   }
 }
 
@@ -91,6 +124,7 @@ export interface OpenOptions {
 
 export function openDatabase(path: string, dek: Buffer, options: OpenOptions = {}): DatabaseType {
   const db = new Database(path, options.mustExist === true ? { fileMustExist: true } : {})
+  tightenPermissions(path)
   try {
     applyKey(db, dek)
     assertKeyWorks(db)

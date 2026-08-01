@@ -33,7 +33,15 @@
   --brand-gap-rail: 18px;
   --brand-gap-panel: 72px;
   --font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+  /*
+   * Cascadia Mono and Consolas are the Windows half, and they are named because
+   * the stack had no Windows member at all: the recovery key and the money
+   * columns fell through to Courier New, which is the one monospace face where a
+   * digit group is hard to read back off a screen. Cascadia ships with Windows
+   * 11 and the Terminal; Consolas has been on every Windows since Vista, so the
+   * pair covers the platform without asking anyone to install a font.
+   */
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Mono', Consolas, ui-monospace, monospace;
 
   /* Year accents, replaced per workspace subtree from Realisation III. */
   --year-accent: var(--accent);

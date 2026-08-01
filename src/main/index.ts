@@ -37,6 +37,22 @@ let stopPriceRefresh: (() => void) | null = null
 
 app.setName('jadeite')
 
+// Windows groups taskbar buttons, and matches a pinned shortcut to a running
+// window, by AppUserModelID and nothing else. Electron defaults it to something
+// derived from the executable, NSIS stamps the shortcut with `appId` from
+// electron-builder.yml, and when the two disagree the result is the same
+// complaint every Electron app on Windows eventually files: pinning the
+// application produces a second, dead icon beside the live one.
+//
+// So this string must equal `appId` in electron-builder.yml, exactly. It is the
+// Windows counterpart of the `StartupWMClass` coupling package.json documents
+// for Linux, and `scripts/audit-strings.mjs` holds both to it.
+//
+// Set unconditionally: the call is a no-op off Windows, and a platform guard
+// around a one-line assignment would only invite someone to wonder which
+// platforms it was meant to skip.
+app.setAppUserModelId('dev.sudomegas.jadeite')
+
 // One vault, one process. A second instance would open the same database file
 // behind the first one's back.
 if (!app.requestSingleInstanceLock()) {
@@ -123,7 +139,19 @@ app.whenReady().then(() => {
   // interrupted left a journal and one or two staged files behind; finishing it
   // here means `vault.status()` never sees the half-applied state, and a
   // half-applied state is the one thing §15's replacement must never produce.
-  const recovery = completeInterruptedInstall()
+  //
+  // Guarded, because everything below depends on reaching the next line. This
+  // callback creates the only window there is, so a throw here does not fail the
+  // replay — it leaves the process alive with no window, no IPC and no way to
+  // say what happened, which the owner reads as a hang. A replay that fails is
+  // recoverable and the journal survives to be retried on the next start; a
+  // window that never appears is neither.
+  let recovery: ReturnType<typeof completeInterruptedInstall> = 'none'
+  try {
+    recovery = completeInterruptedInstall()
+  } catch (e) {
+    console.error('[restore] interrupted install could not be replayed', e)
+  }
   if (recovery !== 'none') console.info(`[restore] interrupted install: ${recovery}`)
 
   registerIpcHandlers(() => mainWindow)
