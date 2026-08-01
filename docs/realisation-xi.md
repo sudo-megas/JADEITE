@@ -246,7 +246,10 @@ development Electron start without a SUID `chrome-sandbox`. `src/main/index.ts` 
 access violation — `0xC0000005`, faulting inside `jadeite.exe`, before any window exists.
 Under Playwright it presents as a `beforeAll` timeout, which reads as an application that
 hangs. Given the flags it should have had, the packaged application reaches its lock screen in
-**444 ms** against a 1500 ms budget.
+**586 ms** against a 1500 ms budget. *(This line read 444 ms until the Linux wrap-up found it
+disagreeing with everything else that records the same run: `REALISATION.md`, 36ab87f's own
+commit message — which gives 586 ms packaged and 521 ms from source — and the release notes the
+owner wrote. Three against one, so the one was the slip.)*
 
 **A packaged-suite assertion could not fail on Windows.** `@electron/asar`'s `listPackage`
 answers in the platform's own separator, so every entry came back as `\build\icon.png`. The
