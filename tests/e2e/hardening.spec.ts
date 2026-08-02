@@ -371,7 +371,7 @@ test('a config write that fails carries no filesystem path back', async () => {
     // which is EISDIR on Linux and a different code again on Windows. Naming
     // any one of them ties the assertion to a mechanism it is not about — the
     // property is that no errno crosses the bridge, whichever one it was.
-    expect(outcome.text).not.toMatch(/\bE[A-Z]{3,}\b/)
+    expect(outcome.text).not.toMatch(/\bE[A-Z]{2,}\b/)
     // And the write really did fail. Without this the test cannot tell a
     // swallowed failure from a success: both branches of the handler return an
     // `AppConfig` with these three keys and no path in it, so every assertion

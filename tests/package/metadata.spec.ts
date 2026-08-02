@@ -246,6 +246,30 @@ test.describe('removal cannot reach the owner’s data', () => {
     expect(body, 'post_upgrade does not restore the SUID bit').toContain(
       "chmod 4755 '/opt/JADEITE/chrome-sandbox'"
     )
+
+    // The premise the whole fix rests on, asserted rather than assumed: the
+    // payload really does lay the helper down without the bit, so the scriptlet
+    // really is the only thing that puts it back. If Electron ever shipped it
+    // at 4755 the fix would be redundant, and if the payload stopped carrying
+    // it at all the chmod would be aimed at nothing.
+    const sandbox = execFileSync('bsdtar', ['-tvf', mustExist(pacmanPath, 'pacman package')], {
+      maxBuffer: 64 * 1024 * 1024
+    })
+      .toString('utf8')
+      .split('\n')
+      .find((line) => line.endsWith('opt/JADEITE/chrome-sandbox'))
+
+    expect(sandbox, 'the payload carries no chrome-sandbox').toBeDefined()
+    expect(sandbox, 'chrome-sandbox does not ship at 0755').toMatch(/^-rwxr-xr-x\s/)
+
+    // And the other half of the same sandbox question. The package ships an
+    // AppArmor profile whose entire body is `userns,` for the binary, which
+    // post_install installs to /etc/apparmor.d. A machine that had AppArmor
+    // disabled at install time and enabled later would otherwise reach an
+    // upgrade with neither the profile nor the bit.
+    expect(body, 'post_upgrade never installs the AppArmor profile').toContain(
+      '/etc/apparmor.d/jadeite'
+    )
   })
 
   test('the payload installs only under /opt and /usr', () => {

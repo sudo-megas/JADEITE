@@ -247,9 +247,12 @@ access violation — `0xC0000005`, faulting inside `jadeite.exe`, before any win
 Under Playwright it presents as a `beforeAll` timeout, which reads as an application that
 hangs. Given the flags it should have had, the packaged application reaches its lock screen in
 **586 ms** against a 1500 ms budget. *(This line read 444 ms until the Linux wrap-up found it
-disagreeing with everything else that records the same run: `REALISATION.md`, 36ab87f's own
-commit message — which gives 586 ms packaged and 521 ms from source — and the release notes the
-owner wrote. Three against one, so the one was the slip.)*
+disagreeing with everything else that records the same run: 36ab87f's own commit message — which
+gives 586 ms packaged and 521 ms from source — and the release notes the owner wrote. The tally
+was first written as "three against one", counting `REALISATION.md` as a third; it is not one.
+`git log -S` puts its 586 in 36ab87f, the same commit that wrote the 444 here, so the two are one
+witness. Two independent records against one, then — still decisive, and the figure is from the
+packaged tree rather than an installed application either way.)*
 
 **A packaged-suite assertion could not fail on Windows.** `@electron/asar`'s `listPackage`
 answers in the platform's own separator, so every entry came back as `\build\icon.png`. The

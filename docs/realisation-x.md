@@ -427,6 +427,16 @@ commands beside them, so the next rung checks rather than inherits.
 
 ## 9. What this rung could not do, and why it is not pretending to
 
+> **Stale as of 1 August 2026, and kept as history rather than corrected in place.** Four of the
+> five boxes below were closed after this was written, and none of them here: uninstall and
+> upgrade-in-place on the laptop on 31 July, uninstall a second time from a CachyOS live session,
+> the visual sweep at 1440p, and the rig's ≤ 1.5 s cold start by the owner's ruling of 1 August.
+> `v1.0` was tagged at the commit that added this file, and `v1.1` on 1 August — so the closing
+> sentence's "not tagged by this work" is true only of the moment it was written. **The
+> two-minute install clock is the one that survives.** `REALISATION.md`'s Realisation X and XI
+> entries carry the current list; `docs/livecheck-results.md` filed this staleness and it went
+> unanswered until now.
+
 Five acceptance boxes are owner-observed, and they are the five that need a human and
 two named machines:
 

@@ -14,13 +14,23 @@
  * reach: XDG when it is set, and `~/.local/share` when it is not.
  */
 
-import { homedir } from 'node:os'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { homedir, tmpdir } from 'node:os'
 import { isAbsolute, join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { databasePath, envelopePath, vaultDirectory } from '../../src/main/vault/paths.js'
 
-const KEYS = ['JADEITE_DATA_HOME', 'XDG_DATA_HOME', 'HOME', 'LOCALAPPDATA'] as const
+// `XDG_CONFIG_HOME` is here because one case below sets it — to prove the vault
+// path never consults it — and a test that mutates an environment variable it
+// does not restore leaks into every test after it.
+const KEYS = [
+  'JADEITE_DATA_HOME',
+  'XDG_DATA_HOME',
+  'XDG_CONFIG_HOME',
+  'HOME',
+  'LOCALAPPDATA'
+] as const
 
 let saved: Partial<Record<(typeof KEYS)[number], string | undefined>> = {}
 
@@ -71,7 +81,18 @@ describe('where the vault lives', () => {
     delete process.env['JADEITE_DATA_HOME']
     delete process.env['XDG_DATA_HOME']
 
-    expect(vaultDirectory()).toBe(join(homedir(), '.local', 'share', 'jadeite'))
+    // `HOME` is moved to a directory this test owns rather than left alone.
+    // Asserting against `homedir()` would compare the function's own answer
+    // with itself: both sides would read the same variable, and the home
+    // component would be proved by tautology. Only the suffix would be checked.
+    const home = mkdtempSync(join(tmpdir(), 'jadeite-home-'))
+    try {
+      process.env['HOME'] = home
+      expect(homedir()).toBe(home)
+      expect(vaultDirectory()).toBe(join(home, '.local', 'share', 'jadeite'))
+    } finally {
+      rmSync(home, { recursive: true, force: true })
+    }
   })
 
   it.skipIf(process.platform === 'win32')('never consults XDG_CONFIG_HOME — the split is the point', () => {
