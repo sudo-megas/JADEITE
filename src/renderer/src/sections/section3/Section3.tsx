@@ -141,6 +141,7 @@ export function Section3(): ReactElement {
               refreshing={store.refreshing}
               liveError={store.liveError}
               liveRetryAfter={store.liveRetryAfter}
+              liveIncomplete={store.liveIncomplete}
               language={language}
               onSet={(typeCode, value) => void store.setManualPrice(typeCode, value)}
               onClear={(typeCode) => void store.clearManualPrice(typeCode)}

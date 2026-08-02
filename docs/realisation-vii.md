@@ -213,9 +213,31 @@ three, and `USDTRY` as `"47.3600"` with four.
 A parser written to that sentence would have read a çeyrek as ₺1,01 and stored it
 without complaint — and would have passed every test, because the fixtures were
 authored from the same sentence. It was found by capturing a real frame and asserting
-against what came back rather than against what had been written down. The fixture is
-now that capture, which is the only durable defence: a recorded frame cannot agree
-with a mistaken assumption the way a hand-written one will.
+against what came back rather than against what had been written down.
+
+> **Amended 3 August 2026, and the amendment is the same lesson landing a second time.**
+> The paragraph above used to end: *"The fixture is now that capture, which is the only
+> durable defence: a recorded frame cannot agree with a mistaken assumption the way a
+> hand-written one will."* The sentence is right about captures and wrong about what
+> this repository had. What went into `mock/recorded.ts` was the frame **re-typed by
+> hand** — its own header says so, two paragraphs above a line claiming the opposite —
+> and re-typing it put quotation marks around every figure.
+>
+> That is exactly how the next assumption got through. The source emits a value
+> **unquoted** when its decimal text is canonical, and in August 2026 that came to
+> include every gold instrument: `"satis":6183.53`, no quotes. `parseKurus` accepted
+> only strings, so eight of the ten stopped pricing — and because two survived (the
+> currency pairs, which the source pads to four decimals and therefore keeps quoted),
+> the frame was never empty and every fetch was recorded as a success. The owner saw
+> blank gold rows and a healthy provider.
+>
+> So the reconnaissance was wrong twice about the same field: first about how many
+> decimal places it carries, then about whether it is a string at all. What is durable
+> is not "a capture" in the abstract but **bytes on disk that nobody re-typed** —
+> `tests/fixtures/haremaltin/price-changed-2026-08-03.frame`, kept verbatim, marked
+> `-text` in `.gitattributes` so no checkout can normalise it, and asserted against in
+> `tests/unit/prices-parse.test.ts` both for its values *and* for still carrying both
+> encodings. The second assertion is the one that stops this happening a third time.
 
 **Schema v3** is the second migration this vault has performed. It removes a seeded
 type conditionally, gives `s3_prices_live` a `provider` column with the index to

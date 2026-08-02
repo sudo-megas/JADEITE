@@ -70,6 +70,11 @@ interface Section3State {
    * was last month's with nothing to say so.
    */
   liveRetryAfter: number | null
+  /**
+   * Set when the provider answered but could not price all ten instruments.
+   * Distinct from `liveError` because it is not a failure: figures were stored.
+   */
+  liveIncomplete: { quoted: number; expected: number } | null
 
   load(): Promise<void>
   setView(view: Section3View): void
@@ -122,7 +127,8 @@ function emptyState(): Omit<Section3State, Actions> {
     commitToken: 0,
     refreshing: false,
     liveError: null,
-    liveRetryAfter: null
+    liveRetryAfter: null,
+    liveIncomplete: null
   }
 }
 
@@ -220,7 +226,7 @@ export const useSection3Store = create<Section3State>((set, get) => ({
    */
   async refreshPrices() {
     if (get().refreshing) return
-    set({ refreshing: true, liveError: null, liveRetryAfter: null })
+    set({ refreshing: true, liveError: null, liveRetryAfter: null, liveIncomplete: null })
 
     try {
       const result = await api().refreshPrices()
@@ -231,11 +237,20 @@ export const useSection3Store = create<Section3State>((set, get) => ({
         return
       }
 
-      const { status, retryAfterSeconds } = result.value
+      const { status, retryAfterSeconds, quoted, expected } = result.value
       set({
-        liveError: status === 'ok' || status === 'skipped' ? null : status,
+        // `partial` is a success and must not become an error sentence. Without
+        // this clause it would fall through to `liveError` and be rendered as
+        // UNKNOWN — "the live prices could not be fetched" — about a fetch that
+        // worked and stored figures.
+        liveError:
+          status === 'ok' || status === 'partial' || status === 'skipped' ? null : status,
         // Only `skipped` carries it, and only `skipped` should show it.
-        liveRetryAfter: status === 'skipped' ? (retryAfterSeconds ?? null) : null
+        liveRetryAfter: status === 'skipped' ? (retryAfterSeconds ?? null) : null,
+        liveIncomplete:
+          status === 'partial' && quoted !== undefined && expected !== undefined
+            ? { quoted, expected }
+            : null
       })
 
       // The vault is the authority on what was actually stored, exactly as it

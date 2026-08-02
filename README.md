@@ -76,7 +76,15 @@ Three things worth knowing:
 
 ### 3.B Arch Linux
 
-Build it as above, then install the package you just made:
+**Download it** — `jadeite-1.1.0.pacman` is on the Releases page, so there is nothing to
+build:
+
+```bash
+sudo pacman -U jadeite-1.1.0.pacman
+```
+
+A `.deb` is published beside it for Debian and Ubuntu. Or build it yourself as in 3.A and
+install what you made:
 
 ```bash
 sudo pacman -U release/jadeite-1.1.0.pacman

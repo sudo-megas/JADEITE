@@ -25,6 +25,15 @@
 *.icns binary
 *.svg text eol=lf
 
+# Captured provider frames. These are evidence, not source: bytes that arrived
+# from `hrmsocketonly.haremaltin.com` on a stated day, kept so a test can assert
+# against what the source really sends rather than against what somebody
+# believed it sends. `-text` rather than `binary` because a diff is still wanted
+# if anyone edits one — but no normalisation, ever. A CRLF rewrite on a Windows
+# checkout would not break the parse, and that is precisely the hazard: it would
+# quietly make the fixture something other than what came off the wire.
+tests/fixtures/**/*.frame -text
+
 # The vault's own formats, in case a fixture is ever committed: an encrypted
 # database and a backup container are ciphertext, and a single "corrected" byte
 # is the difference between a restore and a loss.

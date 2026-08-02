@@ -271,11 +271,21 @@ export type LivePriceErrorCode =
  * on a quiet afternoon would read as broken.
  */
 export interface RefreshOutcome {
-  status: 'ok' | 'skipped' | LivePriceErrorCode
+  /**
+   * `partial` is a **success**, not an error, and it is deliberately not a
+   * member of `LivePriceErrorCode`. The provider answered; some of the ten
+   * instruments could not be read from what it said. Putting it in the error
+   * union would make the renderer tell the owner the prices could not be
+   * fetched, about a fetch that worked.
+   */
+  status: 'ok' | 'partial' | 'skipped' | LivePriceErrorCode
   provider: string
   written: number
   /** Present only when `skipped`, so the interface can say how long to wait. */
   retryAfterSeconds?: number
+  /** Both present only when `partial`: how many of the ten came back readable. */
+  quoted?: number
+  expected?: number
 }
 
 /**

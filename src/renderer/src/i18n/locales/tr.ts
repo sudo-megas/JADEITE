@@ -317,6 +317,9 @@ export const tr = {
     refreshTooSoon:
       'Az önce bakıldı — sağlayıcıya {{seconds}} saniye sonra yeniden sorulabilir. Ekrandaki fiyatlar en son alınanlardır.',
     lastGood: 'Elde tutulan son geçerli fiyat: {{when}}',
+    livePartial:
+      'Sağlayıcı yanıt verdi, ancak {{expected}} fiyattan yalnızca {{quoted}} tanesi okunabildi. Okunanlar günceldir; diğerleri için ekrandaki el ile girilmiş fiyatlar geçerlidir.',
+    lastPartial: 'Son yanıt eksikti: fiyatların bir bölümü okunamadı.',
 
     drift: {
       header: 'Sapma',

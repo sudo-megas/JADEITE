@@ -7,17 +7,34 @@
  * outbound network and REALISATION.md rule 6 forbids any test in any layer from
  * making a request. Every structural detail below is taken from the
  * reconnaissance §14.1–14.3 wrote down — the `{message, error, data, meta}`
- * envelope, dot-decimal strings to four places, `kayit_tarihi` at a minute
- * before midnight, the instrument codes — but the *figures* are invented, and no
- * byte here was ever sent by the source.
+ * envelope, `kayit_tarihi` at a minute before midnight, the instrument codes —
+ * but the *figures* are invented, and no byte here was ever sent by the source.
  *
- * What would make them better is a real capture, saved on the owner's machine at
- * a moment the source was misbehaving, replacing `TRUNCATED_HISTORY` in
- * particular. Until then the honest claim is narrow and sufficient: **the tests
- * turn on the shape, not on the numbers.** Whether the stale-tail defence works
- * depends on how far the newest returned date falls behind the one requested,
- * and that is a property this file can state truthfully without having observed
- * a single price.
+ * **That sentence used to sit two paragraphs above one claiming the opposite**,
+ * and `docs/realisation-vii.md` claimed the opposite too — that this file *is*
+ * the capture. The truth is the narrow middle: a hand-authored reconstruction,
+ * seeded with figures that were observed, in an envelope that was observed, and
+ * in an **encoding that was not**. Realisation VII learned that the decimal
+ * *places* vary and re-typed the frame by hand to prove it; re-typing it put
+ * quotation marks around every value, and in August 2026 the source turned out
+ * to send canonical decimals unquoted. Eight instruments stopped pricing, and
+ * nothing here could have said so.
+ *
+ * So the frame below is now encoded by the source's own observed rule — a value
+ * is written unquoted exactly when its decimal text round-trips — which is why
+ * gold and silver appear bare and the currency pairs stay quoted. It is still
+ * hand-authored and still no substitute for
+ * `tests/fixtures/haremaltin/price-changed-2026-08-03.frame`, which is bytes
+ * that really arrived and is what the parser is now proved against. This file's
+ * job is to be the *shipped mock provider*, so what matters is that an
+ * unpackaged run exercises the same encodings the real source sends.
+ *
+ * The honest claim about the history bodies is unchanged and still narrow:
+ * **those tests turn on the shape, not on the numbers.** Whether the stale-tail
+ * defence works depends on how far the newest returned date falls behind the one
+ * requested, and that is a property this file can state truthfully without
+ * having observed a single price. (The history endpoint does still send its
+ * figures quoted — checked on 3 August 2026 — so those bodies are left alone.)
  *
  * Two deliberate departures from what a wire capture would look like, both for
  * reading rather than for the parser, which does not care:
@@ -71,18 +88,18 @@ import type { HistoryRequest } from '../provider.js'
  * here, since a fixture claiming to be a frame should look like one.
  */
 export const PRICE_CHANGED_FRAME = `42["price_changed",{"meta":{"time":1785434165076},"data":{
-  "KULCEALTIN":{"code":"KULCEALTIN","alis":"6212.85","satis":"6251.37","dusuk":"6180.00","yuksek":"6266.00","dir":{"alis_dir":"up","satis_dir":"up"},"tarih":"30-07-2026 20:56:05"},
+  "KULCEALTIN":{"code":"KULCEALTIN","alis":6212.85,"satis":6251.37,"dusuk":"6180.00","yuksek":"6266.00","dir":{"alis_dir":"up","satis_dir":"up"},"tarih":"30-07-2026 20:56:05"},
   "ALTIN":{"code":"ALTIN","alis":"6168.000","satis":"6238.890","dusuk":"6150.000","yuksek":"6250.000","dir":{"alis_dir":"up","satis_dir":"up"},"tarih":"30-07-2026 20:56:05"},
   "AYAR22":{"code":"AYAR22","alis":"5690.00","satis":"5731.00","dusuk":"5660.00","yuksek":"5744.00","dir":{"alis_dir":"up","satis_dir":"up"},"tarih":"30-07-2026 20:56:04"},
-  "CEYREK_ESKI":{"code":"CEYREK_ESKI","alis":"9975","satis":"10124","dusuk":"9950","yuksek":"10140","dir":{"alis_dir":"up","satis_dir":"up"},"tarih":"30-07-2026 20:56:05"},
-  "YARIM_ESKI":{"code":"YARIM_ESKI","alis":"19900","satis":"20193","dusuk":"19850","yuksek":"20220","dir":{"alis_dir":"up","satis_dir":"up"},"tarih":"30-07-2026 20:56:05"},
-  "TEK_ESKI":{"code":"TEK_ESKI","alis":"39560","satis":"40136","dusuk":"39500","yuksek":"40190","dir":{"alis_dir":"up","satis_dir":"up"},"tarih":"30-07-2026 20:56:05"},
-  "ATA_ESKI":{"code":"ATA_ESKI","alis":"40720","satis":"41309","dusuk":"40660","yuksek":"41370","dir":{"alis_dir":"up","satis_dir":"up"},"tarih":"30-07-2026 20:56:05"},
-  "GREMESE_ESKI":{"code":"GREMESE_ESKI","alis":"99070","satis":"100496","dusuk":"98900","yuksek":"100600","dir":{"alis_dir":"up","satis_dir":"up"},"tarih":"30-07-2026 20:56:05"},
-  "ATA5_ESKI":{"code":"ATA5_ESKI","alis":"203900","satis":"206869","dusuk":"203500","yuksek":"207000","dir":{"alis_dir":"up","satis_dir":"up"},"tarih":"30-07-2026 20:56:05"},
+  "CEYREK_ESKI":{"code":"CEYREK_ESKI","alis":9975,"satis":10124,"dusuk":9950,"yuksek":10140,"dir":{"alis_dir":"up","satis_dir":"up"},"tarih":"30-07-2026 20:56:05"},
+  "YARIM_ESKI":{"code":"YARIM_ESKI","alis":19900,"satis":20193,"dusuk":19850,"yuksek":20220,"dir":{"alis_dir":"up","satis_dir":"up"},"tarih":"30-07-2026 20:56:05"},
+  "TEK_ESKI":{"code":"TEK_ESKI","alis":39560,"satis":40136,"dusuk":39500,"yuksek":40190,"dir":{"alis_dir":"up","satis_dir":"up"},"tarih":"30-07-2026 20:56:05"},
+  "ATA_ESKI":{"code":"ATA_ESKI","alis":40720,"satis":41309,"dusuk":40660,"yuksek":41370,"dir":{"alis_dir":"up","satis_dir":"up"},"tarih":"30-07-2026 20:56:05"},
+  "GREMESE_ESKI":{"code":"GREMESE_ESKI","alis":99070,"satis":100496,"dusuk":98900,"yuksek":100600,"dir":{"alis_dir":"up","satis_dir":"up"},"tarih":"30-07-2026 20:56:05"},
+  "ATA5_ESKI":{"code":"ATA5_ESKI","alis":203900,"satis":206869,"dusuk":203500,"yuksek":207000,"dir":{"alis_dir":"up","satis_dir":"up"},"tarih":"30-07-2026 20:56:05"},
   "USDTRY":{"code":"USDTRY","alis":"47.3400","satis":"47.3600","dusuk":"47.2800","yuksek":"47.4100","dir":{"alis_dir":"down","satis_dir":"down"},"tarih":"30-07-2026 20:56:05"},
   "EURTRY":{"code":"EURTRY","alis":"54.4900","satis":"54.5200","dusuk":"54.4100","yuksek":"54.6000","dir":{"alis_dir":"up","satis_dir":"up"},"tarih":"30-07-2026 20:56:05"},
-  "GUMUSTRY":{"code":"GUMUSTRY","alis":"93.741","satis":"94.017","dusuk":"93.400","yuksek":"94.220","dir":{"alis_dir":"up","satis_dir":"up"},"tarih":"30-07-2026 20:56:05"},
+  "GUMUSTRY":{"code":"GUMUSTRY","alis":93.741,"satis":94.017,"dusuk":"93.400","yuksek":"94.220","dir":{"alis_dir":"up","satis_dir":"up"},"tarih":"30-07-2026 20:56:05"},
   "GUMUSUSD":{"code":"GUMUSUSD","alis":"1978.0000","satis":"1985.5000","dusuk":"1970.0000","yuksek":"1990.0000","dir":{"alis_dir":"up","satis_dir":"up"},"tarih":"30-07-2026 20:56:05"}
 }}]`
 

@@ -66,12 +66,20 @@ const T3 = '2026-07-30T09:30:00.000Z'
 function snapshot(
   provider: string,
   fetchedAt: string,
-  quotes: readonly (readonly [TypeCode, number])[]
+  quotes: readonly (readonly [TypeCode, number])[],
+  coverage: { unreadable?: readonly TypeCode[]; absent?: readonly TypeCode[] } = {}
 ): Snapshot {
+  // The two coverage lists are written out rather than defaulted away, because
+  // a `Snapshot` that does not say what it failed to price is the shape that let
+  // a two-of-ten frame be recorded as a success. A helper is allowed to default
+  // them to empty — every case here quotes what it means to quote — but it is
+  // not allowed to omit them.
   return {
     provider,
     fetchedAt,
-    quotes: quotes.map(([typeCode, value]) => ({ typeCode, value }))
+    quotes: quotes.map(([typeCode, value]) => ({ typeCode, value })),
+    unreadable: coverage.unreadable ?? [],
+    absent: coverage.absent ?? []
   }
 }
 

@@ -41,6 +41,24 @@ export interface Snapshot {
   /** When this process received the frame, ISO-8601. */
   fetchedAt: string
   quotes: readonly Quote[]
+  /**
+   * Mapped instruments the frame carried but whose satış could not be read —
+   * missing, non-textual, zero, or past the ceiling.
+   *
+   * These two lists exist because their absence hid a defect for days. A frame
+   * yielding two of ten was a success by the only test there was
+   * (`quotes.length === 0`), so the service recorded `ok`, the provider read
+   * healthy, and the eight blank rows were indistinguishable from a source that
+   * simply had nothing to say about gold today.
+   *
+   * The split matters as much as the count. Ten *unreadable* is a field that
+   * changed shape; ten *absent* is an instrument that was renamed; one absent is
+   * the source genuinely dropping a coin. Those are three different mornings,
+   * and before this they produced one identical silence.
+   */
+  unreadable: readonly TypeCode[]
+  /** Mapped instruments the frame did not carry at all. */
+  absent: readonly TypeCode[]
 }
 
 /**

@@ -153,7 +153,20 @@ describe('the Turkish and English catalogues carry the same keys', () => {
     // frozen in forever had this stayed a floor of 443 against a tree of 444.
     // Which is the case for measuring before pinning rather than pinning what
     // happened to be there.
-    expect(english.size).toBe(442)
-    expect(turkish.size).toBe(442)
+    // 444 since 3 August 2026, and the two added are written down here because
+    // that is what this line is for. `section3.livePartial` and
+    // `section3.lastPartial` say that the provider answered and that some of the
+    // ten prices could not be read from what it said.
+    //
+    // The freeze was not broken lightly. The ladder had stopped adding strings,
+    // and this is a string the ladder should have needed at Realisation VII: a
+    // frame yielding two of ten was recorded as a healthy fetch, so when
+    // haremaltin began sending its decimals unquoted, eight instruments stopped
+    // pricing and the application said nothing at all for days. There was no
+    // sentence for "it answered, and I could not read most of it", and the
+    // absence of that sentence is what made the defect silent rather than
+    // obvious. Two keys against a class of failure that hid itself once already.
+    expect(english.size).toBe(444)
+    expect(turkish.size).toBe(444)
   })
 })

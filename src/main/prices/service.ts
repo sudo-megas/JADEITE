@@ -102,14 +102,31 @@ export async function refreshPrices(db: DatabaseType): Promise<RefreshOutcome> {
     }
 
     const written = prices.appendSnapshot(db, result.value)
+
+    // A frame that priced some of the ten but not all of them is a success with
+    // something to say, and until August 2026 it had no way to say it. The only
+    // test was `quotes.length === 0`, so two quotes out of ten recorded `ok`,
+    // the provider read healthy, and eight blank rows looked exactly like a
+    // source with nothing to report. It stayed that way for days.
+    //
+    // The limiter is still told this attempt succeeded, deliberately: the
+    // connection worked and the source answered. Backing off would punish the
+    // owner for a shape change at the other end, and would make the one thing
+    // they might do about it — press refresh again — slower.
+    const quoted = result.value.quotes.length
+    const expected = quoted + result.value.unreadable.length + result.value.absent.length
+    const complete = quoted === expected
+
     limiter = afterAttempt(limiter, Date.now(), true)
     prices.recordFetch(db, {
       provider: providerId,
       attemptedAt,
-      outcome: 'ok',
+      outcome: complete ? 'ok' : 'partial',
       succeededAt: result.value.fetchedAt
     })
-    return { status: 'ok', provider: providerId, written }
+    return complete
+      ? { status: 'ok', provider: providerId, written }
+      : { status: 'partial', provider: providerId, written, quoted, expected }
   } catch (error) {
     // A provider that threw despite the contract, a registry refusal, or an
     // abort. None of them is the owner's problem and none may reach the bridge

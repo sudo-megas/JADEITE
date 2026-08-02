@@ -108,12 +108,68 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * provider text through a locale-aware parser would make a price depend on a
  * display setting.
  *
- * A JSON **number** is refused rather than accepted with `String(value)`,
+ * A non-string is refused, and after `parseKeepingText` that means something
+ * precise: not "the source sent a number" — it cannot have, every number is
+ * replaced by its own text before this runs — but "the source sent a boolean, a
+ * null, an object, an array". There is no text to read, so there is no price.
+ *
+ * **This paragraph used to say something else, and what it said was wrong.** It
+ * read: *"A JSON number is refused rather than accepted with `String(value)`,
  * because by the time this function could see one it has already been through a
  * double inside `JSON.parse` — accepting it would quietly reintroduce the drift
- * the whole function exists to avoid, and would do it invisibly.
+ * the whole function exists to avoid."* The premise is right and the conclusion
+ * does not follow. `JSON.parse` makes the double at the moment it reads the
+ * literal, before any consumer is consulted; refusing the value here preserves
+ * no precision, because there is nothing left to preserve. It only discards the
+ * price. The defence described a guard standing one room past the door.
+ *
+ * It cost eight of the ten instruments. The source began emitting canonical
+ * decimals unquoted — `"satis":6183.53` where it once wrote `"satis":"6183.53"`
+ * — and every gold type and silver fell through this line, while USD and EUR
+ * survived only because the source pads currency pairs to four decimals
+ * (`"47.4770"`), which does not round-trip and so stays a string. Two quotes out
+ * of ten is not zero, so nothing failed; the fetch was recorded as a success
+ * with the gold rows blank.
+ *
+ * The answer is not to accept `String(value)` — that would work, and it would
+ * rest on the observed habit that a value is emitted unquoted exactly when its
+ * text is canonical, which is a third party's habit and not a contract. The
+ * answer is to never let the money text become a double at all. See
+ * `parseKeepingText`.
+ *
+ * For the record, since the old paragraph named it: the drift this module
+ * genuinely exists to avoid is the *multiplication*, not the parse.
+ * `parseFloat('1051.4950') * 100` is `105149.49999999999`. That is why the
+ * digits below are assembled as text and never multiplied.
  */
 const DECIMAL_RE = /^\d{1,12}(?:\.\d{1,8})?$/
+
+/**
+ * `JSON.parse`, with every number left as the text the source wrote.
+ *
+ * ES2025 hands a reviver the source text of each primitive it visits, so a
+ * money figure can be taken as the decimal that arrived rather than as the
+ * double `JSON.parse` produced from it. Both engines here have it — Node
+ * 24.18.1 and Electron 42.8.0 (V8 14.8.178.38), checked in both binaries.
+ *
+ * **The invariant this establishes, and the reason it is worth a function of
+ * its own:** past this call, no value anywhere in the parsed body is a JSON
+ * number. Every one is its own decimal text. Nothing in this module reads a
+ * number today — `error` is a boolean, `kayit_tarihi` and the event name are
+ * strings — and anyone who later writes `typeof x === 'number'` against a body
+ * that came through here will find a string and should know why.
+ *
+ * `context?.source`, not `context.source`: on an engine without the feature the
+ * reviver is called with two arguments. The optional chain makes that case a
+ * number passing through untouched — refused downstream exactly as it is
+ * today — rather than a `TypeError` that would turn every frame into
+ * `MALFORMED` with nothing to say why.
+ */
+function parseKeepingText(text: string): unknown {
+  return JSON.parse(text, (_key, value, context) =>
+    typeof value === 'number' && typeof context?.source === 'string' ? context.source : value
+  )
+}
 
 function parseKurus(raw: unknown): number | null {
   if (typeof raw !== 'string') return null
@@ -259,7 +315,7 @@ export function parseSnapshotFrame(
 
   let frame: unknown
   try {
-    frame = JSON.parse(text.slice(open))
+    frame = parseKeepingText(text.slice(open))
   } catch {
     return fail('MALFORMED')
   }
@@ -280,15 +336,41 @@ export function parseSnapshotFrame(
   const nested = payload['data']
   const instruments = isRecord(nested) ? nested : payload
 
+  // Every mapped instrument lands in exactly one of three buckets, and the
+  // frame's own key set decides which. `Object.hasOwn` rather than `in`, so a
+  // name that happens to sit on `Object.prototype` cannot present itself as an
+  // instrument the source sent.
+  //
+  // The taxonomy is the point, so it is worth stating: an entry that arrives
+  // with no readable satış is **unreadable**, not absent. The source sent the
+  // instrument; the shape did not match. That is what separates a renamed field
+  // (ten unreadable) from a renamed instrument (ten absent) from a source that
+  // has genuinely stopped quoting one coin (one absent). The disposal rule above
+  // is untouched — a single unreadable instrument is still dropped rather than
+  // failing the frame — but it is no longer dropped *silently*.
   const quotes: Quote[] = []
+  const unreadable: TypeCode[] = []
+  const absent: TypeCode[] = []
+
   for (const { typeCode, sourceCode } of MAPPINGS) {
+    if (!Object.hasOwn(instruments, sourceCode)) {
+      absent.push(typeCode)
+      continue
+    }
+
     const entry = instruments[sourceCode]
-    if (!isRecord(entry)) continue
+    if (!isRecord(entry)) {
+      unreadable.push(typeCode)
+      continue
+    }
 
     // satış, always (§14.3) — the owner's own purchase prices sit at or slightly
     // above it, so it is the only figure that means anything beside theirs.
     const value = usablePrice(entry['satis'])
-    if (value === null) continue
+    if (value === null) {
+      unreadable.push(typeCode)
+      continue
+    }
 
     quotes.push({ typeCode, value })
   }
@@ -299,7 +381,7 @@ export function parseSnapshotFrame(
   // service record a fetch that worked and store nothing.
   if (quotes.length === 0) return fail('MALFORMED')
 
-  return { ok: true, value: { provider, fetchedAt: now, quotes } }
+  return { ok: true, value: { provider, fetchedAt: now, quotes, unreadable, absent } }
 }
 
 // --- History ---------------------------------------------------------------
@@ -362,7 +444,7 @@ export function parseHistoryBody(
 
   let body: unknown
   try {
-    body = JSON.parse(text)
+    body = parseKeepingText(text)
   } catch {
     return fail('MALFORMED')
   }

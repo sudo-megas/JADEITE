@@ -313,6 +313,9 @@ export const en = {
     refreshTooSoon:
       'Just checked — the provider can be asked again in {{seconds}} seconds. The prices on screen are the last ones received.',
     lastGood: 'Last good figure held from {{when}}',
+    livePartial:
+      'The provider answered, but only {{quoted}} of {{expected}} prices could be read. The ones that arrived are current; the rest keep the manual figures on screen.',
+    lastPartial: 'The last answer was incomplete: some prices could not be read.',
 
     drift: {
       header: 'Drift',

@@ -69,6 +69,11 @@ interface Props {
   liveError?: string | null
   /** Seconds until the limiter will ask again, when it has just refused to (§14). */
   liveRetryAfter?: number | null
+  /**
+   * The provider answered and priced fewer than the ten. A success with a
+   * caveat, so it is a note and never the error line.
+   */
+  liveIncomplete?: { quoted: number; expected: number } | null
   onRefresh?: () => void
 }
 
@@ -192,6 +197,7 @@ export function Prices({
   refreshing = false,
   liveError = null,
   liveRetryAfter = null,
+  liveIncomplete = null,
   onRefresh
 }: Props): ReactElement {
   const { t } = useTranslation()
@@ -260,7 +266,10 @@ export function Prices({
         </p>
       ) : null}
 
-      {lastFetch && lastFetch.outcome !== 'ok' && lastFetch.succeededAt !== null ? (
+      {lastFetch &&
+      lastFetch.outcome !== 'ok' &&
+      lastFetch.outcome !== 'partial' &&
+      lastFetch.succeededAt !== null ? (
         <p className="s3-live-held" data-testid="s3-live-last-good">
           {t('section3.lastGood', { when: formatStamp(lastFetch.succeededAt, language) })}
         </p>
@@ -274,6 +283,18 @@ export function Prices({
       {liveError !== null ? (
         <p className="s3-note" role="status" data-testid="s3-live-error">
           {t(liveErrorKey(liveError))}
+        </p>
+      ) : null}
+
+      {/*
+        The source answered and some of the ten could not be read from what it
+        said. Emphatically not an error: figures were stored, and the rows that
+        did price are current. This line exists because its absence hid a real
+        defect — for days, two of ten read as a healthy fetch.
+      */}
+      {liveIncomplete !== null ? (
+        <p className="s3-note" role="status" data-testid="s3-live-partial">
+          {t('section3.livePartial', liveIncomplete)}
         </p>
       ) : null}
 

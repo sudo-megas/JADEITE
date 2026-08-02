@@ -16,6 +16,9 @@
  * exists to forbid.
  */
 
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+
 import { describe, expect, it } from 'vitest'
 
 import { MAX_UNIT_PRICE } from '@shared/section3/units'
@@ -175,6 +178,69 @@ describe('a price_changed frame', () => {
     expect(priced.get('gumus')).toBe(8_417)
   })
 
+  /**
+   * A frame that really arrived, and the only test here that could have caught
+   * the encoding change.
+   *
+   * `tests/fixtures/haremaltin/price-changed-2026-08-03.frame` is 9.874 bytes
+   * received from `hrmsocketonly.haremaltin.com` over engine.io v4 on 3 August
+   * 2026, written to disk unedited. Every other body in this file is authored —
+   * including `PRICE_CHANGED_FRAME`, whose own header says no byte of it was
+   * ever sent by the source — and an authored body agrees with whatever its
+   * author believed. This one does not have that property, which is the whole
+   * of its value.
+   *
+   * It is checked in as bytes rather than as a TypeScript literal so that no
+   * formatter, and nobody tidying quotes, can turn it back into what we expected
+   * instead of what we got. `.gitattributes` marks it `-text` for the same
+   * reason.
+   */
+  it('prices all ten instruments from a frame that really arrived', () => {
+    const captured = readFileSync(
+      resolve(import.meta.dirname, '../fixtures/haremaltin/price-changed-2026-08-03.frame'),
+      'utf8'
+    )
+
+    const snapshot = value(parseSnapshotFrame(captured, PROVIDER, NOW))
+
+    expect(snapshot.quotes).toHaveLength(10)
+    expect(snapshot.unreadable).toEqual([])
+    expect(snapshot.absent).toEqual([])
+
+    const priced = new Map<TypeCode, number>(snapshot.quotes.map((q) => [q.typeCode, q.value]))
+    expect(priced.get('gram')).toBe(618_353)
+    expect(priced.get('ceyrek')).toBe(1_000_200)
+    expect(priced.get('besli')).toBe(20_462_500)
+    expect(priced.get('usd')).toBe(4_748)
+    expect(priced.get('gumus')).toBe(9_265)
+  })
+
+  /**
+   * The durability half, and it is not decoration.
+   *
+   * The test above asserts values, and values alone would stay green if someone
+   * "tidied" the fixture by quoting its numbers — which is exactly what happened
+   * to the authored fixture at Realisation VII and exactly how the encoding
+   * change walked through. This asserts the *shape* the fixture must keep: both
+   * encodings present, in one frame, because that is what the source sends.
+   */
+  it('keeps a fixture that still carries both encodings, as the source sends them', () => {
+    const captured = readFileSync(
+      resolve(import.meta.dirname, '../fixtures/haremaltin/price-changed-2026-08-03.frame'),
+      'utf8'
+    )
+
+    // Plainly, with no reviver: this is about what is written in the bytes.
+    const payload = JSON.parse(captured.slice(captured.indexOf('['))) as [
+      string,
+      { data: Record<string, { satis?: unknown }> }
+    ]
+    const mapped = MAPPINGS.map(({ sourceCode }) => payload[1].data[sourceCode]?.satis)
+
+    expect(mapped.filter((s) => typeof s === 'number').length).toBeGreaterThan(0)
+    expect(mapped.filter((s) => typeof s === 'string').length).toBeGreaterThan(0)
+  })
+
   it('prices all ten types, the two largest coins included', () => {
     const snapshot = value(parseSnapshotFrame(PRICE_CHANGED_FRAME, PROVIDER, NOW))
     const priced = new Map<TypeCode, number>(snapshot.quotes.map((q) => [q.typeCode, q.value]))
@@ -253,11 +319,73 @@ describe('a price_changed frame', () => {
       expect(error(parseSnapshotFrame(frame({ KULCEALTIN: satis }), PROVIDER, NOW))).toBe('MALFORMED')
     }
 
-    // A JSON number is refused too: by the time it could be read it has already
-    // been through a double, which is precisely the drift the string assembly
-    // exists to avoid.
-    const numeric = '42["price_changed",{"data":{"KULCEALTIN":{"satis":6505.0}}}]'
-    expect(error(parseSnapshotFrame(numeric, PROVIDER, NOW))).toBe('MALFORMED')
+    // What is still refused is a satış with no text in it at all. `parse.ts`
+    // keeps every JSON number as the decimal the source wrote, so a non-string
+    // reaching `parseKurus` is a boolean, a null, an object or an array — and
+    // none of those is a price.
+    for (const satis of ['true', 'null', '{}', '[]', '{"value":6505}']) {
+      const frameText = `42["price_changed",{"data":{"KULCEALTIN":{"satis":${satis}}}}]`
+      expect(error(parseSnapshotFrame(frameText, PROVIDER, NOW))).toBe('MALFORMED')
+    }
+  })
+
+  /**
+   * This case used to assert the opposite, and the opposite was a defect.
+   *
+   * It read: *"A JSON number is refused too: by the time it could be read it has
+   * already been through a double, which is precisely the drift the string
+   * assembly exists to avoid."* The premise was true and the conclusion did not
+   * follow — `JSON.parse` makes the double when it reads the literal, so
+   * refusing the value afterwards preserves nothing and discards the price. In
+   * August 2026 the source began sending canonical decimals unquoted and eight
+   * of the ten instruments stopped pricing, with no error anywhere.
+   */
+  it('reads a satış the source sent unquoted, to the same kuruş as a quoted one', () => {
+    const quoted = '42["price_changed",{"data":{"KULCEALTIN":{"satis":"6505.0000"}}}]'
+    const bare = '42["price_changed",{"data":{"KULCEALTIN":{"satis":6505}}}]'
+
+    expect(value(parseSnapshotFrame(bare, PROVIDER, NOW)).quotes).toEqual([
+      { typeCode: 'gram', value: 650500 }
+    ])
+    expect(value(parseSnapshotFrame(bare, PROVIDER, NOW)).quotes).toEqual(
+      value(parseSnapshotFrame(quoted, PROVIDER, NOW)).quotes
+    )
+  })
+
+  it('rounds an unquoted satış exactly as it rounds a quoted one', () => {
+    // Half-up on the third decimal, from both encodings, including the case the
+    // multiplication would have got wrong: 1051.4950 × 100 is 105149.49999999999
+    // as a float, and 105150 as text.
+    const cases: readonly (readonly [string, number])[] = [
+      ['6183.53', 618353],
+      ['10002', 1000200],
+      ['92.65', 9265],
+      ['1051.4950', 105150],
+      ['47.4770', 4748]
+    ]
+
+    for (const [text, kurus] of cases) {
+      const bare = `42["price_changed",{"data":{"KULCEALTIN":{"satis":${text}}}}]`
+      const quoted = `42["price_changed",{"data":{"KULCEALTIN":{"satis":"${text}"}}}]`
+      expect(value(parseSnapshotFrame(bare, PROVIDER, NOW)).quotes, text).toEqual([
+        { typeCode: 'gram', value: kurus }
+      ])
+      expect(value(parseSnapshotFrame(quoted, PROVIDER, NOW)).quotes, text).toEqual([
+        { typeCode: 'gram', value: kurus }
+      ])
+    }
+  })
+
+  /**
+   * One line, so that a runtime which loses the feature says so in a sentence
+   * rather than in eight missing gold prices.
+   */
+  it('runs on an engine that gives a reviver the source text', () => {
+    const seen = JSON.parse('{"n":6183.53}', (_k, v, c: { source?: string } | undefined) =>
+      typeof v === 'number' ? c?.source : v
+    ) as { n: unknown }
+
+    expect(seen.n, 'this engine has no ES2025 JSON source-text access').toBe('6183.53')
   })
 
   it('accepts the envelope in the shapes socket.io actually sends it', () => {

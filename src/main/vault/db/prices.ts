@@ -171,7 +171,7 @@ function assertType(db: DatabaseType, code: unknown): TypeCode {
  * a provider gains a failure mode would be a change for nothing. Storage is the
  * layer that decides what may be *written*, so the closed set lives here.
  */
-export type FetchOutcome = 'ok' | PriceErrorCode
+export type FetchOutcome = 'ok' | 'partial' | PriceErrorCode
 
 /**
  * A runtime mirror of that union, kept honest by the compiler.
@@ -184,6 +184,11 @@ export type FetchOutcome = 'ok' | PriceErrorCode
  */
 const OUTCOMES: Record<FetchOutcome, true> = {
   ok: true,
+  // The provider answered and some of the ten could not be read from what it
+  // said. A success in every sense the limiter and the store care about, and a
+  // separate word so that a later reader of `s3_price_fetch` can tell it from a
+  // clean one. The column is bare TEXT with no CHECK, so no migration is owed.
+  partial: true,
   OFFLINE: true,
   TIMEOUT: true,
   MALFORMED: true,
