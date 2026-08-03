@@ -1,8 +1,8 @@
 {
   "name": "jadeite",
   "productName": "JADEITE",
-  "version": "1.1.0",
-  "releaseDate": "2026-08-01",
+  "version": "1.1.1",
+  "releaseDate": "2026-08-03",
   "//description": "This becomes the .desktop Comment= and the deb's extended description. Per the freedesktop spec a Comment must not restate Name (JADEITE) or GenericName (Economy Journal), so this says what the application does rather than what it is called; the name pair lives in electron-builder.yml's synopsis and GenericName. Keep it under about 78 characters — fpm and deb.erb each prepend a space, and two leading spaces make the line verbatim, so a longer one will not reflow in apt show. No apostrophes: smarten() rewrites them into curly quotes.",
   "description": "Keeps income, expenses, payments and valuables in one encrypted file",
   "author": {
