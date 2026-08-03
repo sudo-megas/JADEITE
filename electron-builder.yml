@@ -270,6 +270,30 @@ linux:
   target:
     - pacman
     - deb
+    # The distribution-agnostic artefact, added alongside the two packages
+    # rather than in place of either. `ArchiveTarget` names it
+    # `${name}-${version}.${ext}` and omits the architecture only because x64 is
+    # electron-builder's default arch for Linux, so the file is
+    # `jadeite-<version>.tar.gz` and is x86_64 — the same shape of name the
+    # pacman package already carries.
+    #
+    # **What a tarball cannot do, said plainly here so nobody has to rediscover
+    # it.** It carries no `.PKGINFO`, so the `depends` above are declared to
+    # nobody and a machine missing gtk3, nss or alsa-lib finds out when the
+    # application fails to start rather than when it is installed. It carries no
+    # `.INSTALL`, so neither `post_install` nor the `post_upgrade` of
+    # `build/pacman-post-upgrade.sh` has anywhere to run: the SUID bit on
+    # `chrome-sandbox`, the AppArmor profile, the `/usr/bin/jadeite` symlink and
+    # the mime and desktop database refreshes are all the installer's problem
+    # instead. On a machine where user namespaces do not work, an extracted
+    # tarball does not start until somebody chmods the helper 4755.
+    #
+    # That is not an argument against shipping it. It is the artefact a
+    # PKGBUILD's `package()` unpacks, and an AUR package carries its own
+    # `.install` file — so the four steps above move there intact rather than
+    # being lost. It also serves anyone whose distribution is neither Arch nor
+    # Debian, who currently has nothing to download at all.
+    - tar.gz
   # A prepared set rather than one 512px file, and the difference is visible.
   #
   # `LinuxTargetHelper.computeDesktopIcons` builds its source list as
