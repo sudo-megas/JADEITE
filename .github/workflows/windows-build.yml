@@ -1,0 +1,254 @@
+# The Windows installer, built where a Windows installer has to be built.
+#
+# The `//package:win` note in package.json and the asarUnpack note in
+# electron-builder.yml arrive at the same rule from two directions: `--win` is
+# packed from a Windows checkout and never cross-packed from Linux, because
+# node-gyp-build resolves `build/Release` ahead of `prebuilds/` and a Linux tree
+# therefore seals an ELF `argon2.node` inside a `.exe`. That failure surfaces at
+# first unlock, after the vault has already painted, on a machine the build
+# never saw. This file exists so the rule can be honoured without the owner
+# having to log into Windows at all: the runner is the Windows checkout.
+#
+# Nothing here reports anywhere. The two network dependencies are the ones
+# building has always had — npm fetching the dependency tree, and
+# electron-builder fetching Electron 42.8.0 and the NSIS toolchain from GitHub
+# releases into the runner's cache. §16.3 forbids the *application* phoning
+# home; a packager fetching a packager is not that, and no step below sends
+# anything outward that assembling the installer did not already require.
+name: Windows installer
+
+# Two doors, and the second one is the point of the file. A pushed tag is the
+# ordinary route — §17 cuts tags as `v1.1`, version only, so `v*` matches every
+# tag this project will ever carry and nothing else. `workflow_dispatch` is the
+# manual route from the Actions tab, which is what the owner has in place of a
+# Windows machine.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+# Nothing by default, so every job has to name what it needs and the naming is
+# visible in the diff rather than inherited. The build job reads the repository
+# and writes nothing; only the release job at the foot of this file is trusted
+# with `contents: write`, and it is a separate job for precisely that reason —
+# the long, network-facing half of this workflow never holds a token that could
+# rewrite the repository it is building.
+permissions: {}
+
+jobs:
+  build:
+    name: Pack the installer on Windows
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    # The dependency tree, the Electron distribution and the NSIS toolchain are
+    # all cold on a fresh runner, and `install-app-deps` may compile argon2 from
+    # source here rather than erroring the way it does on the owner's machine —
+    # see the note on the install step. An hour is generous for a build that
+    # ordinarily takes ten minutes, and it is set so a stalled download costs
+    # that rather than the six hours a runner will otherwise give it.
+    timeout-minutes: 60
+
+    steps:
+      # Shallow, which is the default, and left that way deliberately.
+      # electron-builder once derived the project homepage from `.git/config`,
+      # which is why Realisation X moved `homepage` into package.json; nothing
+      # in this build asks git a question any more, so there is no history worth
+      # fetching beyond the commit being packed.
+      - name: Check out the commit being packed
+        uses: actions/checkout@v7
+
+      - name: Install Node
+        uses: actions/setup-node@v7
+        with:
+          # `engines.node` says `>=24.0.0` and the README says "Node.js 24 or
+          # newer". The major is pinned rather than tracked through `lts/*`,
+          # because `lts/*` becomes 26 on a date nobody here chooses and the
+          # first anyone would learn of it is a Windows build failing on the one
+          # platform the owner cannot open a terminal on.
+          node-version: '24'
+          # `package-lock.json` is committed and `npm ci` is what runs below, so
+          # the cache key is exact and the restore is never a guess.
+          cache: npm
+
+      # `npm ci` is allowed to fail here, and that is a reading of this
+      # project's own documentation rather than a shrug. README §2 records the
+      # behaviour: `npm install` ends by running `electron-builder
+      # install-app-deps`, and on Windows that step reaches for node-gyp to
+      # rebuild a module that was already correct. On the owner's machine, which
+      # has no Visual Studio, it says so loudly and everything after it works
+      # regardless — the packages are in place by the time the message appears.
+      # A person reads that and carries on. A runner cannot, so a non-zero exit
+      # would end the job with a fully installed tree sitting beside it.
+      #
+      # This runner is not that machine. windows-latest carries Visual Studio
+      # 2022 with the C++ workload and a Python, so node-gyp may simply succeed
+      # and cost several minutes instead. Both outcomes produce a correct tree
+      # and neither is worth branching on; what is not acceptable is either
+      # being believed without inspection, which is what the step after next is
+      # for.
+      #
+      # `--ignore-scripts` is not an alternative. The install scripts are how
+      # both native modules acquire a binary at all.
+      - name: Install the dependency tree
+        continue-on-error: true
+        run: npm ci
+
+      # "Not optional", in the README's words. Electron 42 stopped downloading
+      # its own binary during `npm install`, so without this the `electron`
+      # package is a directory of JavaScript with no runtime beside it. It also
+      # warms the same @electron/get cache that electron-builder reads when it
+      # assembles the package, so the distribution comes down once rather than
+      # twice.
+      - name: Fetch the Electron binary
+        run: node node_modules/electron/install.js
+
+      # The step that makes tolerating the failure above safe, and the only
+      # place in this workflow that can catch either of the two ways a Windows
+      # build goes wrong in silence.
+      #
+      # **The binaries must be Windows binaries.** node-gyp-build resolves
+      # `build/Release` before `prebuilds/`, so whatever sits there is what
+      # ships; on a Linux tree that file is an ELF object and the installed
+      # application dies at first unlock. Every PE image opens with `MZ`, so two
+      # bytes settle the question. argon2 also ships objects for darwin,
+      # freebsd and linux under `prebuilds/`, and those are neither read nor a
+      # problem, because Windows never resolves them.
+      #
+      # **better-sqlite3-multiple-ciphers must hold the *Electron* binary.** It
+      # is not N-API. `prebuild-install` fetches a prebuild for whichever ABI it
+      # is asked about, npm's own install script asks about Node, and only
+      # `install-app-deps` afterwards replaces that with the electron-v146 one.
+      # `package:win` passes `-c.npmRebuild=false`, so there is no second chance
+      # at pack time — whatever is here now is what the owner installs. A module
+      # built for Electron cannot be loaded by node.exe; one built for Node can.
+      # So a *successful* require is the failure. The load error is printed
+      # rather than matched, because its wording differs between platforms and a
+      # guard that read it would fail correct builds on the one platform nobody
+      # here can debug.
+      - name: Check the native binaries before packing anything
+        shell: bash
+        run: |
+          node -e '
+            const fs = require("node:fs");
+            const path = require("node:path");
+
+            const argon2Built = "node_modules/argon2/build/Release/argon2.node";
+            const argon2Prebuilds = "node_modules/argon2/prebuilds/win32-x64";
+            const argon2 = [];
+            if (fs.existsSync(argon2Built)) argon2.push(argon2Built);
+            if (fs.existsSync(argon2Prebuilds)) {
+              for (const entry of fs.readdirSync(argon2Prebuilds)) {
+                if (entry.endsWith(".node")) argon2.push(path.join(argon2Prebuilds, entry));
+              }
+            }
+            if (argon2.length === 0) {
+              throw new Error("argon2 has no binary that Windows could resolve, so the install did not finish");
+            }
+
+            const sqlite = "node_modules/better-sqlite3-multiple-ciphers/build/Release/better_sqlite3.node";
+            if (!fs.existsSync(sqlite)) {
+              throw new Error("missing " + sqlite + ", so the install did not finish");
+            }
+
+            for (const file of argon2.concat([sqlite])) {
+              const head = Buffer.alloc(2);
+              const fd = fs.openSync(file, "r");
+              fs.readSync(fd, head, 0, 2, 0);
+              fs.closeSync(fd);
+              if (head.toString("latin1") !== "MZ") {
+                throw new Error(file + " is not a Windows binary, and packing it would ship a vault that cannot be unlocked");
+              }
+              console.log("PE  " + file);
+            }
+
+            let loaded = false;
+            try {
+              require("better-sqlite3-multiple-ciphers");
+              loaded = true;
+            } catch (error) {
+              console.log("better-sqlite3-multiple-ciphers refused to load under Node, as it must: " + error.message);
+            }
+            if (loaded) {
+              throw new Error(
+                "better-sqlite3-multiple-ciphers loaded under Node 24, so it still holds the Node-ABI prebuild rather than the Electron one. install-app-deps did not reach it, npmRebuild is off for this target, and an installer packed now would open and then fail at first unlock."
+              );
+            }
+          '
+
+      # `package:win` verbatim, `-c.npmRebuild=false` and all. Nothing is added
+      # to it here: an npm script is where this project keeps the knowledge of
+      # how it is built, and a workflow that packed by some other command would
+      # be a second answer to a question that already has one.
+      #
+      # Note what this does not run. `package:win` is `electron-vite build &&
+      # electron-builder`, so `npm run audit`, the unit suites and
+      # `verify:package:win` are all outside it. This workflow builds the
+      # artefact; it does not certify it, and the packaged Playwright suite
+      # still wants a real desktop session and a human.
+      - name: Pack the installer
+        run: npm run package:win
+
+      - name: Keep the installer
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-installer
+          # Globs rather than literal filenames, because the two numbers never
+          # agree: `artifactName` in electron-builder.yml renders
+          # `jadeite-1.1.0-setup.exe` from package.json's semver, while §17 cuts
+          # the tag as `v1.1`. Deriving either from the other would break at the
+          # first point revision. The `.blockmap` beside it is written because
+          # an NSIS target is differential-aware unless told otherwise; it is
+          # small, it describes the installer it sits next to, and `publish:
+          # null` means nothing ever consumes it on its own.
+          path: |
+            release/*-setup.exe
+            release/*-setup.exe.blockmap
+          # A rename in electron-builder.yml has to fail the build rather than
+          # produce an empty archive that nobody notices until they try to
+          # install from it.
+          if-no-files-found: error
+
+  release:
+    name: Attach the installer to the release
+    needs: build
+    # Only where there is a tag to attach to. A `workflow_dispatch` from a
+    # branch builds and stops at the artefact above, which is the right shape
+    # for a trial run; a dispatch made against a tag reaches here, because an
+    # owner re-running a tag by hand wants the outcome the push would have had.
+    if: startsWith(github.ref, 'refs/tags/v')
+    # Linux, for the one job with nothing Windows about it. It downloads two
+    # files and calls one command, and a private repository is billed at twice
+    # the rate for Windows minutes.
+    runs-on: ubuntu-latest
+    permissions:
+      # The whole reason this is a second job rather than two more steps above.
+      contents: write
+
+    steps:
+      - name: Collect the installer
+        uses: actions/download-artifact@v7
+        with:
+          name: windows-installer
+          path: installer
+
+      # The release is created only if the tag has not got one yet, and left
+      # untouched if it has — the owner may well have written it already, and a
+      # workflow that overwrote the body would be deciding what a release says.
+      # The body of a release this file creates is empty for the same reason:
+      # release notes are the owner's prose and nothing here will invent any.
+      # `--clobber` lets a re-run replace an installer rather than fail beside
+      # one.
+      - name: Attach it to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # `gh` is told which repository it is acting on rather than deducing
+          # it from a checkout, so this job never clones the tree it releases.
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if ! gh release view "$TAG" > /dev/null 2>&1; then
+            gh release create "$TAG" --title "$TAG" --notes "" --verify-tag
+          fi
+          gh release upload "$TAG" installer/* --clobber
