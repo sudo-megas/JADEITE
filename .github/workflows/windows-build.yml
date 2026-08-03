@@ -127,6 +127,19 @@ jobs:
       # rather than matched, because its wording differs between platforms and a
       # guard that read it would fail correct builds on the one platform nobody
       # here can debug.
+      #
+      # **The addon is required by absolute path, not through the package**, and
+      # the distinction is the whole of whether this step works.
+      # `require("better-sqlite3-multiple-ciphers")` does not open the binary at
+      # all: `lib/index.js` is pure JavaScript, and the sole native load in the
+      # package sits at `lib/database.js:48`, inside the `Database` constructor,
+      # where `bindings` resolves it lazily. The package require therefore
+      # succeeds whichever ABI is on disk, so a guard written that way reports
+      # "still holds the Node-ABI prebuild" on every run — including the runs it
+      # exists to wave through — and fails the job before anything is packed.
+      # Requiring the `.node` file is what actually calls `dlopen`, and it is the
+      # same file the PE check below has just read, so the two cannot disagree
+      # about which binary they are judging.
       - name: Check the native binaries before packing anything
         shell: bash
         run: |
@@ -163,18 +176,6 @@ jobs:
               console.log("PE  " + file);
             }
 
-            # The addon is required by absolute path rather than through the
-            # package, and the distinction is the whole of whether this step
-            # works. `require("better-sqlite3-multiple-ciphers")` does not open
-            # the binary at all: lib/index.js is pure JavaScript, and the sole
-            # native load in the package sits at lib/database.js:48, inside the
-            # Database constructor, where `bindings` resolves it lazily. So the
-            # package require succeeds whichever ABI is on disk, and a guard
-            # written that way reports "still holds the Node-ABI prebuild" on
-            # every run, including the runs it is meant to wave through — it
-            # would fail this job before it ever packed anything. Requiring the
-            # .node file is what actually calls dlopen, and it is the same file
-            # the PE check above just read, so the two agree by construction.
             let loaded = false;
             try {
               require(path.resolve(sqlite));
