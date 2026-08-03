@@ -36,7 +36,14 @@ It opens in **Turkish** and speaks **English** if you prefer, and it works fully
 - **Node.js 24 or newer**, and `git`. That is the whole list.
 - **Windows needs no Visual Studio and no Python.** This is worth saying plainly, because it
   is the part people expect to be false: both native pieces ship ready-built binaries for
-  Windows, so nothing is compiled on your machine.
+  Windows, so nothing is compiled on your machine. `npm run package:win` turns the rebuild
+  off, and JADEITE's own Windows installers are built on a machine with no Visual Studio on it.
+  - One wrinkle, so it does not look like a failure when you meet it: `npm install` ends by
+    running `electron-builder install-app-deps`, and on Windows *that* step reaches for
+    `node-gyp` and asks for Visual Studio — to rebuild a module that was already correct.
+    **Nothing needs it.** The packages are installed by the time the message appears, and the
+    two steps after it work regardless. Carry on to `node node_modules\electron\install.js`
+    and `npm run package:win`.
 - **Arch Linux needs one more package to *build the installer*: `libxcrypt-compat`.** Only for
   `npm run package`, never to run the app. The packaging tool downloads its own Ruby, and that
   Ruby is linked against `libcrypt.so.1`, which Arch stopped installing by default. Without it
