@@ -1,3 +1,5 @@
+<img width="512" height="512" alt="" width="96" align="left" hspace="12" vspace="4" src="https://github.com/user-attachments/assets/b83263c7-651a-4bbd-b45a-77878a2a88c7" />
+
 <h1>JADEITE</h1>
 
 <p>
