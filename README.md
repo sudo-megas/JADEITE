@@ -1,4 +1,6 @@
-<img width="200" height="200" alt="" width="96" align="left" hspace="12" vspace="4" src="https://github.com/user-attachments/assets/b83263c7-651a-4bbd-b45a-77878a2a88c7" />
+<p align="center" width="100%">
+    <img width="33%" src="build/icon.png">
+</p>
 
 <h1>JADEITE</h1>
 
@@ -9,8 +11,9 @@
 </p>
 
 <p>
-  <img alt="Arch Linux package" src="https://img.shields.io/badge/Arch%20Linux-92%20MB-1793D1?style=for-the-badge&logo=archlinux&logoColor=white">
-  <img alt="Windows installer"  src="https://img.shields.io/badge/Windows-105%20MB-0078D6?style=for-the-badge&logo=windows&logoColor=white">
+  <img alt="Arch Linux package" src="https://img.shields.io/badge/Arch%20Linux-89%20MB-1793D1?style=for-the-badge&logo=archlinux&logoColor=white">
+  <img alt="Debian package" src="">
+  <img alt="Windows installer"  src="https://img.shields.io/badge/Windows-101%20MB-0078D6?style=for-the-badge&logo=windows&logoColor=white">
 </p>
 
 *Ekonomi Defteri* · **Economy Journal**
