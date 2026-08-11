@@ -12,7 +12,7 @@
 
 <p>
   <img alt="Arch Linux package" src="https://img.shields.io/badge/Arch%20Linux-89%20MB-1793D1?style=for-the-badge&logo=archlinux&logoColor=white">
-  <img alt="Debian package" src="">
+  <img alt="Debian package"     src="https://img.shields.io/badge/Debian-97.3%20MB-A81D33?style=for-the-badge&logo=debian&logoColor=white">
   <img alt="Windows installer"  src="https://img.shields.io/badge/Windows-101%20MB-0078D6?style=for-the-badge&logo=windows&logoColor=white">
 </p>
 
