@@ -36,7 +36,7 @@
  * honest way in; see `security()` below for what that costs.
  */
 
-import type { Session } from 'electron'
+import type { Session, WebContents } from 'electron'
 
 import { describe, expect, it } from './harness.js'
 
@@ -131,11 +131,32 @@ interface Hardened {
   cancels(url: string, webContentsId?: number): boolean
   /** The `Content-Security-Policy` stamped on every response. */
   policy(): string
+  /** The `X-Content-Type-Options` header stamped on every response. */
+  nosniff(): string | undefined
+  /** `false` from every one of the three permission surfaces, for anything asked. */
+  permissionsDenied(): boolean
 }
+
+type PermissionRequestHandler = (
+  webContents: unknown,
+  permission: string,
+  callback: (granted: boolean) => void,
+  details: unknown
+) => void
+type PermissionCheckHandler = (
+  webContents: unknown,
+  permission: string,
+  requestingOrigin: string,
+  details: unknown
+) => boolean
+type DevicePermissionHandler = (details: unknown) => boolean
 
 function harden(hardenSession: (target: Session) => void): Hardened {
   const requestListeners: BeforeRequestListener[] = []
   const headerListeners: HeadersListener[] = []
+  let permissionRequest: PermissionRequestHandler | null = null
+  let permissionCheck: PermissionCheckHandler | null = null
+  let devicePermission: DevicePermissionHandler | null = null
 
   // Cast rather than implemented: `Session` is some two hundred members and this
   // suite needs five of them. `as unknown as` keeps `any` out of the file (the
@@ -151,9 +172,15 @@ function harden(hardenSession: (target: Session) => void): Hardened {
         headerListeners.push(listener)
       }
     },
-    setPermissionRequestHandler: (): void => {},
-    setPermissionCheckHandler: (): void => {},
-    setDevicePermissionHandler: (): void => {}
+    setPermissionRequestHandler: (handler: PermissionRequestHandler): void => {
+      permissionRequest = handler
+    },
+    setPermissionCheckHandler: (handler: PermissionCheckHandler): void => {
+      permissionCheck = handler
+    },
+    setDevicePermissionHandler: (handler: DevicePermissionHandler): void => {
+      devicePermission = handler
+    }
   } as unknown as Session
 
   hardenSession(target)
@@ -162,6 +189,14 @@ function harden(hardenSession: (target: Session) => void): Hardened {
   const onHeaders = headerListeners[0]
   if (onRequest === undefined) throw new Error('hardenSession installed no request filter')
   if (onHeaders === undefined) throw new Error('hardenSession installed no header filter')
+
+  const headers = (): HeaderBag => {
+    const answers: HeaderBag[] = []
+    onHeaders({ responseHeaders: {} }, (response) => answers.push(response))
+    const only = answers[0]
+    if (only === undefined) throw new Error('the header filter answered nothing')
+    return only
+  }
 
   return {
     cancels(url, webContentsId): boolean {
@@ -173,13 +208,28 @@ function harden(hardenSession: (target: Session) => void): Hardened {
     },
 
     policy(): string {
-      const answers: HeaderBag[] = []
-      onHeaders({ responseHeaders: {} }, (response) => answers.push(response))
-      const only = answers[0]
-      if (only === undefined) throw new Error('the header filter answered nothing')
-      const policy = only.responseHeaders?.['Content-Security-Policy']?.[0]
+      const policy = headers().responseHeaders?.['Content-Security-Policy']?.[0]
       if (policy === undefined) throw new Error('no Content-Security-Policy was stamped')
       return policy
+    },
+
+    nosniff(): string | undefined {
+      return headers().responseHeaders?.['X-Content-Type-Options']?.[0]
+    },
+
+    permissionsDenied(): boolean {
+      if (permissionRequest === null) throw new Error('no permission request handler installed')
+      if (permissionCheck === null) throw new Error('no permission check handler installed')
+      if (devicePermission === null) throw new Error('no device permission handler installed')
+
+      const grants: boolean[] = []
+      permissionRequest({}, 'geolocation', (granted) => grants.push(granted), {})
+      if (grants.length !== 1) throw new Error('the permission request handler answered nothing')
+
+      const checked = permissionCheck(null, 'geolocation', 'file:///', {})
+      const device = devicePermission({})
+
+      return grants[0] === false && checked === false && device === false
     }
   }
 }
@@ -400,6 +450,66 @@ describe('the filters hardenSession installs on a session', () => {
     expect(policy).toContain("frame-ancestors 'none'")
     expect(policy).toContain("object-src 'none'")
   })
+
+  /**
+   * L27. `hardening.spec.ts` never reads this header at all — it asserts the
+   * CSP `<meta>` tag and stops there — so a build that stopped stamping
+   * `nosniff` (or misspelled it) would ship silently.
+   */
+  it('stamps X-Content-Type-Options: nosniff on every response', async () => {
+    const { hardenSession } = await security()
+    expect(harden(hardenSession).nosniff()).toBe('nosniff')
+  })
+
+  /**
+   * L27. Every one of the three permission surfaces `hardenSession` installs
+   * denies unconditionally — no camera, microphone, geolocation, notifications,
+   * clipboard, HID/USB/serial device access, nothing. Asked about a permission
+   * chosen for being ordinary (`geolocation`) rather than for being on the
+   * denylist, since the point is that nothing is on an *allow*list here at all.
+   */
+  it('denies every permission asked of it, on all three handlers', async () => {
+    const { hardenSession } = await security()
+    expect(harden(hardenSession).permissionsDenied()).toBe(true)
+  })
+})
+
+/**
+ * L26. Every assertion above runs against the module `security()` forced into
+ * its development configuration, which the file-level comment on `security()`
+ * explains and defends. What that configuration cannot answer is the one this
+ * application actually ships: `connect-src 'none'`, no `unsafe-eval`, no dev
+ * origin anywhere in the string. `contentSecurityPolicy` takes an explicit
+ * `dev` parameter for exactly this — calling it with `false` here asks the
+ * *same* cached module instance for its production answer, so this needs no
+ * second import and cannot disturb the load-bearing ordering `security()`
+ * depends on.
+ */
+describe('the policy this application actually ships (§3.3, production branch)', () => {
+  it('never carries a dev origin, unsafe-eval, or the provider host', async () => {
+    const { contentSecurityPolicy } = await security()
+    const policy = contentSecurityPolicy(false)
+
+    expect(policy).toContain("connect-src 'none'")
+    // The trailing `;` matters: it is what rules out `script-src 'self'
+    // 'unsafe-inline' 'unsafe-eval'`, the dev directive, sharing the same
+    // `.toContain("script-src 'self'")` prefix.
+    expect(policy).toContain("script-src 'self';")
+    expect(policy).not.toContain('unsafe-eval')
+    expect(policy).not.toContain('localhost')
+    expect(policy).not.toContain(DEV_SERVER)
+    expect(policy).not.toContain('haremaltin')
+  })
+
+  it('still carries every base directive the dev branch also carries', async () => {
+    const { contentSecurityPolicy } = await security()
+    const policy = contentSecurityPolicy(false)
+
+    expect(policy).toContain("default-src 'self'")
+    expect(policy).toContain("object-src 'none'")
+    expect(policy).toContain("frame-ancestors 'none'")
+    expect(policy).toContain("form-action 'none'")
+  })
 })
 
 // --- The other end of the same rule -----------------------------------------
@@ -525,5 +635,162 @@ describe('the navigation gate is narrower than the request gate', () => {
     for (const url of ['https://www.haremaltin.com/ajax/cur/history', 'https://example.com/']) {
       expect(isPermittedNavigation(url), `${url} must not be navigable`).toBe(false)
     }
+  })
+})
+
+// --- The wiring itself, not just the predicate it calls ----------------------
+
+/**
+ * L25 / L1. Everything above proves `isPermittedNavigation` answers correctly
+ * in isolation. None of it proves `hardenContents` actually binds that
+ * predicate to the five events Electron fires — a listener bound to the wrong
+ * event name, a `will-redirect`/`will-frame-navigate` handler written with a
+ * two-argument `(event, url)` signature (the shape `will-navigate` genuinely
+ * has, and the mistake this suite exists to catch: Electron's merged-event
+ * listeners hand back one argument with `.url` mixed in, not two), or a branch
+ * that was simply never reached by anything else in the repository, would
+ * pass every assertion above and still ship broken.
+ *
+ * The stub below is a `WebContents` in exactly the sense `harden()` above is a
+ * `Session`: the handful of members `hardenContents` actually calls, so a
+ * member it starts relying on and this stub does not implement throws at the
+ * call site rather than silently no-oping.
+ */
+type ContentsListener = (...args: never[]) => void
+
+interface HardenedContents {
+  /** Fires `will-navigate` with its real `(event, url)` shape. */
+  navigate(url: string): boolean
+  /** Fires `will-redirect` with its real single merged-event shape. */
+  redirect(url: string): boolean
+  /** Fires `will-frame-navigate` with its real single merged-event shape. */
+  frameNavigate(url: string): boolean
+  attachWebview(): boolean
+  windowOpen(url: string): string
+}
+
+function hardenedContents(hardenContents: (contents: WebContents) => void): HardenedContents {
+  const listeners = new Map<string, ContentsListener>()
+  let windowOpenHandler: ((details: { url: string }) => { action: string }) | null = null
+
+  const stub = {
+    on: (event: string, listener: ContentsListener): unknown => {
+      listeners.set(event, listener)
+      return stub
+    },
+    setWindowOpenHandler: (handler: typeof windowOpenHandler): void => {
+      windowOpenHandler = handler
+    }
+  } as unknown as WebContents
+
+  hardenContents(stub)
+
+  return {
+    // `will-navigate`'s real, two-argument shape: `(event, url)`.
+    navigate: (url) => {
+      const listener = listeners.get('will-navigate')
+      if (listener === undefined) throw new Error('hardenContents installed no will-navigate listener')
+      let prevented = false
+      ;(listener as (e: { preventDefault(): void }, url: string) => void)(
+        { preventDefault: () => { prevented = true } },
+        url
+      )
+      return prevented
+    },
+    // `will-redirect`'s real shape: one argument, `.url` merged into it —
+    // simulated by handing back an event object that already carries `url`,
+    // never a bare string as a second argument.
+    redirect: (url) => {
+      const listener = listeners.get('will-redirect')
+      if (listener === undefined) throw new Error('hardenContents installed no will-redirect listener')
+      let prevented = false
+      ;(listener as (e: { preventDefault(): void; url: string }) => void)({
+        preventDefault: () => { prevented = true },
+        url
+      })
+      return prevented
+    },
+    frameNavigate: (url) => {
+      const listener = listeners.get('will-frame-navigate')
+      if (listener === undefined) {
+        throw new Error('hardenContents installed no will-frame-navigate listener')
+      }
+      let prevented = false
+      ;(listener as (e: { preventDefault(): void; url: string }) => void)({
+        preventDefault: () => { prevented = true },
+        url
+      })
+      return prevented
+    },
+    attachWebview: () => {
+      const listener = listeners.get('will-attach-webview')
+      if (listener === undefined) {
+        throw new Error('hardenContents installed no will-attach-webview listener')
+      }
+      let prevented = false
+      ;(listener as (e: { preventDefault(): void }) => void)({
+        preventDefault: () => { prevented = true }
+      })
+      return prevented
+    },
+    windowOpen: (url) => {
+      if (windowOpenHandler === null) throw new Error('hardenContents installed no window-open handler')
+      return windowOpenHandler({ url }).action
+    }
+  }
+}
+
+const LOCAL_FILE_URL = 'file:///opt/jadeite/resources/app.asar/out/renderer/index.html'
+const REMOTE_URL = 'https://example.com/'
+
+describe('hardenContents wires the predicate to real events, not just answers for it', () => {
+  it('lets the application navigate to its own file — the positive case a swapped argument order would fail', async () => {
+    const { hardenContents } = await security()
+    expect(hardenedContents(hardenContents).navigate(LOCAL_FILE_URL)).toBe(false)
+  })
+
+  it('blocks will-navigate to a remote origin', async () => {
+    const { hardenContents } = await security()
+    expect(hardenedContents(hardenContents).navigate(REMOTE_URL)).toBe(true)
+  })
+
+  /**
+   * The case that actually distinguishes a correct `(event)` handler from one
+   * mistakenly written `(event, url)`: called here with the real one-argument
+   * shape, a mis-signatured handler reads `url` as `undefined`, `isLocal`
+   * throws inside its own try/catch and returns `false`, and the local file —
+   * which ought to pass untouched — gets `preventDefault()`'d anyway. Only the
+   * positive assertion catches that; the negative case below would pass either
+   * way.
+   */
+  it('lets will-redirect to its own file through, proving the merged-event shape is handled', async () => {
+    const { hardenContents } = await security()
+    expect(hardenedContents(hardenContents).redirect(LOCAL_FILE_URL)).toBe(false)
+  })
+
+  it('blocks will-redirect to a remote origin', async () => {
+    const { hardenContents } = await security()
+    expect(hardenedContents(hardenContents).redirect(REMOTE_URL)).toBe(true)
+  })
+
+  it('lets will-frame-navigate to its own file through, same shape as will-redirect', async () => {
+    const { hardenContents } = await security()
+    expect(hardenedContents(hardenContents).frameNavigate(LOCAL_FILE_URL)).toBe(false)
+  })
+
+  it('blocks will-frame-navigate to a remote origin', async () => {
+    const { hardenContents } = await security()
+    expect(hardenedContents(hardenContents).frameNavigate(REMOTE_URL)).toBe(true)
+  })
+
+  it('always refuses to attach a webview, whatever it would have shown', async () => {
+    const { hardenContents } = await security()
+    expect(hardenedContents(hardenContents).attachWebview()).toBe(true)
+  })
+
+  it('always denies window.open, whatever URL asked for it', async () => {
+    const { hardenContents } = await security()
+    expect(hardenedContents(hardenContents).windowOpen(REMOTE_URL)).toBe('deny')
+    expect(hardenedContents(hardenContents).windowOpen(LOCAL_FILE_URL)).toBe('deny')
   })
 })

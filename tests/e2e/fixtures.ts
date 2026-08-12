@@ -1,9 +1,22 @@
+import { spawn, type ChildProcess } from 'node:child_process'
 import { existsSync, mkdtempSync, rmSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
+
+/**
+ * The `electron` package's Node entry point resolves to the path of its own
+ * binary when required outside an Electron process, exactly as Playwright's
+ * own `electron.launch()` resolves it internally with no `executablePath`
+ * given. `createRequire` rather than a static `import`: the package's own
+ * type declarations describe the *in-Electron* API surface, and only a plain
+ * `require()` — untyped, exactly like Playwright's own resolution — reads the
+ * path this file actually needs.
+ */
+const electronBinaryPath = createRequire(import.meta.url)('electron') as string
 
 export const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 
@@ -102,6 +115,36 @@ async function launchIn(
 /** A fresh app with an empty data directory, so the first-run ceremony shows. */
 export async function launchFresh(env: NodeJS.ProcessEnv = {}): Promise<Session> {
   return launchIn(mkdtempSync(join(tmpdir(), 'jadeite-e2e-')), true, env)
+}
+
+/**
+ * A second launch against a running `Session`'s own data directory — the
+ * shape `app.requestSingleInstanceLock()` in `src/main/index.ts` exists to
+ * refuse, and freeze-audit finding L23.
+ *
+ * A raw `child_process.spawn` rather than `_electron.launch()`: Playwright's
+ * launcher requires a CDP handshake to complete before it will hand back an
+ * `ElectronApplication`, and the losing instance's own `app.exit(0)` fires
+ * before that handshake can — measured directly, `electron.launch()` against
+ * this exact scenario rejects with "Process failed to launch!" once the
+ * process exits underneath it, which answers this test's question by
+ * accident rather than by design. Spawned directly, the same exit is just an
+ * `'exit'` event on an ordinary `ChildProcess`, which is what the test below
+ * actually wants to observe.
+ */
+export function spawnSecondInstance(session: Session): ChildProcess {
+  const sandboxArgs = process.platform === 'win32' ? [] : ['--no-sandbox']
+  return spawn(electronBinaryPath, [...sandboxArgs, projectRoot], {
+    cwd: projectRoot,
+    env: {
+      ...process.env,
+      XDG_DATA_HOME: session.dataHome,
+      XDG_CONFIG_HOME: join(session.dataHome, 'config'),
+      JADEITE_DATA_HOME: session.dataHome,
+      JADEITE_CONFIG_HOME: join(session.dataHome, 'config'),
+      ELECTRON_DISABLE_SECURITY_WARNINGS: '1'
+    }
+  })
 }
 
 /**

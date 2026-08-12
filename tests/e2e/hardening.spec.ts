@@ -5,11 +5,12 @@
  * rather than what the configuration claims.
  */
 
+import type { ChildProcess } from 'node:child_process'
 import { mkdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 
-import { createVaultAndEnter, launchFresh, type Session } from './fixtures.js'
+import { createVaultAndEnter, launchFresh, spawnSecondInstance, type Session } from './fixtures.js'
 
 let session: Session
 
@@ -251,6 +252,89 @@ test('a malformed IPC payload is refused rather than crashing the app', async ()
   })
 })
 
+/**
+ * L24. `hardening.spec.ts` had malformed-payload coverage for the vault and
+ * backup channels only — Sections 1 through 4 (the four bridges the freeze
+ * audit's L3/L10-L13 findings named, and the ones a rung of this same pass
+ * added bound checks to) had none. One representative violation per bound
+ * added, run through the real bridge against a real unlocked vault, so this
+ * proves the whole path — preload, IPC, and the handler's own validation —
+ * rather than a validator function called directly.
+ */
+test('a malformed payload to a Section 1-4 channel is refused, not crashed', async () => {
+  await createVaultAndEnter(session)
+
+  const results = await session.page.evaluate(async () => {
+    const s1 = window.jadeite.section1 as unknown as {
+      renameCategory(id: unknown, name: unknown): Promise<unknown>
+      setAccentOverride(year: unknown, accent: unknown): Promise<unknown>
+    }
+    const s2 = window.jadeite.section2 as unknown as {
+      renameBank(id: unknown, name: unknown): Promise<unknown>
+      setCreditLimit(id: unknown, limit: unknown): Promise<unknown>
+      setCounterParty(id: unknown, party: unknown): Promise<unknown>
+    }
+    const s3 = window.jadeite.section3 as unknown as {
+      setPersonColour(id: unknown, colour: unknown): Promise<unknown>
+      setManualPrice(typeCode: unknown, value: unknown): Promise<unknown>
+      clearManualPrice(typeCode: unknown): Promise<unknown>
+    }
+    const s4 = window.jadeite.section4 as unknown as {
+      setCell(patch: unknown): Promise<unknown>
+    }
+
+    return {
+      // L3/L12: the pre-cap size guard, fed a payload the deep clean was never
+      // meant to see.
+      overlongName: await s1.renameCategory(1, 'x'.repeat(10_000)),
+      wrongTypeName: await s1.renameCategory(1, 12345),
+      overlongAccent: await s1.setAccentOverride(2026, 'x'.repeat(1000)),
+      overlongBankName: await s2.renameBank(1, 'x'.repeat(10_000)),
+      nonNumericLimit: await s2.setCreditLimit(1, 'a lot'),
+      negativeLimit: await s2.setCreditLimit(1, -1),
+      wrongTypeParty: await s2.setCounterParty(1, 12345),
+
+      // L10/L12: the two Section 3 channels the audit named by number as
+      // skipping the IPC-layer half of double-validation entirely.
+      overlongColour: await s3.setPersonColour(1, 'x'.repeat(1000)),
+      overlongTypeCode: await s3.setManualPrice('x'.repeat(1000), 100),
+      // L11: unitPrice above the ceiling db/section3.ts enforces.
+      priceAboveCeiling: await s3.setManualPrice('gram', 999_999_999_999),
+      negativePrice: await s3.setManualPrice('gram', -1),
+      overlongClearTypeCode: await s3.clearManualPrice('x'.repeat(1000)),
+
+      // L11: section4's slot/value bounds, previously type-checked only.
+      slotPastLimit: await s4.setCell({ slot: 999_999, value: 100 }),
+      negativeSlot: await s4.setCell({ slot: -1, value: 100 }),
+      negativeValue: await s4.setCell({ slot: 0, value: -1 })
+    }
+  })
+
+  expect(results.overlongName).toEqual({ ok: false, error: 'INVALID_NAME' })
+  expect(results.wrongTypeName).toEqual({ ok: false, error: 'INVALID_NAME' })
+  expect(results.overlongAccent).toEqual({ ok: false, error: 'INTERNAL' })
+  expect(results.overlongBankName).toEqual({ ok: false, error: 'INVALID_NAME' })
+  expect(results.nonNumericLimit).toEqual({ ok: false, error: 'INVALID_LIMIT' })
+  expect(results.negativeLimit).toEqual({ ok: false, error: 'INVALID_LIMIT' })
+  expect(results.wrongTypeParty).toEqual({ ok: false, error: 'INTERNAL' })
+
+  expect(results.overlongColour).toEqual({ ok: false, error: 'INTERNAL' })
+  expect(results.overlongTypeCode).toEqual({ ok: false, error: 'NO_SUCH_TYPE' })
+  expect(results.priceAboveCeiling).toEqual({ ok: false, error: 'INVALID_PRICE' })
+  expect(results.negativePrice).toEqual({ ok: false, error: 'INVALID_PRICE' })
+  expect(results.overlongClearTypeCode).toEqual({ ok: false, error: 'NO_SUCH_TYPE' })
+
+  expect(results.slotPastLimit).toEqual({ ok: false, error: 'INVALID_SLOT' })
+  expect(results.negativeSlot).toEqual({ ok: false, error: 'INVALID_SLOT' })
+  expect(results.negativeValue).toEqual({ ok: false, error: 'INVALID_VALUE' })
+
+  // Still alive and still responding after fourteen malformed calls in a row.
+  expect(await session.page.evaluate(() => window.jadeite.vault.status())).toEqual({
+    exists: true,
+    locked: false
+  })
+})
+
 test('the renderer cannot reach the network', async () => {
   const outcome = await session.page.evaluate(async () => {
     try {
@@ -384,6 +468,59 @@ test('a config write that fails carries no filesystem path back', async () => {
   } finally {
     rmSync(occupied, { recursive: true, force: true })
   }
+})
+
+/** Resolves the exit code, or rejects if the process outlives `timeoutMs`. */
+async function waitForExit(proc: ChildProcess, timeoutMs: number): Promise<number | null> {
+  if (proc.exitCode !== null) return proc.exitCode
+  return await new Promise<number | null>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`process did not exit within ${timeoutMs}ms`)),
+      timeoutMs
+    )
+    proc.once('exit', (code) => {
+      clearTimeout(timer)
+      resolve(code)
+    })
+  })
+}
+
+/**
+ * L23. `index.ts` comments its single-instance guard as "one vault, one
+ * process. A second instance would open the same database file behind the
+ * first one's back" — a claim nothing in the test suite had ever put to the
+ * proof. This launches a genuine second OS process against the first
+ * session's own data directory and checks what `app.requestSingleInstanceLock()`
+ * actually does with it, rather than trusting the comment.
+ */
+test('a second launch against the same vault directory is refused the lock, not raced into it', async () => {
+  await createVaultAndEnter(session)
+
+  const loser = spawnSecondInstance(session)
+  let stderr = ''
+  loser.stderr?.on('data', (chunk: Buffer) => {
+    stderr += chunk.toString()
+  })
+
+  try {
+    // `app.exit(0)`, not `app.quit()` — see index.ts's own comment on why the
+    // distinction matters here: `quit()` only requests a shutdown and returns
+    // immediately, which would let a losing instance's setup keep running well
+    // past this assertion. `app.exit(1)` is also what a genuine crash before
+    // that point would produce, so the code itself — not merely that the
+    // process ended — is what tells the two apart.
+    const exitCode = await waitForExit(loser, 15_000)
+    expect(exitCode, `the losing instance must exit cleanly, not crash — stderr: ${stderr}`).toBe(0)
+  } finally {
+    loser.kill()
+  }
+
+  // The winning instance is unharmed and still holds the vault it opened —
+  // the second instance never got as far as opening the database behind it.
+  expect(await session.page.evaluate(() => window.jadeite.vault.status())).toEqual({
+    exists: true,
+    locked: false
+  })
 })
 
 test('two credential ceremonies at once are queued, not run together', async () => {

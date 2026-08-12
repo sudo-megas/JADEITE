@@ -87,8 +87,17 @@ function walk(dir, out = []) {
   let entries
   try {
     entries = readdirSync(dir)
-  } catch {
-    return out
+  } catch (err) {
+    // Only a missing directory is tolerated — `tests/`, most concretely,
+    // need not exist for the audit to have an honest answer about the
+    // directory that does. Anything else (EACCES, a name colliding with a
+    // non-directory, ...) must not be swallowed the same way: this function
+    // also recurses into every subdirectory it finds, so silently returning
+    // here on a real error would drop that whole subtree from the scan —
+    // and this script has no other filesystem check to catch the gap, so a
+    // dropped subtree means a real network call could pass unseen.
+    if (/** @type {NodeJS.ErrnoException} */ (err).code === 'ENOENT') return out
+    throw err
   }
   for (const entry of entries) {
     const full = join(dir, entry)

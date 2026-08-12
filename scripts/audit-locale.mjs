@@ -87,7 +87,21 @@ const PATTERNS = [
 ]
 
 function walk(dir, out = []) {
-  for (const entry of readdirSync(dir)) {
+  let entries
+  try {
+    entries = readdirSync(dir)
+  } catch (err) {
+    // Only a missing directory is tolerated — `tests/`, most concretely,
+    // need not exist for the audit to have an honest answer about the
+    // directory that does. Anything else (EACCES, a name colliding with a
+    // non-directory, ...) must not be swallowed the same way: this function
+    // also recurses into every subdirectory it finds, so silently returning
+    // here on a real error would drop that whole subtree from the scan and
+    // let a violation inside it pass unseen. Matches audit-egress.mjs's walk.
+    if (/** @type {NodeJS.ErrnoException} */ (err).code === 'ENOENT') return out
+    throw err
+  }
+  for (const entry of entries) {
     const full = join(dir, entry)
     if (statSync(full).isDirectory()) {
       if (entry === 'node_modules' || entry === 'out') continue

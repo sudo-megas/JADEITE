@@ -18,7 +18,13 @@ let timer: NodeJS.Timeout | null = null
 // a repeat every tick would just be noise around it.
 let reportedMissingClock = false
 
-function tick(): void {
+/**
+ * One poll. Exported for `tests/electron/idle-suite.ts`, which calls it
+ * directly rather than waiting on the real 15-second interval — the freeze
+ * audit's L22 finding was that nothing exercised this function at all, only
+ * its downstream effect on a vault already known to be locked some other way.
+ */
+export function tick(): void {
   if (!vault.isUnlocked()) return
 
   const limitSeconds = vault.autoLockMinutes() * 60

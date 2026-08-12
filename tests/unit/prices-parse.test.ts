@@ -517,6 +517,48 @@ describe('a history body', () => {
     expect(closes).toEqual([{ typeCode: 'gram', date: '2026-05-08', value: 650_500 }])
   })
 
+  it('trims kayit_tarihi before deciding which same-day record is later (freeze audit I13)', () => {
+    // Identical to "keeps one close per day, the later timestamp winning"
+    // above, except the later record's timestamp carries incidental leading
+    // whitespace. Untrimmed, `' 2026-05-08 23:59:01' <= '2026-05-08
+    // 11:03:00'` compares false — a space (0x20) sorts before every digit
+    // (0x30-0x39) — so the earlier record would have won the "latest wins"
+    // tie-break for exactly the wrong reason. Trimmed first, the comparison is
+    // decided by the timestamp rather than by whichever record happened to
+    // carry a stray leading space.
+    const doubled =
+      '{"message":"","error":false,"data":[' +
+      '{"satis":"6600.0000","kayit_tarihi":"2026-05-08 11:03:00"},' +
+      '{"satis":"6505.0000","kayit_tarihi":" 2026-05-08 23:59:01"}' +
+      ']}'
+    const closes = value(parseHistoryBody(doubled, GOOD_HISTORY_REQUEST))
+    expect(closes).toEqual([{ typeCode: 'gram', date: '2026-05-08', value: 650_500 }])
+  })
+
+  it('refuses a calendar date outside the plausible year range (freeze audit I12)', () => {
+    // The same floor and ceiling `cleanDate` in db/section3.ts already holds
+    // the vault's own dates to (`MIN_YEAR`/`MAX_YEAR` in shared/calendar.ts) —
+    // a network source is as capable of sending year 0001 or 9999 as a
+    // corrupted local field is, and `Date.UTC` accepts both without complaint.
+    const implausible = [
+      '{"error":false,"data":[{"satis":"6505.0000","kayit_tarihi":"0001-05-08 23:59:01"}]}',
+      '{"error":false,"data":[{"satis":"6505.0000","kayit_tarihi":"9999-05-08 23:59:01"}]}'
+    ]
+    for (const text of implausible) {
+      expect(error(parseHistoryBody(text, GOOD_HISTORY_REQUEST))).toBe('MALFORMED')
+    }
+  })
+
+  it('drops only the implausible-year row, keeping the rest of an otherwise good series', () => {
+    const body =
+      '{"error":false,"data":[' +
+      '{"satis":"6322.0000","kayit_tarihi":"9999-01-01 23:59:01"},' +
+      '{"satis":"6505.0000","kayit_tarihi":"2026-05-08 23:59:01"}' +
+      ']}'
+    const closes = value(parseHistoryBody(body, GOOD_HISTORY_REQUEST))
+    expect(closes).toEqual([{ typeCode: 'gram', date: '2026-05-08', value: 650_500 }])
+  })
+
   it('lets the two defences compose when the tail is unreadable', () => {
     // Every row well-formed, and the last two above MAX_UNIT_PRICE — a source
     // that lost a decimal point partway through a series. The unstorable rows

@@ -21,7 +21,7 @@
  * questions and none of them is a comment.
  */
 
-import { app, session, shell, type Session } from 'electron'
+import { app, session, shell, type Session, type WebContents } from 'electron'
 
 import { isPermittedProviderHref } from '../prices/hosts.js'
 
@@ -129,7 +129,19 @@ export function isPermittedRequest(rawUrl: string, webContentsId: number | undef
   return webContentsId === undefined && isPermittedProviderHref(rawUrl)
 }
 
-function contentSecurityPolicy(): string {
+/**
+ * `dev` defaults to the module-scope flag decided once from
+ * `ELECTRON_RENDERER_URL`, so `hardenSession()` below is unchanged — every
+ * caller in the running application gets the branch this process is actually
+ * in. The parameter exists so a test can ask for the *other* branch without
+ * the module-caching trick `tests/electron/egress-suite.ts` already needs to
+ * force `isDev` true: that trick works by controlling which value module scope
+ * settles on at import time, which only ever gives one test file first claim
+ * on the true production branch. This function makes both branches reachable
+ * from either configuration, and freeze-audit finding L26 was exactly that no
+ * test had ever asked this function for the packaged answer.
+ */
+export function contentSecurityPolicy(dev: boolean = isDev): string {
   const base = [
     "default-src 'self'",
     "img-src 'self' data:",
@@ -142,15 +154,15 @@ function contentSecurityPolicy(): string {
     "worker-src 'none'"
   ]
 
-  if (isDev) {
+  if (dev) {
     // Vite injects inline scripts and needs eval for HMR. Development only —
     // the packaged build gets neither.
-    const dev = devOrigin() ?? ''
+    const devUrl = devOrigin() ?? ''
     return [
       ...base,
       `script-src 'self' 'unsafe-inline' 'unsafe-eval'`,
       `style-src 'self' 'unsafe-inline'`,
-      `connect-src 'self' ${dev} ws://localhost:* ws://127.0.0.1:*`
+      `connect-src 'self' ${devUrl} ws://localhost:* ws://127.0.0.1:*`
     ].join('; ')
   }
 
@@ -201,6 +213,55 @@ export function hardenSession(target: Session = session.defaultSession): void {
 }
 
 /**
+ * Refuse navigation and window creation on one `WebContents`.
+ *
+ * Split out from `hardenWebContents` below so `tests/electron/egress-suite.ts`
+ * can call it directly against a stub that only implements `.on`/
+ * `.setWindowOpenHandler` — freeze-audit finding L25 was that nothing had ever
+ * exercised this wiring itself, only the `isPermittedNavigation` predicate it
+ * calls in isolation. A predicate test cannot catch a listener bound to the
+ * wrong event, an argument destructured the wrong way, or a branch that never
+ * runs at all; this can, once something actually invokes the listeners the way
+ * Electron does.
+ */
+export function hardenContents(contents: WebContents): void {
+  contents.on('will-navigate', (event, url) => {
+    if (!isPermittedNavigation(url)) {
+      event.preventDefault()
+      if (isDev) console.warn('[navigation] blocked', url)
+    }
+  })
+
+  // `will-navigate` only fires for the top frame. A redirect (a server
+  // response, or `window.location` reassignment resolving async) and a
+  // frame's own navigation are separate Electron events with the same
+  // "leaving the app" shape, so they get the same gate — nothing today
+  // triggers either (no iframes/webviews, no redirecting host is ever
+  // fetched), but the gate should hold if that ever changes rather than
+  // depend on it never doing so.
+  contents.on('will-redirect', (event) => {
+    if (!isPermittedNavigation(event.url)) {
+      event.preventDefault()
+      if (isDev) console.warn('[navigation] blocked redirect', event.url)
+    }
+  })
+
+  contents.on('will-frame-navigate', (event) => {
+    if (!isPermittedNavigation(event.url)) {
+      event.preventDefault()
+      if (isDev) console.warn('[navigation] blocked frame navigate', event.url)
+    }
+  })
+
+  contents.on('will-attach-webview', (event) => event.preventDefault())
+
+  contents.setWindowOpenHandler(({ url }) => {
+    if (isDev) console.warn('[window-open] denied', url)
+    return { action: 'deny' }
+  })
+}
+
+/**
  * Refuse navigation and window creation everywhere.
  *
  * A renderer that is somehow persuaded to navigate off the app cannot: the
@@ -208,42 +269,7 @@ export function hardenSession(target: Session = session.defaultSession): void {
  * browser.
  */
 export function hardenWebContents(): void {
-  app.on('web-contents-created', (_event, contents) => {
-    contents.on('will-navigate', (event, url) => {
-      if (!isPermittedNavigation(url)) {
-        event.preventDefault()
-        if (isDev) console.warn('[navigation] blocked', url)
-      }
-    })
-
-    // `will-navigate` only fires for the top frame. A redirect (a server
-    // response, or `window.location` reassignment resolving async) and a
-    // frame's own navigation are separate Electron events with the same
-    // "leaving the app" shape, so they get the same gate — nothing today
-    // triggers either (no iframes/webviews, no redirecting host is ever
-    // fetched), but the gate should hold if that ever changes rather than
-    // depend on it never doing so.
-    contents.on('will-redirect', (event) => {
-      if (!isPermittedNavigation(event.url)) {
-        event.preventDefault()
-        if (isDev) console.warn('[navigation] blocked redirect', event.url)
-      }
-    })
-
-    contents.on('will-frame-navigate', (event) => {
-      if (!isPermittedNavigation(event.url)) {
-        event.preventDefault()
-        if (isDev) console.warn('[navigation] blocked frame navigate', event.url)
-      }
-    })
-
-    contents.on('will-attach-webview', (event) => event.preventDefault())
-
-    contents.setWindowOpenHandler(({ url }) => {
-      if (isDev) console.warn('[window-open] denied', url)
-      return { action: 'deny' }
-    })
-  })
+  app.on('web-contents-created', (_event, contents) => hardenContents(contents))
 }
 
 /** Nothing in JADEITE opens an external link; this exists to be unused. */
