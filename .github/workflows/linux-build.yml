@@ -28,10 +28,18 @@ name: Linux packages
 # The same two doors as `windows-build.yml`, for the same reason: a pushed
 # `v*` tag is the ordinary route, `workflow_dispatch` is the manual one from
 # the Actions tab.
+#
+# TEMPORARY: `workflow_dispatch` only resolves against whatever copy of this
+# file already lives on the repository's default branch, and this file does
+# not exist there yet — the first push of it has to prove itself some other
+# way. This branch trigger exists solely to let that first push run the job,
+# and is removed again in the commit right after CI comes back green.
 on:
   push:
     tags:
       - 'v*'
+    branches:
+      - 'worktree-jadeite-fix-audit-findings'
   workflow_dispatch:
 
 # Nothing by default, matching `windows-build.yml`: every job names what it
