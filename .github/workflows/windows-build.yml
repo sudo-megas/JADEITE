@@ -253,6 +253,14 @@ jobs:
       # release notes are the owner's prose and nothing here will invent any.
       # `--clobber` lets a re-run replace an installer rather than fail beside
       # one.
+      #
+      # A pushed tag now starts `linux-build.yml` at the same moment as this
+      # workflow, and both release jobs race to be the one that creates the
+      # release — `gh release create` is not idempotent on its own, so the
+      # loser is tolerated with `|| true` rather than failing the job. By the
+      # time it runs, the release it was about to create already exists, made
+      # by whichever workflow won, and the upload below still has one to
+      # attach to either way.
       - name: Attach it to the release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -262,6 +270,6 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           if ! gh release view "$TAG" > /dev/null 2>&1; then
-            gh release create "$TAG" --title "$TAG" --notes "" --verify-tag
+            gh release create "$TAG" --title "$TAG" --notes "" --verify-tag || true
           fi
           gh release upload "$TAG" installer/* --clobber

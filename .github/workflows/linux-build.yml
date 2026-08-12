@@ -1,0 +1,136 @@
+# The Linux packages, built where Linux packages have to be built.
+#
+# `package.json`'s `//package:win` note explains the rule this file is the
+# other half of: a native binary must be packed on the platform it targets,
+# because `node-gyp-build` and `bindings` both resolve whatever already sits
+# in `build/Release` ahead of any prebuild, and a foreign object sealed inside
+# a package fails only at first unlock — after the vault UI has already
+# painted, on a machine the build never saw. `npm run package` here runs
+# `install-app-deps` as an ordinary part of `npm install`, unlike
+# `package:win`, because Linux is the one platform where that rebuild has not
+# already happened by the time `npm ci` finishes: better-sqlite3-multiple-
+# ciphers is not N-API, so npm's own install step fetches the Node-ABI
+# prebuild, and only `install-app-deps` replaces it with the Electron one.
+# `npm ci` is therefore not allowed to fail quietly the way it is in
+# `windows-build.yml` — there is no later step here that re-checks the
+# binaries the way that workflow's own does, and a swallowed failure would
+# mean a packaged application that opens and then fails at first unlock.
+#
+# Three targets come out of one build — `.pacman`, `.deb`, `.tar.gz`, per
+# `electron-builder.yml`'s `linux.target` — and no system package (fpm, dpkg,
+# rpm) needs installing first: electron-builder carries its own fpm binary.
+# Nothing here reports anywhere, the same as `windows-build.yml`'s own note on
+# that: the two network dependencies are the ones building has always had,
+# npm fetching the dependency tree and electron-builder fetching Electron
+# 42.9.0 into the runner's cache.
+name: Linux packages
+
+# The same two doors as `windows-build.yml`, for the same reason: a pushed
+# `v*` tag is the ordinary route, `workflow_dispatch` is the manual one from
+# the Actions tab.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+# Nothing by default, matching `windows-build.yml`: every job names what it
+# needs, and only the release job below ever holds a token that can write to
+# the repository.
+permissions: {}
+
+jobs:
+  build:
+    name: Pack the installers on Linux
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    # Generous for the same reason as the Windows job: a fresh runner has a
+    # cold dependency tree, a cold Electron distribution, and may compile
+    # better-sqlite3-multiple-ciphers from source during `install-app-deps`
+    # rather than finding a prebuild, which an ordinary run does not pay for.
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out the commit being packed
+        uses: actions/checkout@v7
+
+      - name: Install Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+
+      # Allowed to fail loudly, unlike the Windows workflow's own install
+      # step — see the file-level comment above for why the two differ here.
+      - name: Install the dependency tree
+        run: npm ci
+
+      # Electron 42 stopped downloading its own binary during `npm install`;
+      # this also warms the same cache electron-builder reads when it
+      # assembles the package, so the distribution comes down once.
+      - name: Fetch the Electron binary
+        run: node node_modules/electron/install.js
+
+      # `package` verbatim: `npm run build && electron-builder --linux`, and
+      # `build` itself runs `npm run audit` first — so this step also
+      # re-proves the four build-gate scripts against the exact commit being
+      # packed, not just whatever last passed on a contributor's machine.
+      # What it does not run is the same thing `windows-build.yml` names for
+      # its own build step: the unit suites and `verify:package` are outside
+      # it, because the packaged Playwright suite wants a real desktop
+      # session. This workflow builds the artefacts; it does not certify them.
+      - name: Pack the installers
+        run: npm run package
+
+      - name: Keep the installers
+        uses: actions/upload-artifact@v7
+        with:
+          name: linux-packages
+          # Globs, matching `windows-build.yml`'s own reasoning: `${version}`
+          # here is package.json's semver, and it need not be spelled out for
+          # the workflow to find what packaging just produced.
+          path: |
+            release/*.pacman
+            release/*.deb
+            release/*.tar.gz
+          if-no-files-found: error
+
+  release:
+    name: Attach the installers to the release
+    needs: build
+    # Only where there is a tag to attach to — a `workflow_dispatch` from a
+    # branch builds and stops at the artefact above, the same shape
+    # `windows-build.yml` uses for a trial run.
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Collect the installers
+        uses: actions/download-artifact@v7
+        with:
+          name: linux-packages
+          path: installers
+
+      # Same release, both platforms: a pushed tag now starts this workflow
+      # and `windows-build.yml` together, and both release jobs race to be
+      # the one that creates it. `gh release create` is not idempotent on its
+      # own, so the loser of that race is left tolerated with `|| true`
+      # rather than failing the job — by the time it runs, the release it
+      # was about to create already exists, made by whichever workflow won,
+      # and the upload immediately below still has a release to attach to
+      # either way. The body is left empty for the reason `windows-build.yml`
+      # gives: release notes are the owner's prose, and nothing here invents
+      # any.
+      - name: Attach them to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if ! gh release view "$TAG" > /dev/null 2>&1; then
+            gh release create "$TAG" --title "$TAG" --notes "" --verify-tag || true
+          fi
+          gh release upload "$TAG" installers/* --clobber
