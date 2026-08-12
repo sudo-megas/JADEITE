@@ -80,6 +80,17 @@ jobs:
       - name: Fetch the Electron binary
         run: node node_modules/electron/install.js
 
+      # electron-builder's bundled fpm shells out to `bsdtar` to write a
+      # pacman package's .MTREE metadata, and ubuntu-latest carries only GNU
+      # tar — this step found that out by failing with exit 127 the first
+      # time this workflow ran. Debian and Ubuntu ship the binary itself
+      # under a differently-named package, `libarchive-tools`, rather than
+      # one called `bsdtar`.
+      - name: Install bsdtar, which the pacman target shells out to
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libarchive-tools
+
       # `package` verbatim: `npm run build && electron-builder --linux`, and
       # `build` itself runs `npm run audit` first — so this step also
       # re-proves the four build-gate scripts against the exact commit being
