@@ -18,6 +18,7 @@ import type { Database as DatabaseType } from 'better-sqlite3-multiple-ciphers'
 
 import { IPC, type Result } from '../../shared/ipc-contract.js'
 import type { Cell, CellPatch, Section4ErrorCode } from '../../shared/section4/types.js'
+import { COLUMNS, MAX_ROWS } from '../../shared/section4/types.js'
 import * as s4 from '../vault/db/section4.js'
 import { Section4Error } from '../vault/db/section4.js'
 import { VaultDataError } from '../vault/db/errors.js'
@@ -31,6 +32,9 @@ const CODES: readonly string[] = ['LOCKED', 'INVALID_SLOT', 'INVALID_VALUE', 'IN
 function asCode(value: string): Section4ErrorCode {
   return (CODES.includes(value) ? value : 'INTERNAL') as Section4ErrorCode
 }
+
+/** One past the last box the grid can ever draw — the same ceiling db/section4.ts enforces. */
+const SLOT_LIMIT = COLUMNS * MAX_ROWS
 
 function withVault<T>(fn: (db: DatabaseType) => T): S4Result<T> {
   const db = vault.database()
@@ -55,11 +59,20 @@ function asPatch(value: unknown): CellPatch {
   const raw = value as Record<string, unknown>
 
   const slot = raw['slot']
-  if (typeof slot !== 'number') throw new Section4Error('INVALID_SLOT')
+  if (
+    typeof slot !== 'number' ||
+    !Number.isSafeInteger(slot) ||
+    slot < 0 ||
+    slot >= SLOT_LIMIT
+  ) {
+    throw new Section4Error('INVALID_SLOT')
+  }
 
   const figure = raw['value']
   if (figure === null || figure === undefined) return { slot, value: null }
-  if (typeof figure !== 'number') throw new Section4Error('INVALID_VALUE')
+  if (typeof figure !== 'number' || !Number.isSafeInteger(figure) || figure < 0) {
+    throw new Section4Error('INVALID_VALUE')
+  }
   return { slot, value: figure }
 }
 

@@ -141,6 +141,9 @@ export function registerSection2Handlers(): void {
   ipcMain.handle(IPC.s2RenameBank, (_e, id: unknown, name: unknown): S2Result<null> =>
     withVault((db) => {
       if (!isId(id)) throw new Section2Error('NO_SUCH_BANK')
+      if (typeof name !== 'string') throw new Section2Error('INVALID_NAME')
+      // A coarse pre-trim cap, so the deep clean is never handed a megabyte.
+      if (name.length > MAX_BANK_NAME_LENGTH * 4) throw new Section2Error('INVALID_NAME')
       s2.renameBank(db, id, name)
       return null
     })
@@ -149,6 +152,9 @@ export function registerSection2Handlers(): void {
   ipcMain.handle(IPC.s2SetCreditLimit, (_e, id: unknown, limit: unknown): S2Result<null> =>
     withVault((db) => {
       if (!isId(id)) throw new Section2Error('NO_SUCH_BANK')
+      if (typeof limit !== 'number' || !Number.isSafeInteger(limit) || limit < 0) {
+        throw new Section2Error('INVALID_LIMIT')
+      }
       s2.setCreditLimit(db, id, limit)
       return null
     })
@@ -157,6 +163,11 @@ export function registerSection2Handlers(): void {
   ipcMain.handle(IPC.s2SetCounterParty, (_e, id: unknown, party: unknown): S2Result<null> =>
     withVault((db) => {
       if (!isId(id)) throw new Section2Error('NO_SUCH_BANK')
+      if (party !== null && typeof party !== 'string') throw new Section2Error('INTERNAL')
+      // A coarse pre-trim cap, so the deep clean is never handed a megabyte.
+      if (typeof party === 'string' && party.length > MAX_COUNTER_PARTY_LENGTH * 4) {
+        throw new Section2Error('INTERNAL')
+      }
       s2.setCounterParty(db, id, party)
       return null
     })

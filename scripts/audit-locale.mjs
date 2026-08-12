@@ -51,22 +51,35 @@ const EXTENSIONS = new Set(['.ts', '.tsx'])
 
 const PATTERNS = [
   {
+    // The empty-parens form (`.toLocaleString()`) and the equally OS-locale
+    // form that spells the locale argument out as `undefined` — the two read
+    // identically to the engine, and the second is the one that shows up in
+    // practice: `.toLocaleString(undefined, { minimumFractionDigits: 2 })` is
+    // the idiomatic way to reach for "default locale, custom options" and slips
+    // an OS-locale read in exactly where a reviewer is looking at the options
+    // object instead.
     why: 'toLocaleString/toLocaleDateString/toLocaleTimeString with no explicit locale',
-    re: /\.toLocale(?:String|DateString|TimeString)\s*\(\s*\)/
+    re: /\.toLocale(?:String|DateString|TimeString)\s*\(\s*(?:\)|undefined\b)/
   },
   {
     why: 'Intl constructor with an undefined locale (uses the OS locale)',
-    re: /new\s+Intl\.\w+\s*\(\s*undefined/
+    // `new` is optional to match: every one of these constructors is callable
+    // without it per the ECMA-402 spec, and `Intl.NumberFormat(undefined, ...)`
+    // reads the OS locale exactly as `new Intl.NumberFormat(undefined, ...)` does.
+    re: /(?:new\s+)?Intl\.\w+\s*\(\s*undefined/
   },
   {
     why: 'Intl constructor with no locale argument (uses the OS locale)',
-    re: /new\s+Intl\.\w+\s*\(\s*\)/
+    re: /(?:new\s+)?Intl\.\w+\s*\(\s*\)/
   },
   { why: 'navigator.language read', re: /navigator\s*\.\s*languages?\b/ },
   { why: 'app.getLocale() read', re: /\bapp\s*\.\s*getLocale(?:CountryCode)?\s*\(/ },
   {
+    // Bracket and dot notation reach the same property; `process.env.LANG` is
+    // the more idiomatic of the two spellings and the original pattern only
+    // matched the other one.
     why: 'LANG / LC_ALL environment read',
-    re: /env\s*\[\s*['"](?:LANG|LC_ALL|LC_TIME|LANGUAGE)['"]/,
+    re: /env\s*(?:\[\s*['"](?:LANG|LC_ALL|LC_TIME|LANGUAGE)['"]|\.\s*(?:LANG|LC_ALL|LC_TIME|LANGUAGE)\b)/,
     // Application code only. The tests set these variables on purpose, to
     // prove the app ignores them — that is the §13 acceptance check itself.
     appCodeOnly: true
@@ -145,6 +158,51 @@ for (const name of [...new Set([...inEnglish.keys(), ...inTurkish.keys()])].sort
       file: relative(root, LOCALES),
       line: 0,
       why: `key "${name}" appears ${en} time(s) in en.ts and ${tr} time(s) in tr.ts`,
+      parity: true
+    })
+  }
+}
+
+// --- 5. the two catalogues interpolate the same names ---------------------
+//
+// Key parity above catches a string forgotten on one side; it cannot catch a
+// string present on both sides that names its interpolation variable
+// differently — `{{count}}` in one, `{{cuont}}` in the other — since neither
+// key nor value count changes. i18next fails that silently too: an unresolved
+// placeholder renders as the literal `{{cuont}}` text rather than throwing. As
+// coarse as the key check above and for the same reason: this counts every
+// placeholder name used anywhere in each file rather than pairing them by key,
+// so a name moved between two strings on the same side would not be caught —
+// but a name that exists on one side and not the other, which is the typo that
+// actually happens, changes the tally and is.
+function placeholderNames(file) {
+  const names = []
+  const re = /\{\{\s*([\w.]+)\s*\}\}/g
+  const text = readFileSync(file, 'utf8')
+  let match
+  while ((match = re.exec(text))) names.push(match[1])
+  return names
+}
+
+function tallyList(names) {
+  const counts = new Map()
+  for (const name of names) counts.set(name, (counts.get(name) ?? 0) + 1)
+  return counts
+}
+
+const placeholdersInEnglish = tallyList(placeholderNames(join(LOCALES, 'en.ts')))
+const placeholdersInTurkish = tallyList(placeholderNames(join(LOCALES, 'tr.ts')))
+
+for (const name of [
+  ...new Set([...placeholdersInEnglish.keys(), ...placeholdersInTurkish.keys()])
+].sort()) {
+  const en = placeholdersInEnglish.get(name) ?? 0
+  const tr = placeholdersInTurkish.get(name) ?? 0
+  if (en !== tr) {
+    findings.push({
+      file: relative(root, LOCALES),
+      line: 0,
+      why: `interpolation placeholder "{{${name}}}" appears ${en} time(s) in en.ts and ${tr} time(s) in tr.ts`,
       parity: true
     })
   }

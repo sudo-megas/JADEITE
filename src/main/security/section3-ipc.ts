@@ -29,6 +29,7 @@ import {
   MAX_PERSON_NAME_LENGTH,
   MAX_SOURCE_LENGTH
 } from '../../shared/section3/types.js'
+import { MAX_QUANTITY, MAX_UNIT_PRICE } from '../../shared/section3/units.js'
 import { refreshPrices } from '../prices/service.js'
 import * as s3 from '../vault/db/section3.js'
 import { Section3Error } from '../vault/db/section3.js'
@@ -159,18 +160,29 @@ function asTransactionDraft(value: unknown): TransactionDraft {
   if (
     typeof denomination !== 'number' ||
     !Number.isSafeInteger(denomination) ||
-    denomination <= 0
+    denomination <= 0 ||
+    denomination > MAX_QUANTITY
   ) {
     throw new Section3Error('INVALID_QUANTITY')
   }
 
   const count = raw['count']
-  if (typeof count !== 'number' || !Number.isSafeInteger(count) || count <= 0) {
+  if (
+    typeof count !== 'number' ||
+    !Number.isSafeInteger(count) ||
+    count <= 0 ||
+    count > MAX_QUANTITY
+  ) {
     throw new Section3Error('INVALID_QUANTITY')
   }
 
   const unitPrice = raw['unitPrice']
-  if (typeof unitPrice !== 'number' || !Number.isSafeInteger(unitPrice) || unitPrice < 0) {
+  if (
+    typeof unitPrice !== 'number' ||
+    !Number.isSafeInteger(unitPrice) ||
+    unitPrice < 0 ||
+    unitPrice > MAX_UNIT_PRICE
+  ) {
     throw new Section3Error('INVALID_PRICE')
   }
 
@@ -250,7 +262,8 @@ function asTransactionPatch(value: unknown): TransactionPatch {
     if (
       typeof denomination !== 'number' ||
       !Number.isSafeInteger(denomination) ||
-      denomination <= 0
+      denomination <= 0 ||
+      denomination > MAX_QUANTITY
     ) {
       throw new Section3Error('INVALID_QUANTITY')
     }
@@ -259,7 +272,12 @@ function asTransactionPatch(value: unknown): TransactionPatch {
 
   if (raw['count'] !== undefined) {
     const count = raw['count']
-    if (typeof count !== 'number' || !Number.isSafeInteger(count) || count <= 0) {
+    if (
+      typeof count !== 'number' ||
+      !Number.isSafeInteger(count) ||
+      count <= 0 ||
+      count > MAX_QUANTITY
+    ) {
       throw new Section3Error('INVALID_QUANTITY')
     }
     patch.count = count
@@ -267,7 +285,12 @@ function asTransactionPatch(value: unknown): TransactionPatch {
 
   if (raw['unitPrice'] !== undefined) {
     const unitPrice = raw['unitPrice']
-    if (typeof unitPrice !== 'number' || !Number.isSafeInteger(unitPrice) || unitPrice < 0) {
+    if (
+      typeof unitPrice !== 'number' ||
+      !Number.isSafeInteger(unitPrice) ||
+      unitPrice < 0 ||
+      unitPrice > MAX_UNIT_PRICE
+    ) {
       throw new Section3Error('INVALID_PRICE')
     }
     patch.unitPrice = unitPrice
@@ -317,6 +340,16 @@ export function registerSection3Handlers(): void {
   ipcMain.handle(IPC.s3SetPersonColour, (_e, id: unknown, colour: unknown): S3Result<null> =>
     withVault((db) => {
       if (!isId(id)) throw new Section3Error('NO_SUCH_PERSON')
+      if (colour !== null && colour !== undefined) {
+        if (typeof colour !== 'number' && typeof colour !== 'string') {
+          throw new Section3Error('INTERNAL')
+        }
+        // A colour is an accent-slot index, a handful of digits at most — a
+        // coarse pre-trim cap, so the deep clean is never handed a megabyte.
+        if (typeof colour === 'string' && colour.length > 32) {
+          throw new Section3Error('INTERNAL')
+        }
+      }
       s3.setPersonColour(db, id, colour)
       return null
     })
@@ -372,6 +405,17 @@ export function registerSection3Handlers(): void {
 
   ipcMain.handle(IPC.s3SetManualPrice, (_e, typeCode: unknown, value: unknown): S3Result<null> =>
     withVault((db) => {
+      if (typeof typeCode !== 'string' || typeCode.length > 32) {
+        throw new Section3Error('NO_SUCH_TYPE')
+      }
+      if (
+        typeof value !== 'number' ||
+        !Number.isSafeInteger(value) ||
+        value < 0 ||
+        value > MAX_UNIT_PRICE
+      ) {
+        throw new Section3Error('INVALID_PRICE')
+      }
       s3.setManualPrice(db, typeCode, value)
       return null
     })
@@ -379,6 +423,9 @@ export function registerSection3Handlers(): void {
 
   ipcMain.handle(IPC.s3ClearManualPrice, (_e, typeCode: unknown): S3Result<null> =>
     withVault((db) => {
+      if (typeof typeCode !== 'string' || typeCode.length > 32) {
+        throw new Section3Error('NO_SUCH_TYPE')
+      }
       s3.clearManualPrice(db, typeCode)
       return null
     })

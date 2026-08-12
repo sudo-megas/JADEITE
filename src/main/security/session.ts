@@ -216,6 +216,27 @@ export function hardenWebContents(): void {
       }
     })
 
+    // `will-navigate` only fires for the top frame. A redirect (a server
+    // response, or `window.location` reassignment resolving async) and a
+    // frame's own navigation are separate Electron events with the same
+    // "leaving the app" shape, so they get the same gate — nothing today
+    // triggers either (no iframes/webviews, no redirecting host is ever
+    // fetched), but the gate should hold if that ever changes rather than
+    // depend on it never doing so.
+    contents.on('will-redirect', (event) => {
+      if (!isPermittedNavigation(event.url)) {
+        event.preventDefault()
+        if (isDev) console.warn('[navigation] blocked redirect', event.url)
+      }
+    })
+
+    contents.on('will-frame-navigate', (event) => {
+      if (!isPermittedNavigation(event.url)) {
+        event.preventDefault()
+        if (isDev) console.warn('[navigation] blocked frame navigate', event.url)
+      }
+    })
+
     contents.on('will-attach-webview', (event) => event.preventDefault())
 
     contents.setWindowOpenHandler(({ url }) => {

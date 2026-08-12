@@ -19,7 +19,12 @@ import type {
   YearUsage,
   YearWorkspace
 } from '../../shared/section1/types.js'
-import { MAX_NOTE_LENGTH, VALUE_TYPES, isMonth } from '../../shared/section1/types.js'
+import {
+  MAX_CATEGORY_NAME_LENGTH,
+  MAX_NOTE_LENGTH,
+  VALUE_TYPES,
+  isMonth
+} from '../../shared/section1/types.js'
 import * as s1 from '../vault/db/section1.js'
 import { Section1Error } from '../vault/db/section1.js'
 import { VaultDataError } from '../vault/db/errors.js'
@@ -80,6 +85,8 @@ function asDraft(value: unknown): CategoryDraft {
   if (typeof value !== 'object' || value === null) throw new Section1Error('INTERNAL')
   const raw = value as Record<string, unknown>
   if (typeof raw['name'] !== 'string') throw new Section1Error('INVALID_NAME')
+  // A coarse pre-trim cap, so the deep clean is never handed a megabyte.
+  if (raw['name'].length > MAX_CATEGORY_NAME_LENGTH * 4) throw new Section1Error('INVALID_NAME')
   if (raw['kind'] !== 'income' && raw['kind'] !== 'expense') throw new Section1Error('INTERNAL')
   if (typeof raw['valueType'] !== 'string' || !VALUE_TYPES.includes(raw['valueType'] as never)) {
     throw new Section1Error('INTERNAL')
@@ -153,6 +160,9 @@ export function registerSection1Handlers(): void {
   ipcMain.handle(IPC.s1RenameCategory, (_e, id: unknown, name: unknown): S1Result<null> =>
     withVault((db) => {
       if (!isId(id)) throw new Section1Error('NO_SUCH_CATEGORY')
+      if (typeof name !== 'string') throw new Section1Error('INVALID_NAME')
+      // A coarse pre-trim cap, so the deep clean is never handed a megabyte.
+      if (name.length > MAX_CATEGORY_NAME_LENGTH * 4) throw new Section1Error('INVALID_NAME')
       s1.renameCategory(db, id, name)
       return null
     })
@@ -161,6 +171,9 @@ export function registerSection1Handlers(): void {
   ipcMain.handle(IPC.s1RetypeCategory, (_e, id: unknown, valueType: unknown): S1Result<null> =>
     withVault((db) => {
       if (!isId(id)) throw new Section1Error('NO_SUCH_CATEGORY')
+      if (typeof valueType !== 'string' || !VALUE_TYPES.includes(valueType as never)) {
+        throw new Section1Error('INTERNAL')
+      }
       s1.setCategoryValueType(db, id, valueType)
       return null
     })
@@ -221,6 +234,9 @@ export function registerSection1Handlers(): void {
       withVault((db) => {
         if (!s1.isValidYear(year)) throw new Section1Error('INVALID_YEAR')
         if (accent !== null && typeof accent !== 'string') throw new Section1Error('INTERNAL')
+        // A coarse pre-trim cap: the longest legal token is `#RRGGBBAA`, nine
+        // characters, so nothing legitimate is anywhere near this limit.
+        if (typeof accent === 'string' && accent.length > 64) throw new Section1Error('INTERNAL')
         s1.setAccentOverride(db, year, accent)
         return null
       })

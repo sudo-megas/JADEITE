@@ -38,9 +38,11 @@
  * application yields a second, dead icon beside the live one — a coupling
  * between a YAML key and a call site with nothing between them to notice.
  *
- * Scanning is over `git ls-files`, so the subject is what the repository ships
- * rather than what happens to be lying in the working tree. `node_modules/` and
- * `release/` are untracked and so are never read; `LICENSE` is skipped because
+ * Scanning is over `git ls-files --cached --others --exclude-standard`, so the
+ * subject is what the working tree is about to build rather than only what is
+ * already committed — a drafted-but-not-yet-`git add`-ed file ships the moment
+ * `npm run build` runs over it, commit or no commit. `node_modules/` and
+ * `release/` are gitignored and so are never read; `LICENSE` is skipped because
  * the GPL is not ours to audit for phrasing.
  */
 
@@ -111,7 +113,17 @@ const EXEMPT = new Set([
 const isRungCompanion = (path) => /^docs\/realisation-[a-z]+\.md$/.test(path)
 
 /**
- * The tracked file list, or `null` where there is no repository to ask.
+ * The tracked-or-about-to-be-tracked file list, or `null` where there is no
+ * repository to ask.
+ *
+ * `--cached --others --exclude-standard` rather than a bare `git ls-files`:
+ * the bare form lists only what is already committed, but `npm run build`
+ * bundles whatever is sitting in the working tree, tracked or not. A file
+ * drafted and not yet `git add`-ed still ships if the build runs before the
+ * commit does, so a retired sentence typed into it would pass this rule right
+ * up until the moment it stopped being new — `--others --exclude-standard`
+ * adds exactly that gap back in, while still honouring `.gitignore` so
+ * `node_modules/` and `release/` are not walked by hand a second time.
  *
  * `git ls-files` exits non-zero outside a checkout, and a source tarball is
  * exactly that — which is the case Realisation X spent a manifest field
@@ -127,7 +139,7 @@ const isRungCompanion = (path) => /^docs\/realisation-[a-z]+\.md$/.test(path)
  */
 function trackedFiles() {
   try {
-    return execFileSync('git', ['ls-files'], {
+    return execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], {
       cwd: root,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore']
@@ -175,8 +187,32 @@ for (const path of tracked ?? []) {
 
 // --- 2. The name pair --------------------------------------------------------
 
-const NAME_EN = 'Economy Journal'
-const NAME_TR = 'Ekonomi Defteri'
+/**
+ * The tagline as the app itself says it — `about.tagline` in each catalogue —
+ * rather than a second, hardcoded copy of the same two strings living in this
+ * script. A hardcoded copy is exactly the failure mode rule 2 exists to catch
+ * everywhere else: a string that can drift from what actually ships, with
+ * nothing to notice. `npm run build` never opens this file, so a copy here
+ * would only ever be caught by an e2e run nobody wires into CI.
+ *
+ * Same deliberately-small-reader approach as `yamlValue` below: one regex for
+ * one line, not a TypeScript parser. `about.tagline` appears exactly once in
+ * each locale file today, so the line match is unambiguous.
+ */
+function taglineFrom(localeFile) {
+  const match = /\btagline:\s*['"]([^'"]+)['"]/.exec(read(localeFile))
+  return match ? match[1] : null
+}
+
+const NAME_EN = taglineFrom('src/renderer/src/i18n/locales/en.ts')
+const NAME_TR = taglineFrom('src/renderer/src/i18n/locales/tr.ts')
+
+if (NAME_EN === null || NAME_TR === null) {
+  findings.push({
+    where: 'src/renderer/src/i18n/locales/{en,tr}.ts',
+    why: 'no about.tagline found in one or both locale files — the name-pair rule has nothing to compare the launcher strings against'
+  })
+}
 
 const builderYml = read('electron-builder.yml')
 
@@ -193,25 +229,30 @@ function yamlValue(key) {
   return match ? match[1].trim() : null
 }
 
-for (const [key, expected] of [
-  ['GenericName', NAME_EN],
-  ['GenericName[tr]', NAME_TR]
-]) {
-  const actual = yamlValue(key)
-  if (actual !== expected) {
+// Skipped, rather than compared against a placeholder, when a tagline is
+// missing above: that is already its own finding, and comparing every launcher
+// string against the literal text "null" would only bury it under noise.
+if (NAME_EN !== null && NAME_TR !== null) {
+  for (const [key, expected] of [
+    ['GenericName', NAME_EN],
+    ['GenericName[tr]', NAME_TR]
+  ]) {
+    const actual = yamlValue(key)
+    if (actual !== expected) {
+      findings.push({
+        where: 'electron-builder.yml',
+        why: `${key} is ${actual === null ? 'absent' : `"${actual}"`}, expected "${expected}" — the launcher must name the application what the About page does (§17.1)`
+      })
+    }
+  }
+
+  const synopsis = yamlValue('synopsis')
+  if (synopsis === null || !synopsis.includes(NAME_EN)) {
     findings.push({
       where: 'electron-builder.yml',
-      why: `${key} is ${actual === null ? 'absent' : `"${actual}"`}, expected "${expected}" — the launcher must name the application what the About page does (§17.1)`
+      why: `synopsis must carry "${NAME_EN}" — pacman prints it alone, because pacman.erb writes pkgdesc on one line and drops fpm's second (v0.9d)`
     })
   }
-}
-
-const synopsis = yamlValue('synopsis')
-if (synopsis === null || !synopsis.includes(NAME_EN)) {
-  findings.push({
-    where: 'electron-builder.yml',
-    why: `synopsis must carry "${NAME_EN}" — pacman prints it alone, because pacman.erb writes pkgdesc on one line and drops fpm's second (v0.9d)`
-  })
 }
 
 // --- 3. The window class -----------------------------------------------------

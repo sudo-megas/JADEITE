@@ -25,7 +25,9 @@ export const en = {
     warningTitle: 'This key will never be shown again.',
     warningBody:
       'If you forget your password and lose this key, the vault cannot be opened, permanently. There is no third copy, no back door and no support channel.',
-    ack: 'I have written the recovery key down and stored it safely.'
+    ack: 'I have written the recovery key down and stored it safely.',
+    maskedNotice: 'The vault locked itself while this was on screen. Reveal the key again to keep reading it.',
+    reveal: 'Reveal the key'
   },
 
   lock: {

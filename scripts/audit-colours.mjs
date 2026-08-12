@@ -19,11 +19,76 @@ const EXTENSIONS = new Set(['.ts', '.tsx', '.css', '.html'])
 /** The only place colours may be named. */
 const ALLOWED = [join('src', 'shared', 'theme', 'palettes')]
 
+/**
+ * CSS's 147 named colours (`transparent` and `currentColor` excluded on
+ * purpose: neither names a colour, both name an absence of one, and
+ * `backgroundColor: 'transparent'` is already legitimate, existing code —
+ * `sections/charts/options.ts` uses it to let the surface token show through).
+ */
+const NAMED_COLOURS = [
+  'aliceblue', 'antiquewhite', 'aqua', 'aquamarine', 'azure', 'beige', 'bisque', 'black',
+  'blanchedalmond', 'blue', 'blueviolet', 'brown', 'burlywood', 'cadetblue', 'chartreuse',
+  'chocolate', 'coral', 'cornflowerblue', 'cornsilk', 'crimson', 'cyan', 'darkblue',
+  'darkcyan', 'darkgoldenrod', 'darkgray', 'darkgreen', 'darkgrey', 'darkkhaki',
+  'darkmagenta', 'darkolivegreen', 'darkorange', 'darkorchid', 'darkred', 'darksalmon',
+  'darkseagreen', 'darkslateblue', 'darkslategray', 'darkslategrey', 'darkturquoise',
+  'darkviolet', 'deeppink', 'deepskyblue', 'dimgray', 'dimgrey', 'dodgerblue', 'firebrick',
+  'floralwhite', 'forestgreen', 'fuchsia', 'gainsboro', 'ghostwhite', 'gold', 'goldenrod',
+  'gray', 'green', 'greenyellow', 'grey', 'honeydew', 'hotpink', 'indianred', 'indigo',
+  'ivory', 'khaki', 'lavender', 'lavenderblush', 'lawngreen', 'lemonchiffon', 'lightblue',
+  'lightcoral', 'lightcyan', 'lightgoldenrodyellow', 'lightgray', 'lightgreen', 'lightgrey',
+  'lightpink', 'lightsalmon', 'lightseagreen', 'lightskyblue', 'lightslategray',
+  'lightslategrey', 'lightsteelblue', 'lightyellow', 'lime', 'limegreen', 'linen',
+  'magenta', 'maroon', 'mediumaquamarine', 'mediumblue', 'mediumorchid', 'mediumpurple',
+  'mediumseagreen', 'mediumslateblue', 'mediumspringgreen', 'mediumturquoise',
+  'mediumvioletred', 'midnightblue', 'mintcream', 'mistyrose', 'moccasin', 'navajowhite',
+  'navy', 'oldlace', 'olive', 'olivedrab', 'orange', 'orangered', 'orchid', 'palegoldenrod',
+  'palegreen', 'paleturquoise', 'palevioletred', 'papayawhip', 'peachpuff', 'peru', 'pink',
+  'plum', 'powderblue', 'purple', 'rebeccapurple', 'red', 'rosybrown', 'royalblue',
+  'saddlebrown', 'salmon', 'sandybrown', 'seagreen', 'seashell', 'sienna', 'silver',
+  'skyblue', 'slateblue', 'slategray', 'slategrey', 'snow', 'springgreen', 'steelblue',
+  'tan', 'teal', 'thistle', 'tomato', 'turquoise', 'violet', 'wheat', 'white', 'whitesmoke',
+  'yellow', 'yellowgreen'
+]
+
+/**
+ * Property and attribute names a colour keyword can legally follow — CSS
+ * properties, their camelCase inline-style/JSX equivalents, and the SVG/HTML
+ * attributes the codebase's chart and icon code uses (`fill`, `stroke`).
+ *
+ * Anchoring the named-colour search to these is what keeps this from lighting
+ * up on every mention of the word "gold" in an application about gold prices —
+ * §14's price data and its translations say "gold" constantly, in a context no
+ * colour rule has any business reading.
+ */
+const COLOR_PROPS = [
+  'color', 'background', 'background-color', 'backgroundColor',
+  'border', 'border-color', 'borderColor',
+  'border-top-color', 'borderTopColor', 'border-right-color', 'borderRightColor',
+  'border-bottom-color', 'borderBottomColor', 'border-left-color', 'borderLeftColor',
+  'outline', 'outline-color', 'outlineColor',
+  'fill', 'stroke', 'stop-color', 'stopColor',
+  'box-shadow', 'boxShadow', 'text-shadow', 'textShadow',
+  'caret-color', 'caretColor', 'accent-color', 'accentColor'
+].join('|')
+
 const PATTERNS = [
   { name: 'hex colour', re: /#[0-9a-fA-F]{3,8}\b/g },
-  { name: 'rgb()', re: /\brgba?\s*\(/g },
-  { name: 'hsl()', re: /\bhsla?\s*\(/g },
-  { name: 'oklch() literal', re: /\boklch\s*\(\s*[\d.]/g }
+  { name: 'rgb()', re: /\brgba?\s*\(/gi },
+  { name: 'hsl()', re: /\bhsla?\s*\(/gi },
+  { name: 'oklch() literal', re: /\boklch\s*\(\s*[\d.]/gi },
+  { name: 'lab() literal', re: /\blab\s*\(\s*[\d.]/gi },
+  { name: 'lch() literal', re: /\blch\s*\(\s*[\d.]/gi },
+  { name: 'oklab() literal', re: /\boklab\s*\(\s*[\d.]/gi },
+  { name: 'hwb() literal', re: /\bhwb\s*\(\s*[\d.]/gi },
+  {
+    name: 'color() literal',
+    re: /\bcolor\s*\(\s*(?:srgb|srgb-linear|display-p3|a98-rgb|prophoto-rgb|rec2020|xyz|xyz-d50|xyz-d65)\b/gi
+  },
+  {
+    name: 'named colour',
+    re: new RegExp(`\\b(?:${COLOR_PROPS})\\s*[:=]\\s*['"\`]?(?:${NAMED_COLOURS.join('|')})\\b`, 'gi')
+  }
 ]
 
 /** Placeholders and CSS keywords that are not colours. */

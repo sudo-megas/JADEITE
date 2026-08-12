@@ -166,7 +166,13 @@ describe('the Turkish and English catalogues carry the same keys', () => {
     // sentence for "it answered, and I could not read most of it", and the
     // absence of that sentence is what made the defect silent rather than
     // obvious. Two keys against a class of failure that hid itself once already.
-    expect(english.size).toBe(444)
-    expect(turkish.size).toBe(444)
+    //
+    // 446 since 13 August 2026. `recovery.maskedNotice` and `recovery.reveal`
+    // are the sentence and the button the recovery-key panel gained when an
+    // auto-lock firing mid-display stopped leaving the plaintext key rendered on
+    // an unattended machine: the panel masks it and asks for a deliberate
+    // re-reveal instead, and both need naming in the owner's own language.
+    expect(english.size).toBe(446)
+    expect(turkish.size).toBe(446)
   })
 })

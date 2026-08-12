@@ -31,11 +31,11 @@
     "test:vault": "node scripts/run-electron-tests.mjs",
     "test:watch": "vitest",
     "test:e2e": "npm run build && playwright test",
-    "package": "electron-vite build && electron-builder --linux",
-    "//package:win": "Built on Windows, never cross-packed from Linux — see the asarUnpack comment in electron-builder.yml. node-gyp-build prefers build/Release over prebuilds, so a Linux tree packed for Windows ships an ELF argon2.node that fails at first unlock. npmRebuild is turned off here and only here: on Windows both native modules already hold the right binary for Electron's ABI before packaging starts — argon2 through its win32-x64 prebuild, which is N-API and therefore ABI-stable across Node and Electron alike, and better-sqlite3-multiple-ciphers through the published electron-v146 prebuild that `prebuild-install --runtime=electron --target=42.8.0` fetches. Left on, @electron/rebuild does not recognise prebuildify's layout, falls through to node-gyp for argon2, and demands a Visual Studio installation in order to rebuild something that did not need rebuilding. Linux keeps the rebuild and genuinely needs it: better-sqlite3-multiple-ciphers is not N-API, so npm installs its Node-ABI prebuild there and only the rebuild makes the packaged application openable.",
-    "package:win": "electron-vite build && electron-builder --win -c.npmRebuild=false",
+    "package": "npm run build && electron-builder --linux",
+    "//package:win": "Built on Windows, never cross-packed from Linux — see the asarUnpack comment in electron-builder.yml. node-gyp-build prefers build/Release over prebuilds, so a Linux tree packed for Windows ships an ELF argon2.node that fails at first unlock. npmRebuild is turned off here and only here: on Windows both native modules already hold the right binary for Electron's ABI before packaging starts — argon2 through its win32-x64 prebuild, which is N-API and therefore ABI-stable across Node and Electron alike, and better-sqlite3-multiple-ciphers through the published electron-v146 prebuild that `prebuild-install --runtime=electron --target=42.9.0` fetches. Left on, @electron/rebuild does not recognise prebuildify's layout, falls through to node-gyp for argon2, and demands a Visual Studio installation in order to rebuild something that did not need rebuilding. Linux keeps the rebuild and genuinely needs it: better-sqlite3-multiple-ciphers is not N-API, so npm installs its Node-ABI prebuild there and only the rebuild makes the packaged application openable.",
+    "package:win": "npm run build && electron-builder --win -c.npmRebuild=false",
     "//package:dir": "Kept deliberately though nothing calls it: `verify:package` runs the full `package` so tests/package/metadata.spec.ts has a .pacman and a .deb to read. This is the fast path for iterating on the packaged suite itself — it produces release/linux-unpacked, which is everything packaged.spec.ts needs, without paying fpm for both targets. Global rule 7 is about code that runs once and is carried forever; this runs whenever somebody edits that suite.",
-    "package:dir": "electron-vite build && electron-builder --linux --dir",
+    "package:dir": "npm run build && electron-builder --linux --dir",
     "verify:package": "npm run package && playwright test -c playwright.package.config.ts",
     "//verify:package:win": "The Windows counterpart, and it must exist separately because `package` hard-codes --linux: an npm script cannot branch on platform, and a Windows machine asked to run verify:package would build a pacman and a deb it cannot make. The suite behind both is the same one. packaged.spec.ts resolves release/win-unpacked rather than release/linux-unpacked; metadata.spec.ts skips itself here, because the .pacman and .deb members it reads are not among the things --win produces.",
     "verify:package:win": "npm run package:win && playwright test -c playwright.package.config.ts",
@@ -54,7 +54,7 @@
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "5.2.0",
-    "electron": "42.8.0",
+    "electron": "42.9.0",
     "electron-builder": "26.15.3",
     "electron-vite": "5.0.0",
     "i18next": "26.3.6",
@@ -69,6 +69,7 @@
   "allowScripts": {
     "argon2@0.45.1": true,
     "better-sqlite3-multiple-ciphers@12.11.1": true,
+    "electron-winstaller@5.4.0": true,
     "esbuild@0.25.12": true,
     "esbuild@0.28.1": true
   }

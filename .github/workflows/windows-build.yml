@@ -11,7 +11,7 @@
 #
 # Nothing here reports anywhere. The two network dependencies are the ones
 # building has always had — npm fetching the dependency tree, and
-# electron-builder fetching Electron 42.8.0 and the NSIS toolchain from GitHub
+# electron-builder fetching Electron 42.9.0 and the NSIS toolchain from GitHub
 # releases into the runner's cache. §16.3 forbids the *application* phoning
 # home; a packager fetching a packager is not that, and no step below sends
 # anything outward that assembling the installer did not already require.

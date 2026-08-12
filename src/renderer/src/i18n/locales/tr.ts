@@ -25,7 +25,9 @@ export const tr = {
     warningTitle: 'Bu anahtar bir daha asla gösterilmeyecek.',
     warningBody:
       'Parolanızı unutur ve bu anahtarı da kaybederseniz kasa kalıcı olarak açılamaz. Üçüncü bir kopya, arka kapı veya destek kanalı yoktur.',
-    ack: 'Kurtarma anahtarını yazdım ve güvenli bir yerde sakladım.'
+    ack: 'Kurtarma anahtarını yazdım ve güvenli bir yerde sakladım.',
+    maskedNotice: 'Bu ekran açıkken kasa kendini kilitledi. Anahtarı okumaya devam etmek için yeniden göster.',
+    reveal: 'Anahtarı göster'
   },
 
   lock: {

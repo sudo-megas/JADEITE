@@ -31,7 +31,7 @@ import { net } from 'electron'
 import { assertPermittedEgress } from '../egress.js'
 import type { Close, HistoryRequest, PriceResult } from '../provider.js'
 import { sourceCodeFor } from './mapping.js'
-import { parseHistoryBody } from './parse.js'
+import { MAX_HISTORY_BODY_CHARS, parseHistoryBody } from './parse.js'
 
 const ORIGIN = 'https://www.haremaltin.com'
 const CHART_URL = `${ORIGIN}/grafik?tip=altin&birim=ALTIN`
@@ -49,6 +49,21 @@ const BROWSER_UA =
   'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36'
 
 const REQUEST_TIMEOUT_MS = 15_000
+
+/**
+ * A ceiling on the response as it streams in, not only once it has landed.
+ *
+ * `parse.ts` already refuses a body over `MAX_HISTORY_BODY_CHARS` — but only
+ * after `Buffer.concat` has assembled the whole thing, which means a
+ * malicious or broken peer can make the process hold as many bytes as it
+ * cares to send before that check ever runs. This cap is checked on every
+ * chunk instead, so the request is aborted mid-stream. Bytes rather than the
+ * `String.length` characters `parse.ts` bounds, and a clear multiple of
+ * `MAX_HISTORY_BODY_CHARS` above it: UTF-8 can take more than one byte per
+ * character, and this only needs to catch a response that could never be
+ * legitimate, not to match the exact character ceiling.
+ */
+const MAX_RESPONSE_BYTES = MAX_HISTORY_BODY_CHARS * 2
 
 /**
  * The session cookie, held for the life of the process and no longer.
@@ -109,7 +124,16 @@ function request(
 
     req.on('response', (res) => {
       const chunks: Buffer[] = []
-      res.on('data', (chunk: Buffer) => chunks.push(chunk))
+      let received = 0
+      res.on('data', (chunk: Buffer) => {
+        received += chunk.length
+        if (received > MAX_RESPONSE_BYTES) {
+          req.abort()
+          finish(null)
+          return
+        }
+        chunks.push(chunk)
+      })
       res.on('end', () => {
         const raw = res.headers['set-cookie']
         finish({

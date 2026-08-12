@@ -119,10 +119,16 @@ export function discardStaged(): void {
 /**
  * Apply what has been staged.
  *
- * @param withEnvelope replace `jadeite.keys` too. False for a vault restoring
- *   its own backup, which must keep the credentials in force *now* rather than
- *   the ones in force when the backup was taken — otherwise restoring last
- *   month's data would silently reinstate last month's password.
+ * @param withEnvelope replace `jadeite.keys` too. False when `service.ts`'s
+ *   `select()` found a live, unlocked vault whose own vaultId matches the
+ *   container — the case the comment this replaces described as "restoring
+ *   its own backup". That is not quite the same as "the credentials in force
+ *   now": a restore attempted from the *lock screen* has no open database to
+ *   compare a vaultId against, so `select()` treats it as a foreign transfer
+ *   and this flag comes back true — installing whatever password/recovery
+ *   pair was current when the backup was taken, even for a vault's own file.
+ *   See `service.ts`'s `select()` for the exact condition and the residual
+ *   this leaves.
  * @param stamp names the copies of what is being replaced. Passed in so a test
  *   can predict them and so one restore's copies share one name.
  */

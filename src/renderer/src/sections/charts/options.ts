@@ -84,8 +84,21 @@ export function dateAxis(palette: Palette, language: AppLanguage): Record<string
       color: tokens.textSubtle,
       hideOverlap: true,
       // The app language formats the date, never the machine (§13).
-      formatter: (value: number): string =>
-        formatDate(new Date(value).toISOString().slice(0, 10), language)
+      //
+      // Built from local getters rather than `toISOString()`. ECharts places a
+      // time-axis tick using the viewer's local calendar (there is no per-axis
+      // UTC switch, only a chart-wide one this shared module cannot reach), so a
+      // tick sitting at local midnight can be the previous UTC calendar day —
+      // reading it back through `toISOString()` names that earlier day, one
+      // short of the one the tick is actually drawn under. Local getters name
+      // the same day ECharts drew.
+      formatter: (value: number): string => {
+        const d = new Date(value)
+        const y = String(d.getFullYear()).padStart(4, '0')
+        const m = String(d.getMonth() + 1).padStart(2, '0')
+        const day = String(d.getDate()).padStart(2, '0')
+        return formatDate(`${y}-${m}-${day}`, language)
+      }
     },
     splitLine: { show: false }
   }

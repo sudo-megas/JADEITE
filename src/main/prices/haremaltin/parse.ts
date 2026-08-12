@@ -29,6 +29,7 @@
  * An absent figure reads as "no live value"; a wrong one reads as a price.
  */
 
+import { MAX_YEAR, MIN_YEAR } from '../../../shared/calendar.js'
 import type { TypeCode } from '../../../shared/section3/types.js'
 import { MAX_UNIT_PRICE } from '../../../shared/section3/units.js'
 import type {
@@ -245,6 +246,12 @@ function dayNumber(date: string): number | null {
 
   const [, year, month, day] = match
   if (year === undefined || month === undefined || day === undefined) return null
+
+  // The same plausibility floor and ceiling the vault's own dates carry
+  // (`cleanDate` in db/section3.ts) — a provider is as capable of sending a
+  // year the calendar shape alone would accept and no owner's history could
+  // ever contain as a hand-typed date is.
+  if (Number(year) < MIN_YEAR || Number(year) > MAX_YEAR) return null
 
   const stamp = Date.UTC(Number(year), Number(month) - 1, Number(day))
   if (!Number.isFinite(stamp)) return null
@@ -475,10 +482,16 @@ export function parseHistoryBody(
   for (const record of records) {
     if (!isRecord(record)) continue
 
-    const stamp = record['kayit_tarihi']
-    if (typeof stamp !== 'string') continue
+    const rawStamp = record['kayit_tarihi']
+    if (typeof rawStamp !== 'string') continue
+    // Trimmed once, here, and carried in that form from here on — the
+    // comparison below is a plain string compare, and an untrimmed value
+    // would let incidental leading whitespace (which sorts before every
+    // digit) decide which of two same-day rows counts as "later" instead of
+    // the timestamp actually doing so.
+    const stamp = rawStamp.trim()
 
-    const match = TIMESTAMP_RE.exec(stamp.trim())
+    const match = TIMESTAMP_RE.exec(stamp)
     const date = match?.[1]
     if (date === undefined) continue
 

@@ -31,9 +31,19 @@ function applyKey(db: DatabaseType, dek: Buffer): void {
     db.pragma(`legacy=${CIPHER_LEGACY}`)
     db.pragma(`key="x'${hex}'"`)
   } finally {
-    // The hex string is an unavoidable copy of the key outside a Buffer.
-    // Nothing further can be done about it in JavaScript; it is at least
-    // short-lived and never leaves this function.
+    // The hex string is an unavoidable copy of the key outside a Buffer, and
+    // JavaScript strings cannot be wiped — "short-lived" describes the local
+    // variable's scope, not the memory it occupies. Once this function
+    // returns, `hex` (and the `key="x'...'"` pragma string built from it) are
+    // unreferenced but not necessarily reclaimed: they persist in the V8 heap
+    // until garbage collection happens to run, which may be long after
+    // `vault.lock()` has zeroised the Buffer this was copied from and the
+    // vault is believed shut. A process inspector or a heap/core dump taken
+    // in that window can still recover the key from this string even though
+    // the Buffer it came from is already wiped. There is no fix available in
+    // JavaScript for this specific copy; the control that actually closes the
+    // exposure is disabling the Electron fuse that lets a debugger attach to
+    // this process at all (see `electron-builder.yml`'s `electronFuses`).
   }
 }
 

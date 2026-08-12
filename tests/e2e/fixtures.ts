@@ -155,9 +155,14 @@ export const TEST_PASSWORD = 'kuyumcu-defteri-2026'
  * suite that runs past the ten-minute default gets locked out mid-test.
  *
  * The timeout is raised through the app's own settings API rather than by
- * disabling anything, so the behaviour under test is the shipped behaviour. The
- * idle lock itself is proved in the Electron-hosted vault suite, where the clock
- * can be controlled.
+ * disabling anything, so the behaviour under test is the shipped behaviour.
+ *
+ * That behaviour is not proved anywhere else in the suite. The Electron-hosted
+ * vault tests call `vault.lock('idle')` directly to check what a lock with that
+ * reason does — the `LockReason` plumbing, not idle detection — and nothing in
+ * the repository mocks `powerMonitor` or drives `src/main/idle.ts`'s own timer.
+ * A comment here once claimed otherwise; it did not survive being checked
+ * against what actually calls `startIdleWatch`.
  */
 async function holdTheVaultOpen(session: Session): Promise<void> {
   await session.page.evaluate(

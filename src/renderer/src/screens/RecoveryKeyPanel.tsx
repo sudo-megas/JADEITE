@@ -13,10 +13,19 @@ import { BrandMark } from '../shell/BrandMark.js'
 interface Props {
   recoveryKey: string
   generation: number
+  /** True once a lock event has fired while this panel was showing — see App.tsx. */
+  masked: boolean
+  onReveal: () => void
   onAcknowledged: () => void
 }
 
-export function RecoveryKeyPanel({ recoveryKey, generation, onAcknowledged }: Props): ReactElement {
+export function RecoveryKeyPanel({
+  recoveryKey,
+  generation,
+  masked,
+  onReveal,
+  onAcknowledged
+}: Props): ReactElement {
   const { t } = useTranslation()
   const [acknowledged, setAcknowledged] = useState(false)
 
@@ -32,6 +41,12 @@ export function RecoveryKeyPanel({ recoveryKey, generation, onAcknowledged }: Pr
         {generation > 1 ? ` (#${generation})` : ''}
       </p>
 
+      {masked ? (
+        <p className="warning" data-testid="recovery-masked-notice">
+          {t('recovery.maskedNotice')}
+        </p>
+      ) : null}
+
       <div
         className="recovery-key"
         onCopy={(e) => e.preventDefault()}
@@ -39,32 +54,45 @@ export function RecoveryKeyPanel({ recoveryKey, generation, onAcknowledged }: Pr
         onContextMenu={(e) => e.preventDefault()}
         data-testid="recovery-key"
       >
-        {recoveryKey}
+        {masked ? '•'.repeat(recoveryKey.length || 32) : recoveryKey}
       </div>
 
-      <p className="warning">
-        <strong>{t('recovery.warningTitle')}</strong>
-        {t('recovery.warningBody')}
-      </p>
+      {masked ? (
+        <button
+          type="button"
+          className="btn-primary"
+          onClick={onReveal}
+          data-testid="recovery-reveal"
+        >
+          {t('recovery.reveal')}
+        </button>
+      ) : (
+        <>
+          <p className="warning">
+            <strong>{t('recovery.warningTitle')}</strong>
+            {t('recovery.warningBody')}
+          </p>
 
-      <label className="ack">
-        <input
-          type="checkbox"
-          checked={acknowledged}
-          onChange={(e) => setAcknowledged(e.target.checked)}
-          data-testid="recovery-ack"
-        />
-        <span>{t('recovery.ack')}</span>
-      </label>
+          <label className="ack">
+            <input
+              type="checkbox"
+              checked={acknowledged}
+              onChange={(e) => setAcknowledged(e.target.checked)}
+              data-testid="recovery-ack"
+            />
+            <span>{t('recovery.ack')}</span>
+          </label>
 
-      <button
-        className="btn-primary"
-        disabled={!acknowledged}
-        onClick={onAcknowledged}
-        data-testid="recovery-continue"
-      >
-        {t('common.continue')}
-      </button>
+          <button
+            className="btn-primary"
+            disabled={!acknowledged}
+            onClick={onAcknowledged}
+            data-testid="recovery-continue"
+          >
+            {t('common.continue')}
+          </button>
+        </>
+      )}
     </div>
   )
 }

@@ -6,7 +6,7 @@
  * once and never returned to.
  */
 
-import { useCallback, useEffect, useState, type ReactElement } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react'
 import type { LockReason, RecoveryKeyIssue } from '@shared/ipc-contract'
 
 import { BackupPrompt } from './screens/BackupPrompt'
@@ -52,6 +52,29 @@ export function App(): ReactElement {
    */
   const [afterReset, setAfterReset] = useState(false)
 
+  /**
+   * Whether the recovery-key panel is showing a plaintext key or a mask.
+   *
+   * An auto-lock firing while this panel is up means the backend has already
+   * zeroised the DEK and closed the database — but the key on screen was never
+   * part of that vault's live secret state, so the lock event has nothing to
+   * revoke. Left rendered, it would sit in cleartext on an unattended, nominally
+   * locked machine; unmounted, an owner who had not yet written it down would
+   * lose it for good, which is the one outcome a recovery key exists to prevent.
+   * Masking is the middle path: the panel stays, the key does not, and getting
+   * it back is a deliberate act rather than something that survives inattention.
+   */
+  const [recoveryMasked, setRecoveryMasked] = useState(false)
+
+  // Read by the onLocked subscriber below, which subscribes once on mount and
+  // so cannot see `stage` through its own closure — a ref, not a dependency,
+  // keeps that subscription from being torn down and rebuilt on every stage
+  // change just to keep one comparison fresh.
+  const stageRef = useRef(stage)
+  useEffect(() => {
+    stageRef.current = stage
+  }, [stage])
+
   const loadAppearance = useAppStore((s) => s.loadAppearance)
   const loadVaultSettings = useAppStore((s) => s.loadVaultSettings)
 
@@ -85,12 +108,17 @@ export function App(): ReactElement {
     return window.jadeite.vault.onLocked((reason) => {
       forgetVaultData()
       setLockReason(reason)
-      setStage((current) => (current === 'recovery' ? current : 'locked'))
+      if (stageRef.current === 'recovery') {
+        setRecoveryMasked(true)
+      } else {
+        setStage('locked')
+      }
     })
   }, [])
 
   const showRecovery = useCallback((next: RecoveryKeyIssue) => {
     setIssue(next)
+    setRecoveryMasked(false)
     setStage('recovery')
   }, [])
 
@@ -186,6 +214,8 @@ export function App(): ReactElement {
           <RecoveryKeyPanel
             recoveryKey={issue?.recoveryKey ?? ''}
             generation={issue?.generation ?? 1}
+            masked={recoveryMasked}
+            onReveal={() => setRecoveryMasked(false)}
             onAcknowledged={() => {
               // The key is dropped from renderer memory the moment it is
               // acknowledged; there is no path back to this panel.

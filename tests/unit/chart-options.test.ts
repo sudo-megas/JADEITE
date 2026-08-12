@@ -16,7 +16,7 @@
  * hopeful.
  */
 
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { paletteById } from '@shared/theme/palettes'
 import {
@@ -72,6 +72,23 @@ describe('base', () => {
 })
 
 describe('dateAxis', () => {
+  // Pinned rather than assumed: CI runners default to UTC, where the local-vs-UTC
+  // tick bug below cannot reproduce (local midnight and its UTC calendar date
+  // agree). Istanbul is the app's own target zone (UTC+3) and the one the bug
+  // was found in, so the suite forces it for real rather than by accident of
+  // wherever it happens to run.
+  let originalTZ: string | undefined
+
+  beforeAll(() => {
+    originalTZ = process.env['TZ']
+    process.env['TZ'] = 'Europe/Istanbul'
+  })
+
+  afterAll(() => {
+    if (originalTZ === undefined) delete process.env['TZ']
+    else process.env['TZ'] = originalTZ
+  })
+
   it('is a true date axis, which is the whole of §11 mistyped-date argument', () => {
     const axis = dateAxis(palette, 'tr')
     expect(axis['type']).toBe('time')
@@ -96,6 +113,20 @@ describe('dateAxis', () => {
       value: number
     ) => string
     expect(english(Date.parse('2026-05-08T00:00:00Z'))).toBe('08/05/2026')
+  })
+
+  it('names the day the tick actually sits on, not its UTC calendar date', () => {
+    // ECharts places a time-axis tick using the *local* calendar — there is no
+    // per-axis UTC switch — so a tick this suite pins at local midnight, 8 May
+    // 2026 in the Europe/Istanbul zone this suite runs under (UTC+3), is an
+    // instant one that's `2026-05-07T21:00:00Z` in UTC. A formatter built from
+    // `toISOString()` would read that instant back as the 7th; one built from
+    // local getters, matching where ECharts actually drew the tick, reads the 8th.
+    const formatter = at(dateAxis(palette, 'tr'), ['axisLabel', 'formatter']) as (
+      value: number
+    ) => string
+    const localMidnight = new Date(2026, 4, 8, 0, 0, 0).getTime()
+    expect(formatter(localMidnight)).toBe('08/05/2026')
   })
 })
 

@@ -104,6 +104,27 @@ asarUnpack:
   - "**/node_modules/better-sqlite3-multiple-ciphers/**"
   - "**/node_modules/argon2/**"
 
+# Electron Fuses, flipped at package time rather than left at their defaults.
+# Unset, `runAsNode` and the two CLI/env inspector fuses let anyone who can spawn
+# the installed binary re-launch it as a plain Node process or attach a debugger
+# to the running one — either path reaches the in-memory DEK this application
+# spends `src/main/vault/` making expensive to get any other way. `onlyLoadAppFromAsar`
+# plus `enableEmbeddedAsarIntegrityValidation` close the complementary gap: without
+# them, a file dropped beside the installed `app.asar` (or spliced into it) can run
+# in place of the real application. `enableCookieEncryption` is free — Chromium's
+# cookie store gains OS-keychain encryption at rest, and this app sets no cookies
+# that need it, but there is no reason to leave it off. `grantFileProtocolExtraPrivileges`
+# is deliberately left untouched: it defaults to disabled already, and flipping it
+# without a packaged-build smoke test is exactly what the audit that found this
+# block warned against.
+electronFuses:
+  runAsNode: false
+  enableCookieEncryption: true
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
+
 # The app never phones home: no publish provider, no update feed.
 publish: null
 

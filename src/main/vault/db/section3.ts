@@ -560,7 +560,16 @@ export function updateTransaction(db: DatabaseType, patch: TransactionPatch): vo
  * row's identity mutable, and a gap in the sequence is honest: it says a row was
  * removed, which is true.
  */
-export function deleteTransaction(db: DatabaseType, seq: number): void {
+export function deleteTransaction(db: DatabaseType, seq: unknown): void {
+  // Every other lookup in this file re-checks its id independently of the IPC
+  // layer, if only by way of "no row matched, so this fails the same way a
+  // malformed one would." This one used to be the exception: `seq: number` was
+  // asserted at the type level and never at runtime, so only SQLite's own
+  // parameter-affinity rules stood between a malformed argument and a bind
+  // error. Checked here too, so neither layer is the only thing catching it.
+  if (typeof seq !== 'number' || !Number.isSafeInteger(seq) || seq <= 0) {
+    fail('NO_SUCH_TRANSACTION')
+  }
   const run = db.transaction(() => {
     const result = db.prepare('DELETE FROM s3_transactions WHERE seq = ?').run(seq)
     if (result.changes === 0) fail('NO_SUCH_TRANSACTION')

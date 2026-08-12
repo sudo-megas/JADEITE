@@ -55,13 +55,39 @@ export function validateKdfParams(p: unknown): p is KdfParams {
   )
 }
 
+/**
+ * Whether `p` is not merely in-bounds but the one parameter set this build
+ * ever legitimately produces.
+ *
+ * `validateKdfParams` keeps `deriveKek` from being handed nonsense; it does not
+ * keep an envelope — local or from an untrusted `.jbk` — from carrying a
+ * cheaper-than-baseline but still in-bounds cost that this application never
+ * wrote. Only this function decides whether an envelope is one this build will
+ * actually accept. Anything else is either a downgrade or a version this build
+ * was never meant to read, and both belong on the "find a different file" side
+ * of the line, not the "open it and see" side.
+ */
+export function isBaselineKdf(p: unknown): p is KdfParams {
+  return (
+    validateKdfParams(p) &&
+    p.algorithm === BASELINE_KDF.algorithm &&
+    p.memoryCost === BASELINE_KDF.memoryCost &&
+    p.timeCost === BASELINE_KDF.timeCost &&
+    p.parallelism === BASELINE_KDF.parallelism
+  )
+}
+
 export async function deriveKek(
   credential: string,
   salt: Buffer,
   params: KdfParams
 ): Promise<Buffer> {
   if (salt.length < 8) throw new Error('salt too short')
-  const kek = await argon2.hash(credential, {
+  if (!validateKdfParams(params)) throw new Error('invalid kdf params')
+  // argon2's raw mode already returns a Buffer; wrapping it in Buffer.from()
+  // would copy it and leave the original un-zeroisable by every caller that
+  // wipes only the value it was handed back.
+  return await argon2.hash(credential, {
     type: argon2.argon2id,
     memoryCost: params.memoryCost,
     timeCost: params.timeCost,
@@ -70,5 +96,4 @@ export async function deriveKek(
     salt,
     raw: true
   })
-  return Buffer.from(kek)
 }

@@ -30,6 +30,22 @@ import { databasePath, ensureVaultDirectory, vaultExists } from './paths.js'
 let dek: Buffer | null = null
 let db: DatabaseType | null = null
 
+/**
+ * Bumped, unconditionally, by every `lock()` call.
+ *
+ * `unlock`/`create`/`reset` each await an Argon2id derivation before they may
+ * install a key, and `lock()` can arrive during that window — a screen-lock or
+ * a suspend event firing between "password submitted" and "derivation done" is
+ * an entirely ordinary sequence, not an edge case. Comparing the generation
+ * captured before the await against this value after it is how a ceremony
+ * tells "a lock was requested while I was working" from "nothing happened",
+ * without needing `lock()` and the ceremony to share any lock of their own.
+ * Incrementing even when the vault was already closed matters here: the whole
+ * point is to record a lock that arrives *before* `dek`/`db` are set, which is
+ * exactly when `wasUnlocked` below is false.
+ */
+let sealGeneration = 0
+
 type LockListener = (reason: LockReason) => void
 const lockListeners = new Set<LockListener>()
 
@@ -51,16 +67,25 @@ export function database(): DatabaseType | null {
   return db
 }
 
+/**
+ * A day. No UI offers this setting today — `settings:set` accepts any string
+ * up to 4096 characters for any writable key, `auto_lock_minutes` among them
+ * — so this is the ceiling that stands between a stray or hostile value and
+ * an idle timer that would never fire in practice.
+ */
+const MAX_AUTO_LOCK_MINUTES = 1440
+
 export function autoLockMinutes(): number {
   if (!db) return 10
   const raw = getSetting(db, SETTING_KEYS.autoLockMinutes)
   const n = raw === null ? NaN : Number.parseInt(raw, 10)
-  return Number.isFinite(n) && n > 0 ? n : 10
+  return Number.isFinite(n) && n > 0 && n <= MAX_AUTO_LOCK_MINUTES ? n : 10
 }
 
 /** Close the database and wipe the key. Idempotent. */
 export function lock(reason: LockReason = 'manual'): void {
   const wasUnlocked = dek !== null || db !== null
+  sealGeneration++
   closeDatabase(db)
   db = null
   zeroise(dek)
@@ -130,12 +155,22 @@ export async function create(password: string): Promise<Result<RecoveryKeyIssue>
   ensureVaultDirectory()
   const fresh = generateDek()
   const recovery = generateRecoveryKey()
+  const generationAtStart = sealGeneration
 
   try {
     const [passwordSlot, recoverySlot] = await Promise.all([
       wrapUnder(password, fresh, 'password'),
       wrapUnder(recovery.data, fresh, 'recovery')
     ])
+
+    // A lock requested while the ceremony's Argon2id derivations were running
+    // must win over a ceremony that is only now finishing — nothing has been
+    // written to disk yet, so abandoning here is a clean no-op the owner can
+    // simply retry.
+    if (sealGeneration !== generationAtStart) {
+      zeroise(fresh)
+      return { ok: false, error: 'LOCKED' }
+    }
 
     // A database whose envelope was never written is sealed by a key that no
     // longer exists anywhere — unopenable by anyone, including its owner. It
@@ -172,10 +207,20 @@ export async function unlock(password: string): Promise<Result<null>> {
   // Argon2id cost — that is password-entry time and a security feature. The
   // two halves are therefore timed separately, so the budget can be checked
   // against the half it actually governs.
+  const generationAtStart = sealGeneration
   const startedAt = performance.now()
   const recovered = await unwrapWith(password, envelope, 'password')
   const derivedAt = performance.now()
   if (!recovered) return { ok: false, error: 'WRONG_CREDENTIAL' }
+
+  // A lock (idle timeout, screen-lock, suspend) that arrived while this
+  // derivation was in flight must win over a derivation that only now
+  // finished — installing the key here would open the vault on a machine the
+  // owner has already stepped away from. See `sealGeneration`'s comment.
+  if (sealGeneration !== generationAtStart) {
+    zeroise(recovered)
+    return { ok: false, error: 'LOCKED' }
+  }
 
   try {
     db = openDatabase(databasePath(), recovered, { mustExist: true })
@@ -198,8 +243,12 @@ export async function unlock(password: string): Promise<Result<null>> {
  *
  * The current recovery key is consumed and permanently dead; a new master
  * password is set; the next recovery key is issued immediately. Exactly one
- * valid recovery key exists at any moment. The DEK is unchanged — this
- * re-wraps, it does not re-encrypt.
+ * valid recovery key exists at any moment for the credential pair this
+ * ceremony produces — restoring a backup taken under an earlier pair from the
+ * lock screen is a separate path (`service.ts`'s `select`/`restore`) that this
+ * function does not gate, and can reinstate an older, already-superseded
+ * recovery key; see that module's notes. The DEK is unchanged — this re-wraps,
+ * it does not re-encrypt.
  */
 export async function reset(
   recoveryKeyInput: string,
@@ -217,8 +266,12 @@ export async function reset(
   const recovered = await unwrapWith(parsed.data, envelope, 'recovery')
   if (!recovered) return { ok: false, error: 'WRONG_CREDENTIAL' }
 
-  // Any session opened under the old credentials ends here.
+  // Any session opened under the old credentials ends here. Captured *after*
+  // this call, not before: `lock()` itself bumps `sealGeneration`, and
+  // comparing against a value taken before it would see this ceremony's own
+  // lock as a preemption of itself.
   lock('reset')
+  const generationAtStart = sealGeneration
 
   const nextRecovery = generateRecoveryKey()
   try {
@@ -227,10 +280,30 @@ export async function reset(
       wrapUnder(nextRecovery.data, recovered, 'recovery')
     ])
 
+    // Same race as `unlock`/`create`: a lock arriving during these
+    // derivations must win over a reset that only now finished. Nothing has
+    // been written yet, so abandoning here is safe — the old credentials
+    // still work and the owner can simply try again.
+    if (sealGeneration !== generationAtStart) {
+      zeroise(recovered)
+      return { ok: false, error: 'LOCKED' }
+    }
+
     const generation = envelope.recovery.generation + 1
     writeEnvelope({
       format: ENVELOPE_FORMAT,
-      kdf: envelope.kdf,
+      // `BASELINE_KDF`, not `envelope.kdf`: `wrapUnder` always derives under
+      // baseline and binds baseline into the AAD (see its own comment), so
+      // recording anything else here is recording parameters that were never
+      // actually used to seal these two slots. Before this fix, an envelope
+      // installed by restoring a backup with non-baseline (but in-bounds) KDF
+      // parameters would have that mismatch persisted right here, silently —
+      // every future unlock would derive against the wrong AAD and fail the
+      // GCM tag forever, on both slots, with no diagnostic naming the cause.
+      // `envelope.kdf` is now always baseline too (`isKeyEnvelope` refuses
+      // anything else), so this is belt-and-suspenders against a future
+      // regression of that check as much as it is the fix itself.
+      kdf: BASELINE_KDF,
       password: passwordSlot,
       recovery: { ...recoverySlot, generation },
       createdAt: envelope.createdAt,

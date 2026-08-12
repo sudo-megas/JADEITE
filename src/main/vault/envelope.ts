@@ -9,7 +9,7 @@
 
 import { readFileSync } from 'node:fs'
 import { writeFileAtomic } from './atomic.js'
-import { BASELINE_KDF, validateKdfParams, type KdfParams } from './kdf.js'
+import { BASELINE_KDF, isBaselineKdf, type KdfParams } from './kdf.js'
 import type { WrappedKey } from './dek.js'
 import { envelopePath } from './paths.js'
 
@@ -49,11 +49,25 @@ function isRecoverySlot(v: unknown): v is RecoverySlot {
   return isWrappedKey(v)
 }
 
+/**
+ * Accept an envelope only if its KDF parameters are exactly the baseline.
+ *
+ * This is the one place that decides whether an envelope — read from the
+ * local `jadeite.keys` or staged from an untrusted `.jbk` during restore — is
+ * one this application will open. Every envelope this build has ever written
+ * carries `BASELINE_KDF`, so anything else is either a downgrade attack riding
+ * in through a backup (H1 in the freeze audit: a non-baseline-but-in-bounds
+ * envelope installed by restore, then silently re-persisted by the next
+ * password reset, permanently bricks the vault) or an attacker handing the
+ * unlock ceremony an expensive-to-derive cost as a denial-of-service. Both are
+ * closed by refusing here, before any Argon2id derivation is ever attempted
+ * against parameters this build did not choose.
+ */
 export function isKeyEnvelope(v: unknown): v is KeyEnvelope {
   if (typeof v !== 'object' || v === null) return false
   const o = v as Record<string, unknown>
   if (o['format'] !== ENVELOPE_FORMAT) return false
-  if (!validateKdfParams(o['kdf'])) return false
+  if (!isBaselineKdf(o['kdf'])) return false
   if (!isWrappedKey(o['password'])) return false
   if (!isRecoverySlot(o['recovery'])) return false
   return typeof o['createdAt'] === 'string' && typeof o['updatedAt'] === 'string'

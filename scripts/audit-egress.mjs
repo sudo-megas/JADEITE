@@ -26,7 +26,7 @@ import { fileURLToPath } from 'node:url'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
 const SCANNED = [join(root, 'src'), join(root, 'tests')]
-const EXTENSIONS = new Set(['.ts', '.tsx', '.mjs', '.js'])
+const EXTENSIONS = new Set(['.ts', '.tsx', '.mjs', '.js', '.cjs', '.mts', '.cts'])
 
 /**
  * The only files permitted to speak to a network, and the one permitted to name
@@ -52,16 +52,36 @@ const GUARDS = [
   join('tests', 'e2e', 'hardening.spec.ts')
 ]
 
+// A static specifier and a dynamic `import(...)` of the same module are the same
+// capability — the loader does not care which syntax asked for `node:https`, and
+// neither should this. Both forms are matched by the same alternation.
 const IMPORT_RE =
-  /from\s+['"](?:node:)?(net|tls|http|https|http2|dgram|dns)['"]|require\(\s*['"](?:node:)?(net|tls|http|https|http2|dgram|dns)['"]\s*\)/
-const PACKAGE_RE = /from\s+['"](undici|ws|axios|node-fetch|got|socket\.io-client|superagent|request)['"]/
+  /(?:from|import)\s*\(?\s*['"](?:node:)?(net|tls|http|https|http2|dgram|dns)['"]|require\(\s*['"](?:node:)?(net|tls|http|https|http2|dgram|dns)['"]\s*\)/
+const PACKAGE_RE =
+  /(?:from|import)\s*\(?\s*['"](undici|ws|axios|node-fetch|got|socket\.io-client|superagent|request)['"]/
 const CALL_RE =
   /\bnew\s+WebSocket\s*\(|\bfetch\s*\(|\bXMLHttpRequest\b|\bEventSource\b|\bnet\.request\s*\(|\bnet\.fetch\s*\(|\bsession\.fetch\s*\(|\bnavigator\.sendBeacon\b/
+// The exact evasion this was written against: `Reflect.get(globalThis, 'fetch')`
+// and `globalThis['fetch']` both reach the same global the name-matcher above
+// looks for, through a spelling that never writes the identifier `fetch(`.
+const GLOBAL_ACCESS_RE =
+  /\bglobalThis\s*\[\s*['"](fetch|WebSocket|XMLHttpRequest|EventSource)['"]\s*\]|Reflect\.get\s*\(\s*globalThis\s*,\s*['"](fetch|WebSocket|XMLHttpRequest|EventSource)['"]/
 const GLOBAL_UA_RE = /\bapp\.userAgentFallback\b|\.setUserAgent\s*\(/
 const PROVIDER_URL_RE = /\b(?:https?|wss?):\/\/[^\s'"`]*haremaltin[^\s'"`]*/
 
-/** Comment bodies argue about network code constantly; they are not network code. */
-const EXEMPT_LINE = [/^\s*\*/, /^\s*\/\//]
+/** A single-line `//` comment. Nothing meaningful can follow `//` on its own line. */
+const LINE_COMMENT_RE = /^\s*\/\//
+/**
+ * A JSDoc/block-comment continuation line: an asterisk, not immediately
+ * followed by the slash that would close the comment.
+ */
+const BLOCK_COMMENT_CONTINUATION_RE = /^\s*\*(?!\/)/
+// A line that closes a block comment. Only the closing marker itself is
+// comment — code placed after it on the same line is live. The old rule
+// exempted the whole line because it also starts with `*`, which is exactly
+// the bypass this splits out: only the matched prefix is stripped before the
+// rest of the line is scanned.
+const BLOCK_COMMENT_CLOSE_RE = /^\s*\*\//
 
 function walk(dir, out = []) {
   let entries
@@ -97,24 +117,29 @@ for (const base of SCANNED) {
 
     const lines = readFileSync(file, 'utf8').split('\n')
     lines.forEach((line, i) => {
-      if (EXEMPT_LINE.some((re) => re.test(line))) return
+      if (LINE_COMMENT_RE.test(line) || BLOCK_COMMENT_CONTINUATION_RE.test(line)) return
+      const closing = BLOCK_COMMENT_CLOSE_RE.exec(line)
+      const scanLine = closing ? line.slice(closing[0].length) : line
       const at = { file: rel, line: i + 1, source: line.trim() }
 
       if (!isTransport) {
-        const m = IMPORT_RE.exec(line)
+        const m = IMPORT_RE.exec(scanLine)
         if (m) findings.push({ ...at, why: `imports node:${m[1] ?? m[2]}` })
-        const p = PACKAGE_RE.exec(line)
+        const p = PACKAGE_RE.exec(scanLine)
         if (p) findings.push({ ...at, why: `imports ${p[1]}` })
-        if (!isGuard && CALL_RE.test(line)) {
+        if (!isGuard && CALL_RE.test(scanLine)) {
           findings.push({ ...at, why: 'network call outside a transport module' })
+        }
+        if (!isGuard && GLOBAL_ACCESS_RE.test(scanLine)) {
+          findings.push({ ...at, why: 'reaches a network global through a computed/reflected property' })
         }
       }
 
-      if (GLOBAL_UA_RE.test(line)) {
+      if (GLOBAL_UA_RE.test(scanLine)) {
         findings.push({ ...at, why: 'sets a global User-Agent — it must be a per-request header' })
       }
 
-      if (!mayNameUrl && PROVIDER_URL_RE.test(line)) {
+      if (!mayNameUrl && PROVIDER_URL_RE.test(scanLine)) {
         findings.push({ ...at, why: 'names a provider URL outside hosts.ts and the transports' })
       }
     })

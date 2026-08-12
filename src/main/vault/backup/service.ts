@@ -55,7 +55,8 @@ import {
   payloadChecksum,
   readContainer,
   writeContainer,
-  type BackupContainer
+  type BackupContainer,
+  type BackupHeader
 } from './container.js'
 import {
   commitInstall,
@@ -229,8 +230,13 @@ export function select(path: string): BackupResult<BackupCandidate> {
   let bytes: Buffer
   try {
     // Sized before it is read, so a file far too large to be a backup is
-    // refused rather than loaded to discover that it was.
-    if (statSync(path).size > MAX_CONTAINER_BYTES) return { ok: false, error: 'DAMAGED' }
+    // refused rather than loaded to discover that it was — and typed before
+    // it is sized, so a FIFO or other non-regular file (which `statSync`
+    // happily reports a size for) is refused rather than handed to a
+    // synchronous `readFileSync` that would block this process's only thread
+    // waiting for a writer that may never come.
+    const st = statSync(path)
+    if (!st.isFile() || st.size > MAX_CONTAINER_BYTES) return { ok: false, error: 'DAMAGED' }
     bytes = readFileSync(path)
   } catch {
     return { ok: false, error: 'IO' }
@@ -270,7 +276,8 @@ export function cancel(): void {
 }
 
 /**
- * Prove the staged database opens, is sound, and is not from the future.
+ * Prove the staged database opens, is sound, is not from the future, and is
+ * the database the header claims it is.
  *
  * Runs against the staged file in the vault directory rather than a temporary
  * one, so the rename that installs it is a same-filesystem rename and cannot
@@ -280,8 +287,24 @@ export function cancel(): void {
  * old is upgraded here, while it is still a file nobody depends on. A backup
  * from the *future* cannot be upgraded and is refused — `migrate` walks forward
  * only and would silently accept it.
+ *
+ * The header's `vaultId` is one of the facts the restore confirmation screen
+ * shows the owner before they agree to overwrite their data with this — and,
+ * being a header field, it is attacker-controlled until checked against
+ * something that cannot also have been written by hand. The payload it
+ * arrived beside can speak for itself: its real lineage row is read here and
+ * compared, so a header that lies about which vault this is gets refused
+ * rather than merely displayed as if it were true. `schemaVersion` is not
+ * cross-checked the same way — this call already migrates the staged database
+ * before returning, so the version visible here is the *post*-migration one,
+ * and comparing it against the header's pre-migration figure would reject
+ * every legitimate restore of an older backup, which is the one case this
+ * whole path exists to support. `readContainer` already bounds
+ * `header.schemaVersion` against `SCHEMA_VERSION` before this function is ever
+ * reached, and `assertKeyWorks`/`integrity_check` still fail closed on a
+ * payload that does not match its claims.
  */
-function verifyStaged(key: Buffer): BackupErrorCode | null {
+function verifyStaged(key: Buffer, header: BackupHeader): BackupErrorCode | null {
   const path = stagedDatabasePath()
   let db: DatabaseType | null = null
   try {
@@ -293,6 +316,8 @@ function verifyStaged(key: Buffer): BackupErrorCode | null {
   try {
     if (db.pragma('integrity_check', { simple: true }) !== 'ok') return 'DAMAGED'
     if (currentSchemaVersion(db) > SCHEMA_VERSION) return 'FUTURE_SCHEMA'
+    const realId = vaultId(db)
+    if (realId !== null && realId !== header.vaultId) return 'DAMAGED'
     return null
   } catch {
     return 'PAYLOAD_UNREADABLE'
@@ -305,10 +330,18 @@ function verifyStaged(key: Buffer): BackupErrorCode | null {
  * Replace this machine's vault with the staged container.
  *
  * The order is the safety, and it is the same order in both of §4.4's rows:
- * stage, verify, and only then lock and swap. A container that fails
- * verification has changed nothing — the acceptance line is *"rejected without
- * a crash and without partial application"*, and everything that could refuse
- * has refused before `commitInstall` is reached.
+ * prove the credential, stage, verify, and only then lock and swap. A
+ * container that fails verification has changed nothing — the acceptance line
+ * is *"rejected without a crash and without partial application"*, and
+ * everything that could refuse has refused before `commitInstall` is reached.
+ *
+ * The credential is proven *before* the payload — up to `MAX_PAYLOAD_BYTES` of
+ * it — is ever written to disk. Proving the credential needs only the
+ * envelope, which is already in memory from `select()`; writing the payload
+ * needs nothing proven yet. Staging first, as this once did, let a `.jbk`
+ * whose credential nobody had entered correctly still cost a disk write on
+ * every attempt — repeatable by anyone who can hand the owner a file, with no
+ * credential at all.
  */
 export async function restore(credential: string | null): Promise<BackupResult<null>> {
   const held = staged
@@ -318,11 +351,15 @@ export async function restore(credential: string | null): Promise<BackupResult<n
     return { ok: false, error: 'CREDENTIAL_REQUIRED' }
   }
 
-  try {
-    stageDatabase(held.container.payload)
-  } catch {
-    discardStaged()
-    return { ok: false, error: 'IO' }
+  // Stage-then-verify, run only once the credential holding `key` has already
+  // been proven against the envelope — see the function-level comment above.
+  const stageAndVerify = (key: Buffer): BackupErrorCode | null => {
+    try {
+      stageDatabase(held.container.payload)
+    } catch {
+      return 'IO'
+    }
+    return verifyStaged(key, held.container.header)
   }
 
   // §4.4 row 1: this vault is healthy and this is its own backup, so the key is
@@ -335,7 +372,7 @@ export async function restore(credential: string | null): Promise<BackupResult<n
     // vault locked while the owner was reading the confirmation screen. A bare
     // `BackupErrorCode | null` would collide with it, and the collision would
     // read as success.
-    const outcome = vault.useDek((key) => ({ failure: verifyStaged(key) }))
+    const outcome = vault.useDek((key) => ({ failure: stageAndVerify(key) }))
     if (outcome === null) {
       discardStaged()
       return LOCKED
@@ -344,11 +381,12 @@ export async function restore(credential: string | null): Promise<BackupResult<n
   } else {
     // §4.4 row 2: the envelope inside the container is the only one that can
     // speak for it, and the credential is whatever was current when it was
-    // written.
+    // written. Proven here, against the in-memory envelope alone — nothing is
+    // written to disk until this succeeds.
     const proved = await vault.useForeignDek(
       held.container.header.envelope,
       credential ?? '',
-      (key) => verifyStaged(key)
+      (key) => stageAndVerify(key)
     )
     if (!proved.ok) {
       discardStaged()

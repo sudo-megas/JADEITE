@@ -70,6 +70,12 @@ export function wrapDek(
  * failure mode, no oracle telling an attacker which of the two happened.
  */
 export function unwrapDek(wrapped: WrappedKey, kek: Buffer, aad: Buffer): Buffer | null {
+  // `decipher.update()`'s return value holds plaintext DEK bytes on its own —
+  // `Buffer.concat` below copies them into the buffer this function returns,
+  // it does not alias them — so the intermediate is wiped once the copy
+  // exists, rather than left on the heap for as long as GC happens not to
+  // reclaim it.
+  let updated: Buffer | null = null
   try {
     const iv = Buffer.from(wrapped.iv, 'base64')
     const tag = Buffer.from(wrapped.tag, 'base64')
@@ -79,10 +85,13 @@ export function unwrapDek(wrapped: WrappedKey, kek: Buffer, aad: Buffer): Buffer
     const decipher = createDecipheriv('aes-256-gcm', kek, iv)
     decipher.setAAD(aad)
     decipher.setAuthTag(tag)
-    const dek = Buffer.concat([decipher.update(ciphertext), decipher.final()])
+    updated = decipher.update(ciphertext)
+    const dek = Buffer.concat([updated, decipher.final()])
     return dek.length === DEK_LENGTH ? dek : null
   } catch {
     return null
+  } finally {
+    if (updated) updated.fill(0)
   }
 }
 

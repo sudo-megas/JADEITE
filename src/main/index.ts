@@ -53,10 +53,30 @@ app.setName('jadeite')
 // platforms it was meant to skip.
 app.setAppUserModelId('dev.sudomegas.jadeite')
 
+// A packaged build must never run with an inspector attachable — that is what
+// `electron-builder.yml`'s `electronFuses` disables at the binary level. This is
+// the second layer, ahead of the fuses rather than instead of them: a flag on
+// argv is refused before a single window (and the DEK it will come to hold in
+// memory) exists, rather than trusted to a fuse that a future packaging change
+// could regress unnoticed. Left unchecked in a dev run, where `--inspect` is how
+// the process is debugged in the first place.
+const FORBIDDEN_ARGV = /^--(?:inspect|inspect-brk|inspect-port|remote-debugging-port|remote-debugging-pipe)(?:=|$)/
+if (app.isPackaged && process.argv.some((arg) => FORBIDDEN_ARGV.test(arg))) {
+  app.exit(1)
+}
+
 // One vault, one process. A second instance would open the same database file
 // behind the first one's back.
+//
+// `app.exit()` rather than `app.quit()`: `quit()` only *requests* a graceful
+// shutdown — it returns immediately and leaves every line below still running,
+// so the losing instance would finish setting up `whenReady`, register IPC
+// handlers and reach `createWindow()` before the async quit it asked for ever
+// lands, which is exactly the "behind the first one's back" this lock exists to
+// prevent. `exit()` terminates synchronously, here, so nothing after this block
+// executes in a losing instance.
 if (!app.requestSingleInstanceLock()) {
-  app.quit()
+  app.exit(0)
 }
 
 // Renderers are sandboxed (§3.3). This must be called before any window exists.

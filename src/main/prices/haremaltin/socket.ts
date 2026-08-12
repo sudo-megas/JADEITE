@@ -29,7 +29,7 @@
 
 import { assertPermittedEgress } from '../egress.js'
 import type { PriceResult, Snapshot } from '../provider.js'
-import { parseSnapshotFrame } from './parse.js'
+import { MAX_SNAPSHOT_FRAME_CHARS, parseSnapshotFrame } from './parse.js'
 
 const SOCKET_ORIGIN = 'wss://hrmsocketonly.haremaltin.com'
 
@@ -111,6 +111,21 @@ function attempt(
     socket.addEventListener('message', (event) => {
       const text = typeof event.data === 'string' ? event.data : ''
       if (text === '') return
+
+      // A frame this large is never legitimate, and it is rejected here rather
+      // than left to the parser below on purpose: an unparseable frame there
+      // means *not this one yet* and the socket keeps listening (see the
+      // comment at the parser call), but a peer that has already sent this much
+      // is not worth continuing to listen to, so this ends the attempt outright
+      // via `finish` instead of falling through to that keep-listening path.
+      // Checked first, before it is carried into the handshake/ping branches
+      // below or handed to the parser at all. Unlike `history.ts`'s HTTP
+      // transport there is no earlier point to catch this at: the WebSocket API
+      // hands over a complete message, never chunks.
+      if (text.length > MAX_SNAPSHOT_FRAME_CHARS) {
+        finish({ ok: false, error: 'MALFORMED' })
+        return
+      }
 
       // engine.io OPEN. socket.io v4 will not deliver namespace events until the
       // client says it wants the default namespace; v3 sends its own and ignores

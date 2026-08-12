@@ -13,6 +13,11 @@ const POLL_INTERVAL_MS = 15_000
 
 let timer: NodeJS.Timeout | null = null
 
+// Logged once rather than every fifteen seconds forever: a session without an
+// idle clock does not regain one mid-run, so one line is the whole story and
+// a repeat every tick would just be noise around it.
+let reportedMissingClock = false
+
 function tick(): void {
   if (!vault.isUnlocked()) return
 
@@ -24,6 +29,13 @@ function tick(): void {
     // Some session types do not expose an idle clock. Leaving the vault open is
     // the wrong failure: without a reliable idle signal, do nothing here and
     // let explicit locking and suspend handling carry the responsibility.
+    if (!reportedMissingClock) {
+      reportedMissingClock = true
+      console.warn(
+        '[idle] no system idle clock on this session — auto-lock on idle is disabled; ' +
+          'suspend and lock-screen handling still apply'
+      )
+    }
     return
   }
 
