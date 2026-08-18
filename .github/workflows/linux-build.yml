@@ -16,9 +16,16 @@
 # binaries the way that workflow's own does, and a swallowed failure would
 # mean a packaged application that opens and then fails at first unlock.
 #
-# Three targets come out of one build — `.pacman`, `.deb`, `.tar.gz`, per
-# `electron-builder.yml`'s `linux.target` — and no system package (fpm, dpkg,
-# rpm) needs installing first: electron-builder carries its own fpm binary.
+# Two targets come out of one build — `.pacman` and `.deb`, per
+# `electron-builder.yml`'s `linux.target`, which used to name a third and says
+# there why the `.tar.gz` was dropped — and no system package (fpm, dpkg, rpm)
+# needs installing first: electron-builder carries its own fpm binary.
+#
+# A third artefact is made in the job after it. `archpkg` re-packages the
+# `.pacman` into `jadeite-<version>-1-x86_64.pkg.tar.zst` with makepkg, out of
+# `build/package/PKGBUILD`, and it is a separate job for one reason: makepkg is
+# Arch's and this runner is Ubuntu, so it needs a container. It builds nothing —
+# its whole input is the artefact the job above uploaded.
 # Nothing here reports anywhere, the same as `windows-build.yml`'s own note on
 # that: the two network dependencies are the ones building has always had,
 # npm fetching the dependency tree and electron-builder fetching Electron
@@ -104,12 +111,75 @@ jobs:
           path: |
             release/*.pacman
             release/*.deb
-            release/*.tar.gz
+          if-no-files-found: error
+
+  archpkg:
+    name: Re-pack the pacman package the Arch way
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    # Minutes, not the hour the job above wants: nothing is fetched, compiled or
+    # rebuilt here. The work is one bsdtar extraction of a 331 MB payload and one
+    # zstd pass back over it, which takes about twenty seconds on a laptop.
+    timeout-minutes: 20
+    # The one job that cannot run on the runner itself. makepkg and pacman are
+    # Arch's and `ubuntu-latest` has neither, so the packaging happens in Arch's
+    # own image. `base-devel` is the group Arch itself calls a build environment:
+    # what this job actually needs out of it is `fakeroot`, which makepkg refuses
+    # to package without, and `git`, which `actions/checkout` prefers. `bsdtar`,
+    # which package() unpacks the `.pacman` with, is libarchive's and comes from
+    # `base` underneath.
+    container: archlinux:base-devel
+
+    steps:
+      - name: Check out the commit being packed
+        uses: actions/checkout@v7
+
+      # Into `release/`, which is exactly where the PKGBUILD's `SRCDEST` is
+      # pointed below, so makepkg finds `jadeite-<version>.pacman` already
+      # present and fetches nothing. This step is the whole of this job's input;
+      # the `.deb` rides along in the same artefact and is ignored.
+      - name: Collect the pacman package the build job made
+        uses: actions/download-artifact@v7
+        with:
+          name: linux-packages
+          path: release
+
+      # makepkg refuses to run as root, and a container is root — so the build
+      # needs somebody to be. `--login` rather than a bare `su` so the shell gets
+      # a real `HOME`; the workspace path is expanded by root's shell before `su`
+      # ever sees it.
+      #
+      # The four flags are the same four `npm run package:arch` passes, and
+      # `package.json`'s `//package:arch` explains each at length: `--nodeps`
+      # because nothing is compiled here and this container has no gtk3,
+      # `--skipchecksums` because the PKGBUILD's sha256 pins the *published*
+      # artefact and this is the one built in the job above, `--clean` and
+      # `--force` for a runner that starts empty and must not stop to ask.
+      - name: Build the package
+        run: |
+          useradd --create-home builder
+          chown -R builder:builder "$GITHUB_WORKSPACE"
+          su builder --login -c "cd '$GITHUB_WORKSPACE/build/package' && PACKAGER='sudo-megas <halil@namli.xyz>' SRCDEST=../../release PKGDEST=../../release makepkg --force --clean --nodeps --skipchecksums --noconfirm"
+
+      # Proof rather than ceremony, and cheap: `pacman -Qip` parses the package
+      # the way an install would and prints what it will claim of the system.
+      # A package that cannot be read back has failed even though makepkg exited
+      # zero, and this is the only place in the pipeline that can notice.
+      - name: Read the finished package back
+        run: pacman -Qip release/*.pkg.tar.zst
+
+      - name: Keep the package
+        uses: actions/upload-artifact@v7
+        with:
+          name: arch-package
+          path: release/*.pkg.tar.zst
           if-no-files-found: error
 
   release:
     name: Attach the installers to the release
-    needs: build
+    needs: [build, archpkg]
     # Only where there is a tag to attach to — a `workflow_dispatch` from a
     # branch builds and stops at the artefact above, the same shape
     # `windows-build.yml` uses for a trial run.
@@ -123,6 +193,15 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           name: linux-packages
+          path: installers
+
+      # Into the same directory, so the upload below stays one glob over
+      # everything Linux produced rather than a list that has to be kept in step
+      # with the jobs above.
+      - name: Collect the Arch package
+        uses: actions/download-artifact@v7
+        with:
+          name: arch-package
           path: installers
 
       # Same release, both platforms: a pushed tag now starts this workflow

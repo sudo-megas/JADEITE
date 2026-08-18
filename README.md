@@ -88,22 +88,39 @@ Three things worth knowing:
 
 ### 3.B Arch Linux
 
-**Download it** — `jadeite-1.1.0.pacman` is on the Releases page, so there is nothing to
-build:
+**Download it** — `jadeite-1.2.0-1-x86_64.pkg.tar.zst` is on the Releases page, so there is
+nothing to build:
 
 ```bash
-sudo pacman -U jadeite-1.1.0.pacman
+sudo pacman -U jadeite-1.2.0-1-x86_64.pkg.tar.zst
 ```
 
-A `.deb` is published beside it for Debian and Ubuntu. Or build it yourself as in 3.A and
-install what you made:
+That is a real Arch package, built by `makepkg` from [`build/package/PKGBUILD`](build/package/PKGBUILD),
+and it is the one to take. `jadeite-1.2.0.pacman` is published beside it and installs too —
+it is what electron-builder's own packager produces, and it is the *source* the PKGBUILD
+re-packages, which is why it stays on the Releases page rather than being retired. The
+differences are small and all in the package rather than the application: the `.pkg.tar.zst`
+is zstd rather than xz, carries a `.BUILDINFO`, owns `/usr/bin/jadeite` instead of leaving it
+behind as a file no package accounts for, and needs no install scriptlet because Arch's own
+libalpm hooks already do what fpm's was doing. The PKGBUILD says all of this at length.
+
+A `.deb` is published for Debian and Ubuntu. Or build it yourself as in 3.A and install what
+you made:
 
 ```bash
-sudo pacman -U release/jadeite-1.1.0.pacman
+npm run package:arch                                  # -> release/jadeite-1.2.0-1-x86_64.pkg.tar.zst
+sudo pacman -U release/jadeite-1.2.0-1-x86_64.pkg.tar.zst
 ```
+
+`package:arch` runs `npm run package` first and then hands it to `makepkg`, so one command
+gets you both artefacts. It needs `base-devel`, which any Arch machine that has ever built
+anything already has.
 
 **Via AUR** — not published yet. It is planned, but there is no `jadeite` in the AUR today,
-and a command you could paste that would simply fail is worse than saying so.
+and a command you could paste that would simply fail is worse than saying so. The PKGBUILD
+that would go there is the one in this repository; run on its own, with no `release/`
+directory beside it, `makepkg` fetches the released `.pacman` over HTTPS and checks it
+against the `sha256sums` line.
 
 ### 3.C Windows
 

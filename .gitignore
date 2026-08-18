@@ -23,6 +23,18 @@ dist/
 release/
 .vite/
 
+# makepkg's leavings beside build/package/PKGBUILD. `npm run package:arch` sends
+# the finished package to release/ with PKGDEST and reads its source out of
+# release/ with SRCDEST, so on that path none of these appear at all; they are
+# what a bare `makepkg` in that directory produces, which downloads the released
+# `.pacman` next to the PKGBUILD and writes the result there too. `src/` and
+# `pkg/` are makepkg's own scratch, removed by `--clean` after a build that
+# succeeds and left behind by one that does not.
+build/package/src/
+build/package/pkg/
+build/package/*.pkg.tar.zst
+build/package/*.pacman
+
 # Editor and OS noise
 .DS_Store
 *.swp

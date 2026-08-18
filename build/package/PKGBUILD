@@ -1,0 +1,230 @@
+# Maintainer: sudo-megas <halil@namli.xyz>
+
+# The Arch package proper — and the reason it is not the `.pacman` that
+# `npm run package` already produces.
+#
+# electron-builder's `pacman` target is fpm, and fpm writes a pacman package the
+# way a foreign tool writes one. What comes out installs — Realisation X spent a
+# whole rung making sure of that, and `tests/package/metadata.spec.ts` reads the
+# artefact to keep it true — but it is a package-shaped file rather than a
+# package, and four of its differences are Arch-specific rather than cosmetic:
+#
+#   * **`/usr/bin/jadeite` is not in the package.** The scriptlet creates it, so
+#     `pacman -Qo /usr/bin/jadeite` answers *No package owns*, `pacman -Qkk`
+#     never checks it, and no removal is obliged to take it away. Here it is a
+#     packaged symlink, which pacman owns, verifies and removes.
+#   * **The scriptlet is mostly Debian's.** `update-alternatives` does not exist
+#     on Arch; `update-mime-database` and `update-desktop-database` do, and Arch
+#     already runs both from its own libalpm hooks. See the closing note.
+#   * **The compression is xz.** `file` on the shipped `jadeite-1.2.0.pacman`
+#     says *XZ compressed data*. Arch has packaged with zstd since 2020, and
+#     `PKGEXT` in a stock `/etc/makepkg.conf` is `.pkg.tar.zst`.
+#   * **There is no `.BUILDINFO`.** fpm writes `.PKGINFO` and `.MTREE` and stops,
+#     so nothing records which packages the machine held when the artefact was
+#     made. makepkg writes one, and `.PKGINFO` loses fpm's `group = default`
+#     along the way — a group that exists on no Arch system.
+#
+# So this file **re-packages that artefact rather than rebuilding the
+# application**. The payload is byte-for-byte what electron-builder assembled:
+# the same `/opt/JADEITE` tree, the same `jadeite.desktop`, the same nine
+# hicolor sizes. Nothing about the application is built here, and — the part
+# that matters — nothing about it is *restated* here. The one thing this file
+# must never become is a second place where the desktop entry, the icon set or
+# the category list is described; `electron-builder.yml` owns all three, and a
+# copy here would be the same two-statements-of-one-fact this project keeps
+# finding and removing.
+#
+# Building it: `npm run package:arch` from the project root, which packs the
+# `.pacman` first and then hands it to this file. Standalone, `makepkg` in this
+# directory fetches the released artefact instead — see `source` below.
+
+pkgname=jadeite
+# `jadeite`, not `jadeite-bin`, though the payload is prebuilt and the AUR would
+# want the suffix. Two reasons, and the first is the binding one: the fpm package
+# already calls itself `jadeite`, so this name is what lets `pacman -U` treat
+# this artefact as an *upgrade* over an installed one rather than a conflicting
+# stranger. The second is that `-bin` marks a package built from somebody else's
+# binaries; these are the project's own. Should this ever be submitted to the
+# AUR, that is the moment to rename it — not before.
+
+pkgver=1.2.0
+# Kept in step with `package.json`'s `version` by hand, and it is the one fact
+# in this file that is written twice in the repository. A PKGBUILD's `pkgver`
+# has to be a literal — `.SRCINFO` is generated from it, and a computed version
+# cannot be read out of an artefact by anything that has not already downloaded
+# that artefact — so deriving this from the manifest is not available. `_tag`
+# below has the same problem and a worse one, since the tags are two-numeral
+# (`v1.2`) and the versions are three (`1.2.0`), so neither can be spelled out
+# of the other.
+pkgrel=1
+
+# The release tag the artefact hangs off, which is *not* `v$pkgver`: this
+# project tags `v1.2` and versions `1.2.0`, and has since v0.8b.
+_tag=v1.2
+
+# The synopsis from `electron-builder.yml`, verbatim, because it is already the
+# string `pacman -Qip` prints for the fpm package and the two must not disagree
+# about what this application is. Realisation X's finding is why it reads the
+# way it does: fpm hands `--description` both the synopsis and the manifest's
+# description, `pacman.erb` writes them onto one `pkgdesc =` line, and pacman
+# silently drops everything after the newline — so the synopsis is the string
+# that has to carry the name. Here there is no second line to lose.
+pkgdesc="Economy Journal — an encrypted record of income, payments and valuables"
+
+arch=('x86_64')
+url="https://github.com/sudo-megas/JADEITE"
+
+# Three, where the fpm package declares one. `GPL-3.0-only` is the application's
+# own and the only one `package.json` can express, since npm's `license` field
+# takes a single expression and electron-builder passes it straight through; the
+# other two are the runtime it is shipped inside, whose texts travel in the
+# payload at `/opt/JADEITE/LICENSE.electron.txt` (Electron, MIT) and
+# `/opt/JADEITE/LICENSES.chromium.html` (Chromium, BSD-3-Clause). Declaring them
+# is the same move INDIUM's PKGBUILD makes for its bundled font: the array
+# describes what the *package* carries, not only what its author wrote.
+#
+# The `.pacman` saying only `GPL-3.0-only` is not a defect to be reconciled by
+# changing one to match the other — it is fpm reporting the one field it was
+# given. All three texts are reachable under `/usr/share/licenses/jadeite`; see
+# package().
+license=('GPL-3.0-only' 'MIT' 'BSD-3-Clause')
+
+# The three from `electron-builder.yml`'s `pacman.depends`, unchanged and for
+# the reasons recorded there at length: every ELF under `opt/JADEITE` walked
+# with `ldd`, the bundled libraries subtracted, each remaining `.so` mapped to
+# its owner with `pacman -Qo`, and the result reduced to the members nothing
+# else in the set pulls in transitively. 94 libraries, 68 packages, three names.
+#
+# **`hicolor-icon-theme` is deliberately not a fourth**, though this package
+# writes nine files into its tree and Arch's packaging guidelines mention it in
+# that context. `pactree -s gtk3` reaches it — gtk3 → adwaita-icon-theme →
+# hicolor-icon-theme — so it is already guaranteed by a dependency that is
+# already guaranteed, and adding it would be the first entry in this list the
+# measurement above did not produce. Directory ownership is shared on Arch
+# regardless: 46 installed packages own `/usr/share/icons/hicolor/` on the
+# machine this was checked on.
+depends=('gtk3' 'nss' 'alsa-lib')
+
+# Both are in the stock `OPTIONS=` line of `/etc/makepkg.conf`, so switching them
+# off has to be explicit.
+#
+# !strip — makepkg's `tidy_strip` walks `$pkgdir` and runs `strip` over every ELF
+#   it finds. Here that is a 206 MB Electron binary this project did not compile,
+#   five bundled `.so` files, and the two native modules under
+#   `app.asar.unpacked` that `electron-builder.yml`'s `asarUnpack` block exists to
+#   keep loadable. Stripping vendor binaries buys nothing — Electron ships them
+#   stripped already — and the failure it can buy is the kind this project has
+#   twice now caught only by starting the packaged application: a native module
+#   that no longer loads, discovered at first unlock.
+#
+# !debug — `debug` splits a `jadeite-debug` package out of the symbols `strip`
+#   removed. With `!strip` there are none to split, so it would produce an empty
+#   package.
+options=('!strip' '!debug')
+
+# The fpm package is the source. Two paths reach it and both are wanted:
+#
+#   * `npm run package:arch` points `SRCDEST` at the project's `release/`
+#     directory, where `npm run package` has just written this exact filename.
+#     makepkg finds it there and downloads nothing.
+#   * `makepkg` run here on its own finds no such file and fetches the released
+#     artefact over HTTPS, which is what anyone packaging this from the PKGBUILD
+#     alone gets.
+#
+# `noextract` because makepkg decides how to unpack by mime type rather than by
+# extension, and an xz-compressed tar named `.pacman` lands in the branch that
+# *decompresses* it to a file called `jadeite-1.2.0` without ever unpacking the
+# tar. Rather than depend on that branch's behaviour, package() runs bsdtar
+# itself and takes the two directories it wants.
+_pacman="$pkgname-$pkgver.pacman"
+source=("$url/releases/download/$_tag/$_pacman")
+noextract=("$_pacman")
+
+# The real sum of the released artefact, not SKIP. It has one maintenance cost,
+# stated plainly: it pins the *published* bytes, so it must be regenerated
+# (`updpkgsums`) whenever `pkgver` and `_tag` move, and a re-run of the release
+# workflow that re-uploads with `--clobber` would invalidate it — which is the
+# checksum doing its job rather than a reason not to have one.
+#
+# `package:arch` passes `--skipchecksums` for the local path above, because the
+# file it feeds in is the artefact packing produced moments earlier in the same
+# tree: it is not the published one, cannot be, and a sum that failed there
+# would be reporting nothing but a different build date.
+sha256sums=('dd80329e9b248bf6fc135a25661608f94a64d8eac9dfe402ac1e06d3e478989a')
+
+package() {
+  # `opt` and `usr` only — the fpm package's other three members are `.PKGINFO`,
+  # `.MTREE` and `.INSTALL`, which are its metadata and are replaced by makepkg's
+  # own. `-p` keeps the recorded modes (0644 for data, 0755 for the ten
+  # executables and every directory) and, under fakeroot, the recorded root:root
+  # ownership.
+  bsdtar -xpf "$srcdir/$_pacman" -C "$pkgdir" opt usr
+
+  # The symlink the fpm scriptlet makes at install time, made here instead so
+  # that pacman owns it. `/opt/JADEITE/jadeite` is the target as an absolute
+  # path because that is what it must resolve to on the installed system;
+  # `$pkgdir` must never appear inside a link, and makepkg's own check would say
+  # so if it did.
+  install -dm755 "$pkgdir/usr/bin"
+  ln -s /opt/JADEITE/jadeite "$pkgdir/usr/bin/jadeite"
+
+  # Setuid, statically, where the fpm scriptlet decides at install time.
+  #
+  # Chromium uses the namespace sandbox when unprivileged user namespaces work
+  # and falls back to this helper when they do not; the helper is useless unless
+  # it is setuid root, and refuses to run misconfigured rather than silently
+  # dropping the sandbox. fpm's `.INSTALL` therefore tests `unshare --user` and
+  # sets 4755 or 0755 accordingly, which is a defensible thing for a package
+  # that must serve every distribution from one scriptlet.
+  #
+  # It is the wrong shape here for two reasons. A mode a scriptlet changes after
+  # installation no longer matches the one recorded in the package, so
+  # `pacman -Qkk jadeite` reports a permission mismatch on a correctly installed
+  # system, for ever. And the test is run by root, whose `unshare --user` can
+  # succeed where the owner's would fail — fpm's own scriptlet admits this.
+  #
+  # 4755 is what Arch itself does: `/usr/lib/electron39/chrome-sandbox` from the
+  # `electron39` package is `-rwsr-xr-x`. The cost is honest and worth writing
+  # down — on a stock kernel, where namespaces work, this ships a setuid-root
+  # binary that Chromium will never invoke. The alternative costs more: on
+  # `linux-hardened`, which sets `kernel.unprivileged_userns_clone=0`, a 0755
+  # helper means the application does not start at all.
+  chmod 4755 "$pkgdir/opt/JADEITE/chrome-sandbox"
+
+  # The two vendored licence texts, linked rather than copied, so that
+  # `/usr/share/licenses/jadeite` answers the question Arch expects it to answer
+  # without the package carrying Chromium's 1.4 MB licence file twice. The
+  # application's own GPL-3.0-only is not among them on purpose: it is a common
+  # licence, `/usr/share/licenses/spdx/GPL-3.0-only.txt` already holds the text
+  # on any Arch machine, and the guidelines ask packages not to duplicate those.
+  install -dm755 "$pkgdir/usr/share/licenses/$pkgname"
+  ln -s /opt/JADEITE/LICENSE.electron.txt "$pkgdir/usr/share/licenses/$pkgname/LICENSE.electron.txt"
+  ln -s /opt/JADEITE/LICENSES.chromium.html "$pkgdir/usr/share/licenses/$pkgname/LICENSES.chromium.html"
+}
+
+# No `.install` file, and that is a decision rather than an omission — every one
+# of the four things fpm's `.INSTALL` does dissolves on this platform:
+#
+#   * The `/usr/bin/jadeite` link is a packaged file now, above. `update-
+#     alternatives` is Debian's and is not installed on Arch, so the branch that
+#     called it was already dead here and the `ln -sf` fallback was doing the
+#     work — unowned.
+#   * The `chrome-sandbox` mode is packaged now, above.
+#   * `update-mime-database` and `update-desktop-database` are already run by
+#     Arch's own libalpm hooks — `/usr/share/libalpm/hooks/30-update-mime-
+#     database.hook` and `update-desktop-database.hook`, both of which watch
+#     paths this package writes; `gtk-update-icon-cache.hook` covers the hicolor
+#     tree the same way. A scriptlet calling them by hand would run each a second
+#     time, on every install, upgrade and removal, to no effect.
+#   * The AppArmor block installs `/etc/apparmor.d/jadeite`, whose whole body is
+#     `userns,` for `/opt/JADEITE/jadeite`. It exists for Ubuntu 24+, which uses
+#     AppArmor to restrict unprivileged user namespaces; Arch does not, and does
+#     not install AppArmor by default. The profile still ships inside the payload
+#     at `/opt/JADEITE/resources/apparmor-profile` for anyone who has enabled it
+#     and wants to load it, which is the same file the fpm scriptlet copies from.
+#     What is *not* here is a package writing into `/etc` for a facility the
+#     platform does not use.
+#
+# Nothing overrides the package format either: `PKGEXT='.pkg.tar.zst'` is the
+# stock value in `/etc/makepkg.conf`, so the extension is the one makepkg
+# produces on an untouched machine.
