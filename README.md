@@ -104,6 +104,24 @@ is zstd rather than xz, carries a `.BUILDINFO`, owns `/usr/bin/jadeite` instead 
 behind as a file no package accounts for, and needs no install scriptlet because Arch's own
 libalpm hooks already do what fpm's was doing. The PKGBUILD says all of this at length.
 
+**If you already installed the `.pacman`, that first command will fail**, once, and the error
+is `jadeite: /usr/bin/jadeite exists in filesystem`. It is not a broken package. The old
+package never contained `/usr/bin/jadeite` — its install script created it afterwards, so no
+package owns it, and pacman refuses to let a new package take a file it cannot account for.
+Remove the old one first and the problem goes with it:
+
+```bash
+sudo pacman -R jadeite
+sudo pacman -U jadeite-1.2.0-1-x86_64.pkg.tar.zst
+```
+
+**Your vault is not touched by this.** It lives in your home directory, not in the package —
+removing the application has never removed the data, on any platform, and that is the rule
+this project holds itself to. Going through `-R` is also what clears the two things the old
+install script left lying outside the package: that symlink, and `/etc/apparmor.d/jadeite`.
+If you would rather do it in one command, `sudo pacman -U --overwrite /usr/bin/jadeite
+jadeite-1.2.0-1-x86_64.pkg.tar.zst` works and leaves the AppArmor profile behind.
+
 A `.deb` is published for Debian and Ubuntu. Or build it yourself as in 3.A and install what
 you made:
 

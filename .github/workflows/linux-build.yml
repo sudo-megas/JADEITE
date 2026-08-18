@@ -146,6 +146,33 @@ jobs:
           name: linux-packages
           path: release
 
+      # The one way this job can finish green and be wrong, so it is asserted
+      # rather than trusted.
+      #
+      # makepkg resolves its source by filename. If `pkgver` in the PKGBUILD has
+      # not been moved to the version being released, the
+      # `jadeite-<pkgver>.pacman` it wants is not the file the build job just
+      # uploaded and is not in `release/` at all — so makepkg falls back to the
+      # `source` URL, downloads the **previous** release's asset, and packages
+      # that. Its sha256 would even pass, because that is the artefact the line
+      # pins. The result is a release whose Arch package contains the version
+      # before it, with nothing anywhere saying so.
+      #
+      # `pacman -Qip` below cannot catch it either: what it reads back would be
+      # a perfectly valid package of the wrong version.
+      - name: Refuse to package a version this run did not build
+        run: |
+          pkgver=$(sed -n 's/^pkgver=//p' build/package/PKGBUILD)
+          if [ ! -f "release/jadeite-$pkgver.pacman" ]; then
+            echo "build/package/PKGBUILD says pkgver=$pkgver, but that is not what the build job produced:"
+            ls -1 release/
+            echo
+            echo "Move pkgver, _tag and sha256sums in build/package/PKGBUILD to the version being released."
+            echo "Left alone, makepkg would fetch and package the previous release instead."
+            exit 1
+          fi
+          echo "pkgver=$pkgver, and release/jadeite-$pkgver.pacman is the artefact this run built."
+
       # makepkg refuses to run as root, and a container is root — so the build
       # needs somebody to be. `--login` rather than a bare `su` so the shell gets
       # a real `HOME`; the workspace path is expanded by root's shell before `su`

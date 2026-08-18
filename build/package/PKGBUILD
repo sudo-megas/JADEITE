@@ -165,6 +165,24 @@ package() {
   # path because that is what it must resolve to on the installed system;
   # `$pkgdir` must never appear inside a link, and makepkg's own check would say
   # so if it did.
+  #
+  # **This costs one migration, once, and it was reproduced rather than
+  # reasoned about.** On a machine where the fpm `.pacman` is installed, that
+  # scriptlet has already made `/usr/bin/jadeite` and no package owns it —
+  # `pacman -Qo` says so. pacman's file-conflict check runs before any scriptlet
+  # and will not let a package adopt a file it cannot account for, so installing
+  # this one over that one stops with:
+  #
+  #     error: failed to commit transaction (conflicting files)
+  #     jadeite: /usr/bin/jadeite exists in filesystem
+  #
+  # No `.install` can fix that, because the check precedes scriptlets. It is
+  # `sudo pacman -R jadeite` first, which is what the README tells the reader to
+  # do and is the only step that also clears `/etc/apparmor.d/jadeite`, the other
+  # file the old scriptlet left outside its own package. `--overwrite
+  # /usr/bin/jadeite` is the one-command alternative and was verified to work.
+  # After either, the link is a packaged file for good and no later upgrade asks
+  # again.
   install -dm755 "$pkgdir/usr/bin"
   ln -s /opt/JADEITE/jadeite "$pkgdir/usr/bin/jadeite"
 
