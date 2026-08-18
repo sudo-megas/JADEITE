@@ -146,6 +146,17 @@ noextract=("$_pacman")
 # workflow that re-uploads with `--clobber` would invalidate it — which is the
 # checksum doing its job rather than a reason not to have one.
 #
+# **The two cannot be done in one commit, and that is inherent rather than
+# untidy.** `pkgver` and `_tag` have to move *before* the tag is pushed, because
+# the `archpkg` job checks them against the artefact the build produced and
+# fails the release if they disagree. The sum can only be taken *after* that
+# release exists, since there is no asset to hash until the workflow has
+# uploaded one. So a version bump is two commits with a tag between them, and
+# only the second is optional in the sense that nothing in this repository
+# consumes it — a stale sum costs a checksum failure to somebody running
+# `makepkg` here with no `release/` beside it, which is loud, immediate, and
+# not something a release can ship past.
+#
 # `package:arch` passes `--skipchecksums` for the local path above, because the
 # file it feeds in is the artefact packing produced moments earlier in the same
 # tree: it is not the published one, cannot be, and a sum that failed there
