@@ -6,16 +6,17 @@
 <p align="center"><strong>Economi Journal / Ekonomi Defteri</strong></p>
 
 <p align="center">
-  <img alt="Version"           src="https://img.shields.io/badge/version-v1.1-00A86B?style=for-the-badge">
-  <img alt="Release date"      src="https://img.shields.io/badge/released-2026--08--01-00A86B?style=for-the-badge">
-  <img alt="Licence"           src="https://img.shields.io/badge/licence-GPL--3.0--only-6E7B8B?style=for-the-badge">
-</p>
-
-<p align="center">
   <img alt="Arch Linux package" src="https://img.shields.io/badge/Arch%20Linux-116%20MB-1793D1?style=for-the-badge&logo=archlinux&logoColor=white">
   <img alt="Debian package"     src="https://img.shields.io/badge/Debian-97.3%20MB-A80030?style=for-the-badge&logo=debian&logoColor=white">
   <img alt="Windows installer"  src="https://img.shields.io/badge/Windows-101%20MB-0078D6?style=for-the-badge&logo=windows&logoColor=white">
 </p>
+
+<p align="center">
+  <img alt="Version"           src="https://img.shields.io/badge/version-v1.1-518967?style=for-the-badge">
+  <img alt="Release date"      src="https://img.shields.io/badge/released-2026--08--01-BA9860?style=for-the-badge">
+  <img alt="Licence"           src="https://img.shields.io/badge/licence-GPL--3.0--only-57565B?style=for-the-badge">
+</p>
+
 
 ---
 
