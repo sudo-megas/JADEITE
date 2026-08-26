@@ -3,7 +3,7 @@
 </p>
 
 <h1 align="center">JADEITE</h1>
-<p align="center"><strong>Economi Journal / Ekonomi Defteri</strong></p>
+<p align="center"><strong>Economy Journal</strong></p>
 
 <p align="center">
   <img alt="Arch Linux package" src="https://img.shields.io/badge/Arch%20Linux-116%20MB-1793D1?style=for-the-badge&logo=archlinux&logoColor=white">
