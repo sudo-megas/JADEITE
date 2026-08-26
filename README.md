@@ -1,5 +1,5 @@
 <p align="center" width="100%">
-    <img width="33%" src="build/icon.png">
+    <img width="100%" src="build/banner.png">
 </p>
 
 <h1 align="center">JADEITE</h1>
