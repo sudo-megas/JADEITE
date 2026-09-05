@@ -47,7 +47,7 @@ pkgname=jadeite
 # binaries; these are the project's own. Should this ever be submitted to the
 # AUR, that is the moment to rename it — not before.
 
-pkgver=1.2.0
+pkgver=1.3
 # Kept in step with `package.json`'s `version` by hand, and it is the one fact
 # in this file that is written twice in the repository. A PKGBUILD's `pkgver`
 # has to be a literal — `.SRCINFO` is generated from it, and a computed version
@@ -60,7 +60,7 @@ pkgrel=1
 
 # The release tag the artefact hangs off, which is *not* `v$pkgver`: this
 # project tags `v1.2` and versions `1.2.0`, and has since v0.8b.
-_tag=v1.2
+_tag=v1.3
 
 # The synopsis from `electron-builder.yml`, verbatim, because it is already the
 # string `pacman -Qip` prints for the fpm package and the two must not disagree
