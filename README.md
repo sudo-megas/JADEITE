@@ -13,7 +13,7 @@
 
 <p align="center">
   <img alt="Version"           src="https://img.shields.io/badge/version-v1.3-518967?style=for-the-badge">
-  <img alt="Release date"      src="https://img.shields.io/badge/released-2026--08--01-BA9860?style=for-the-badge">
+  <img alt="Release date"      src="https://img.shields.io/badge/released-2026--09--05-BA9860?style=for-the-badge">
   <img alt="Licence"           src="https://img.shields.io/badge/licence-GPL--3.0--only-57565B?style=for-the-badge">
 </p>
 
