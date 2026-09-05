@@ -47,7 +47,7 @@ pkgname=jadeite
 # binaries; these are the project's own. Should this ever be submitted to the
 # AUR, that is the moment to rename it — not before.
 
-pkgver=1.3
+pkgver=1.3.0
 # Kept in step with `package.json`'s `version` by hand, and it is the one fact
 # in this file that is written twice in the repository. A PKGBUILD's `pkgver`
 # has to be a literal — `.SRCINFO` is generated from it, and a computed version
