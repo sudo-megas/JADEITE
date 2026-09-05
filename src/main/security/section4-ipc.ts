@@ -70,7 +70,7 @@ function asPatch(value: unknown): CellPatch {
 
   const figure = raw['value']
   if (figure === null || figure === undefined) return { slot, value: null }
-  if (typeof figure !== 'number' || !Number.isSafeInteger(figure) || figure < 0) {
+  if (typeof figure !== 'number' || !Number.isSafeInteger(figure)) {
     throw new Section4Error('INVALID_VALUE')
   }
   return { slot, value: figure }

@@ -67,7 +67,7 @@ function cleanSlot(slot: unknown): number {
  * Clearing a box is a null on the patch and never reaches here.
  */
 function cleanValue(value: unknown): number {
-  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value)) {
     fail('INVALID_VALUE')
   }
   return value

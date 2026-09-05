@@ -455,7 +455,7 @@ ALTER TABLE s2_cells_new RENAME TO s2_cells;
 -- no row; a box holding zero has a row holding zero.
 CREATE TABLE s4_cells (
   slot  INTEGER PRIMARY KEY CHECK (slot >= 0),
-  value INTEGER NOT NULL CHECK (value >= 0)
+  value INTEGER NOT NULL
 );
 
 INSERT INTO s4_cells (slot, value)

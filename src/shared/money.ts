@@ -116,18 +116,25 @@ export function parseFixedPoint(
   language: MoneyLanguage,
   fractionDigits: number
 ): ParsedFixedPoint {
-  const cleaned = input.replace(NOISE, '')
-  if (cleaned.length === 0) return { kind: 'empty' }
+  const cleaned = input.replace(NOISE, '');
+  if (cleaned.length === 0) return { kind: 'empty' };
 
-  // Refused, not absolute-valued: see the module note.
-  if (cleaned.startsWith('-') || cleaned.startsWith('−')) {
-    return { kind: 'error', reason: 'NEGATIVE' }
-  }
+  // Normalize typographic minus to standard hyphen-minus so JS can parse it
+  const normalized = cleaned.replace('−', '-');
+  
+// Track if the number is negative, then strip the sign for digit validation
+  const isNegative = normalized.startsWith('-');
+  const unsigned = isNegative ? normalized.slice(1) : normalized;
 
-  const body = cleaned.startsWith('+') ? cleaned.slice(1) : cleaned
-  if (body.length === 0) return { kind: 'error', reason: 'NOT_A_NUMBER' }
-
-  const { decimal, group } = SEPARATORS[language]
+// Strip the '+' if present, otherwise keep the unsigned string
+  const body = unsigned.startsWith('+') ? unsigned.slice(1) : unsigned;
+  
+// Prevent an empty string from breaking the parser
+  if (body.length === 0) {
+   return { kind: 'error', reason: 'NOT_A_NUMBER' };
+}
+  
+  const { decimal, group } = SEPARATORS[language];
 
   // Anything that is not a digit or one of this language's two separators is
   // not an amount. A separator borrowed from the other language lands here on
@@ -159,9 +166,13 @@ export function parseFixedPoint(
 
   // Assembled as digits, so the value never passes through a float.
   const scaled = Number(`${whole}${minor}`)
-  if (!Number.isSafeInteger(scaled)) return { kind: 'error', reason: 'TOO_LARGE' }
 
-  return { kind: 'value', scaled }
+// Apply the correct sign before returning
+  const finalValue = isNegative ? -scaled : scaled;
+
+  if (!Number.isSafeInteger(finalValue)) return { kind: 'error', reason: 'TOO_LARGE' }
+
+  return { kind: 'value', scaled: finalValue }
 }
 
 /**
