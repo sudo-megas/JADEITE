@@ -6,7 +6,7 @@
 <p align="center"><strong>Economy Journal</strong></p>
 
 <p align="center">
-  <img alt="Arch Linux package" src="https://img.shields.io/badge/Arch%20Linux-116%40MB-1793D1?style=for-the-badge&logo=archlinux&logoColor=white">
+  <img alt="Arch Linux package" src="https://img.shields.io/badge/Arch%20Linux-116.4%20MB-1793D1?style=for-the-badge&logo=archlinux&logoColor=white">
   <img alt="Debian package"     src="https://img.shields.io/badge/Debian-96.2%20MB-A80030?style=for-the-badge&logo=debian&logoColor=white">
   <img alt="Windows installer"  src="https://img.shields.io/badge/Windows-96.8%20MB-0078D6?style=for-the-badge&logo=windows&logoColor=white">
 </p>
